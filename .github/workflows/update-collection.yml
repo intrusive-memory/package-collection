@@ -1,0 +1,37 @@
+name: Update Package Collection
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Daily at midnight UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    name: Update collection.json
+    runs-on: macos-26
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install jq
+        run: brew install jq
+
+      - name: Generate collection
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          chmod +x generate-collection.sh
+          ./generate-collection.sh collection.json
+
+      - name: Commit and push if changed
+        run: |
+          git diff --quiet collection.json && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add collection.json
+          git commit -m "Update package collection ($(date -u +%Y-%m-%d))"
+          git push
