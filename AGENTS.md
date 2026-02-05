@@ -181,3 +181,58 @@ rectangles on thin vertical lines. Atmosphere: Dusty blue and seafoam gradient.
 Texture: Hand-painted with subtle brushstrokes and vintage paper overlay.
 No text. 1:1 Aspect Ratio.
 ```
+
+---
+
+## Skills Inventory
+
+Reusable Claude Code skills are stored in the `skills/` directory. To install a skill into a project, copy its directory into the project's `.claude/skills/` folder (or symlink it).
+
+### Installation
+
+```bash
+# Install a single skill into the current project
+cp -r skills/<skill-name> .claude/skills/
+
+# Or install all skills
+cp -r skills/* .claude/skills/
+
+# Or symlink for automatic updates
+ln -s "$(pwd)/skills/<skill-name>" .claude/skills/<skill-name>
+```
+
+### Available Skills
+
+| Skill | Invocation | Description |
+|-------|-----------|-------------|
+| **fix-code-signing** | `/fix-code-signing` | Diagnoses and fixes code signing configuration issues for XCTest bundles in hardened runtime macOS apps |
+| **macos-say** | `/macos-say` | Use macOS text-to-speech via the `say` command for voice feedback, audio narration, and spoken output |
+| **release** | `/release` | Release a merged PR by tagging and creating a GitHub release |
+| **ship-ios-app** | `/ship-ios-app` | Ships new versions of iOS/macOS apps via App Store Connect |
+| **ship-swift-library** | `/ship-swift-library` | Ship and release Swift library versions — merge PR, bump version, tag, create GitHub release |
+| **shortcuts-helper** | `/shortcuts-helper` | Create, run, and understand macOS Shortcuts workflows with CLI, URL schemes, and App Intents |
+| **sprint-supervisor** | `/sprint-supervisor` | Orchestrate multi-package Swift porting sprints with parallel agents, layer gating, and conflict resolution |
+| **ui-ux-pro-max** | `/ui-ux-pro-max` | UI/UX design intelligence — 50 styles, 21 palettes, 50 font pairings, 20 charts, 8 framework stacks |
+
+### Skill Structure
+
+Each skill follows the standard Claude Code skill format:
+
+```
+skills/<skill-name>/
+├── SKILL.md          # Skill definition (frontmatter + instructions)
+├── README.md         # Optional user-facing documentation
+├── data/             # Optional data files (CSV, JSON, etc.)
+├── reference/        # Optional reference materials
+└── scripts/          # Optional helper scripts
+```
+
+The `SKILL.md` frontmatter defines metadata:
+
+```yaml
+---
+name: skill-name
+description: What the skill does
+allowed-tools: Bash, Read, Edit, ...
+---
+```
