@@ -1,7 +1,7 @@
 ---
 name: sprint-supervisor
-description: Orchestrate sprint execution for any project with an EXECUTION_PLAN.md. Use this to start, resume, monitor, or stop the supervisor that coordinates sprint agents, gates dependencies, and handles errors across work units.
-argument-hint: "[start|resume|status|stop|killall] [path/to/EXECUTION_PLAN.md]"
+description: Plan and execute sprints. Pre-execution commands (breakdown, prioritize, evaluate) create and refine an EXECUTION_PLAN.md from requirements. Execution commands (start, resume, status, stop, killall) orchestrate sprint agents.
+argument-hint: "[breakdown|prioritize|evaluate|start|resume|status|stop|killall] [path] [--max-turns=N]"
 disable-model-invocation: true
 allowed-tools: Read, Glob, Grep, Bash, Task, Write, Edit, TaskOutput, KillShell
 ---
@@ -78,12 +78,32 @@ FATAL ──(user manually restarts)──► PENDING
 
 Parse `$ARGUMENTS` as follows:
 
-- **First word**: the command — one of `start`, `resume`, `status`, `stop`, `killall`.
-- **Second word (optional)**: explicit path to `EXECUTION_PLAN.md`.
+- **First word**: the command — one of the eight commands below.
+- **Remaining words**: command-specific arguments (see below).
+
+### Command Categories
+
+| Category | Commands | Purpose |
+|----------|----------|---------|
+| **Pre-execution** | `breakdown`, `prioritize`, `evaluate` | Create and refine EXECUTION_PLAN.md from requirements |
+| **Execution** | `start`, `resume`, `status`, `stop`, `killall` | Orchestrate sprint agents against an existing plan |
+
+### Pre-execution Command Signatures
+
+- **`breakdown [path/to/requirements.md]`**: Path to a requirements document. If omitted, search the current directory for common filenames: `REQUIREMENTS.md`, `PRD.md`, `SPEC.md`, `README.md` (in that order). If none found, STOP with an error.
+- **`prioritize [path/to/EXECUTION_PLAN.md]`**: Optional path to an existing execution plan. Uses the standard resolution logic below if omitted.
+- **`evaluate [path/to/EXECUTION_PLAN.md] [--max-turns=N]`**: Optional path (same resolution) plus optional `--max-turns` flag (default 50) to set the context budget for sprint agents.
+
+### Execution Command Signatures
+
+- **`start [path/to/EXECUTION_PLAN.md]`**: Optional explicit path.
+- **`resume`**, **`status`**, **`stop`**, **`killall`**: No path argument (uses existing state).
+
+### Default Command
 
 If no command is given: treat as `resume` if `SUPERVISOR_STATE.md` exists in the project root, otherwise treat as `start`.
 
-### Locate EXECUTION_PLAN.md
+### Locate EXECUTION_PLAN.md (for `prioritize`, `evaluate`, and execution commands)
 
 Resolve the execution plan path using this priority:
 
@@ -98,6 +118,21 @@ Resolve the execution plan path using this priority:
    ```
 
 Once found, derive the **project root** as the directory containing `EXECUTION_PLAN.md`. All other paths (SUPERVISOR_STATE.md, work unit directories, progress files) are relative to this root.
+
+### Locate Requirements Document (for `breakdown`)
+
+Resolve the requirements path using this priority:
+
+1. If an explicit path was provided as the second argument, use it.
+2. Otherwise, search the current working directory for: `REQUIREMENTS.md`, `PRD.md`, `SPEC.md`, `README.md` (first match wins).
+3. **If not found: STOP.** Output this message and do nothing else:
+   ```
+   ERROR: Cannot find a requirements document.
+   The breakdown command needs a source document to analyze.
+   Please provide the path: /sprint-supervisor breakdown /path/to/requirements.md
+   ```
+
+Derive the **project root** as the directory containing the requirements document.
 
 Store the resolved project root as `$PROJECT_ROOT` for use throughout this session.
 
@@ -206,6 +241,14 @@ Progress files and git state are ground truth. If SUPERVISOR_STATE.md disagrees 
 ### Step 6: Execute Command
 
 Based on the parsed command:
+
+#### Pre-execution Commands (skip Steps 1-5 — they have their own parsing)
+
+- **`breakdown`**: Jump directly to Section 14. Reads a requirements document and generates EXECUTION_PLAN.md. No existing plan is needed.
+- **`prioritize`**: Jump directly to Section 15. Reads and reorders an existing EXECUTION_PLAN.md. Uses its own plan parsing.
+- **`evaluate`**: Jump directly to Section 16. Reads and validates an existing EXECUTION_PLAN.md. Uses its own plan parsing.
+
+#### Execution Commands (require Steps 1-5 to complete first)
 
 - **`start`**: Begin from scratch. Initialize SUPERVISOR_STATE.md. Dispatch Sprint 1 for each work unit that has no unsatisfied dependencies.
 - **`resume`**: Pick up where the last supervisor left off. Read state, determine what sprints need dispatching, continue.
@@ -662,7 +705,7 @@ To discard uncommitted work and resume cleanly:
 - Skip entry or exit criteria defined in the execution plan
 - Dispatch Sprint N+1 before Sprint N is confirmed complete via verification
 - Start a dependent work unit before its prerequisites are verified
-- Modify EXECUTION_PLAN.md (this is the human's document)
+- Modify EXECUTION_PLAN.md during execution commands (this is the human's document). **Note**: Pre-execution commands (`breakdown`, `prioritize`, `evaluate`) exist specifically to create and modify EXECUTION_PLAN.md — this constraint does not apply to them.
 - Dispatch sprints for multiple work units in a single agent (one work unit per agent)
 - Use state names not defined in the State Machine section (no ad-hoc states like "paused", "waiting", "in_progress")
 - Escalate deferred sprints to FATAL just because the external condition isn't met yet
@@ -697,4 +740,352 @@ When all work units complete, output:
 ## Supervisor Complete
 All <total> sprints executed across <count> work units.
 All exit criteria verified.
+```
+
+---
+
+## 14. Breakdown Command
+
+The `breakdown` command reads a requirements document and generates `EXECUTION_PLAN.md`. This is the first step in the pre-execution pipeline.
+
+### 14a. Read the Requirements Document
+
+Read the file resolved in Section 2 (Locate Requirements Document). Accept any markdown format — PRDs, specs, READMEs, design docs, bullet lists, prose, or mixed formats.
+
+### 14b. Heuristic Requirement Detection
+
+Scan the document for requirements using these heuristics, in priority order:
+
+**Explicit requirements** (high confidence):
+- Headings containing "Requirements", "Functional Requirements", "Non-Functional Requirements"
+- Numbered or lettered lists under requirement-style headings
+- RFC keywords: MUST, SHALL, SHOULD, MUST NOT, SHALL NOT, SHOULD NOT, MAY
+- User stories: "As a [role], I want [goal], so that [reason]"
+- Acceptance criteria sections
+
+**Implicit requirements** (medium confidence):
+- Task language: "implement", "create", "build", "add", "support", "enable", "integrate"
+- Checklists (`- [ ]` items)
+- Bullet lists under headings like "Features", "Deliverables", "Scope", "Tasks"
+
+**Context signals** (supplementary — not requirements themselves, but inform decomposition):
+- Goals / objectives sections
+- Technical constraints (language, platform, framework, API compatibility)
+- Architecture diagrams or descriptions
+- Out-of-scope markers ("out of scope", "not included", "future work", "v2")
+- Dependencies on external systems
+
+Record each detected requirement with its source location (heading + line range) and confidence level.
+
+### 14c. Decompose into Atomic Tasks
+
+Break each requirement into atomic tasks. An atomic task has:
+
+- **Single concern**: Does exactly one thing
+- **Clear artifact**: Produces a specific, nameable output (file, function, config, test suite)
+- **Bounded scope**: Completable by a single agent in one sprint (≤50 turns)
+- **Explicit inputs/outputs**: What it reads, what it produces
+
+**Split rules** — apply when a requirement is NOT atomic:
+
+| Signal | Split Strategy |
+|--------|---------------|
+| "and" conjunction joining distinct work | Split at the conjunction |
+| Multiple files in different directories | One task per directory cluster |
+| "Create X and integrate with Y" | Split into "Create X" and "Integrate X with Y" |
+| "Add support for A, B, and C" | One task per item if they're independent; one task if they share implementation |
+| Requirement spans >3 files | Split by logical grouping (types, logic, tests, config) |
+| Implicit test work | Separate "Write tests for X" task unless trivial |
+
+### 14d. Identify Work Units
+
+Group atomic tasks into work units based on document structure:
+
+1. **Document sections**: If the requirements doc has clear `##` section divisions → each section is a candidate work unit.
+2. **Directory references**: If tasks reference distinct directories or packages → each directory is a work unit.
+3. **Dependency clusters**: Tasks that share inputs/outputs and must execute together → cluster into a work unit.
+4. **Single-project default**: If no multi-unit structure is evident, the entire plan is one work unit named after the project directory.
+
+Each work unit must have:
+- A clear name
+- A directory (or project root for single-unit plans)
+- At least one sprint
+
+### 14e. Group Tasks into Sprints
+
+Organize atomic tasks into sprints within each work unit:
+
+- **3-7 tasks per sprint**: Fewer than 3 suggests the sprint is too narrow; more than 7 risks context exhaustion.
+- **Sequential dependencies within work unit**: If task B depends on task A's output, they go in the same sprint (A before B) or A's sprint comes first.
+- **Logical cohesion**: Group tasks that operate on the same files or subsystem.
+- **Foundation first**: Types, interfaces, and shared utilities go in Sprint 1. Implementations that depend on them follow.
+
+### 14f. Generate EXECUTION_PLAN.md
+
+Write `$PROJECT_ROOT/EXECUTION_PLAN.md` in a format compatible with the existing parser (Section 3 Step 2). The generated plan MUST include:
+
+**Title**:
+```markdown
+# EXECUTION_PLAN.md — <Project Name>
+```
+
+**Work Units table** (with Layer column for dependency gating):
+```markdown
+## Work Units
+
+| Work Unit | Directory | Sprints | Layer | Dependencies |
+|-----------|-----------|---------|-------|-------------|
+| <name> | <dir> | <count> | <N> | <deps or "none"> |
+```
+
+**Sprint definitions** (one per sprint, using `### Sprint N:` headers):
+```markdown
+### Sprint <N>: <Sprint Name>
+
+**Entry criteria**:
+- [ ] <criterion — reference prior sprint exit criteria or "First sprint — no prerequisites">
+
+**Tasks**:
+1. <Task description with specific files/artifacts>
+2. <Task description>
+...
+
+**Exit criteria**:
+- [ ] <Machine-verifiable criterion (build succeeds, test passes, file exists)>
+- [ ] <Machine-verifiable criterion>
+```
+
+**Summary table**:
+```markdown
+## Summary
+
+| Metric | Value |
+|--------|-------|
+| Work units | <N> |
+| Total sprints | <N> |
+| Dependency structure | <layers \| sequential \| parallel> |
+```
+
+### 14g. Do NOT Prioritize
+
+The `breakdown` command arranges sprints in natural dependency order only. It does NOT analyze risk, complexity, or strategic priority. That is the job of the `prioritize` command.
+
+### 14h. Output Summary
+
+After writing EXECUTION_PLAN.md, output:
+
+```
+## Breakdown Complete
+
+Source: <requirements file path>
+Output: $PROJECT_ROOT/EXECUTION_PLAN.md
+
+| Metric | Count |
+|--------|-------|
+| Requirements detected | <N> |
+| Atomic tasks | <N> |
+| Work units | <N> |
+| Sprints | <N> |
+
+Next step: /sprint-supervisor prioritize
+```
+
+---
+
+## 15. Prioritize Command
+
+The `prioritize` command reads an existing EXECUTION_PLAN.md, scores and reorders sprints by strategic priority, and rewrites the plan in place.
+
+### 15a. Parse Existing Plan
+
+Read `EXECUTION_PLAN.md` using the detection heuristics from Section 3 Step 2 (detect work units, sprints, dependencies, entry/exit criteria). Build an internal model of the plan structure.
+
+### 15b. Score Each Sprint
+
+Evaluate each sprint on four dimensions:
+
+| Dimension | How to Measure | Weight |
+|-----------|---------------|--------|
+| **Dependency depth** | Count the number of sprints transitively blocked by this sprint (direct + indirect dependents) | 3x |
+| **Foundation score** | Does this sprint establish types, interfaces, or patterns reused by 2+ later sprints? (0 = no, 1 = yes) | 2x |
+| **Risk level** | Indicators: external API calls (3), new technology/unfamiliar patterns (3), complex algorithms (2), file I/O or system calls (2), simple CRUD or config (1). Use the highest matching indicator. | 1x |
+| **Complexity** | Based on: task count (1-3=1, 4-5=2, 6-7=3, 8+=4), files touched (1-2=1, 3-5=2, 6-10=3, 11+=4), verification complexity (checklist only=1, build check=2, test suite=3, integration test=4). Average the three sub-scores. | 0.5x |
+
+### 15c. Compute Composite Priority
+
+For each sprint:
+
+```
+priority = (dependency_depth * 3) + (foundation_score * 2) + (risk_level * 1) + (complexity * 0.5)
+```
+
+Higher score = higher priority = should be executed earlier.
+
+### 15d. Reorder Within Hard Constraints
+
+Reorder sprints to maximize priority while respecting:
+
+1. **Dependency order**: A sprint cannot move before any sprint it depends on.
+2. **Work unit coherence**: Sprints within a work unit maintain relative order unless dependencies allow reordering.
+3. **Layer integrity**: Work units in Layer N cannot start before Layer N-1 completes.
+
+After reordering:
+- Renumber sprints sequentially (Sprint 1, Sprint 2, ...).
+- Update all cross-references (entry criteria that reference "Sprint N exit criteria" must point to the new number).
+
+### 15e. Add Priority Annotations
+
+Add a `**Priority**:` line to each sprint definition:
+
+```markdown
+### Sprint <N>: <Sprint Name>
+
+**Priority**: <score> — <one-line justification>
+
+**Entry criteria**:
+...
+```
+
+The justification should name the dominant factor, e.g.:
+- `"12.5 — blocks 4 downstream sprints, establishes core types"`
+- `"3.0 — leaf sprint, low complexity, no dependents"`
+
+### 15f. Update Dependency Structure
+
+If priority analysis reveals better layering (e.g., a sprint in Layer 2 has no actual dependency on Layer 1), adjust:
+- Move the sprint to an earlier layer if dependencies allow.
+- Update the Work Units table Layer column accordingly.
+- Log the change in the output summary.
+
+### 15g. Rewrite EXECUTION_PLAN.md
+
+Write the reordered plan back to `$PROJECT_ROOT/EXECUTION_PLAN.md`, preserving all content but with updated ordering, numbering, cross-references, and priority annotations.
+
+### 15h. Output Summary
+
+```
+## Prioritization Complete
+
+| Sprint | Name | Priority | Change |
+|--------|------|----------|--------|
+| 1 | <name> | <score> | was Sprint <old_N> / unchanged |
+| 2 | <name> | <score> | was Sprint <old_N> / unchanged |
+| ... | ... | ... | ... |
+
+Sprints reordered: <N>
+Layer adjustments: <N or "none">
+
+Next step: /sprint-supervisor evaluate
+```
+
+---
+
+## 16. Evaluate Command
+
+The `evaluate` command reads an existing EXECUTION_PLAN.md, checks sprint quality across multiple dimensions, auto-fixes problems, and rewrites the plan in place.
+
+### 16a. Parse Existing Plan
+
+Read `EXECUTION_PLAN.md` using the detection heuristics from Section 3 Step 2. Build an internal model of the plan structure.
+
+### 16b. Context Budget
+
+The context budget is the `--max-turns` value from the command arguments (default: 50). This represents the maximum turns available to each sprint agent. Use this to calibrate the "context fitness" check.
+
+**Calibration**: ~15-20 productive actions per 50 turns (the rest is reading, reasoning, and verification overhead).
+
+### 16c. Atomicity Check
+
+For each sprint, verify it is atomic:
+
+| Criterion | Pass | Fail |
+|-----------|------|------|
+| Single concern | All tasks relate to one subsystem or feature | Tasks span multiple unrelated subsystems |
+| Clear artifact | Sprint produces named, specific outputs | Vague deliverables ("make it work", "update things") |
+| Bounded scope | Estimated effort fits within context budget | Sprint requires more actions than budget allows |
+| Explicit inputs/outputs | Entry criteria name specific artifacts; exit criteria name specific verifiable outcomes | References to "previous work" without specifics |
+
+Flag sprints that fail any criterion. Record the specific issue for the auto-fix step.
+
+### 16d. Testability Check
+
+For each sprint, verify its exit criteria are machine-testable:
+
+| Criterion | Pass | Fail |
+|-----------|------|------|
+| At least one machine-verifiable criterion | Has a build command, test command, file-exists check, or grep check | Only human-judgment criteria ("looks good", "works correctly") |
+| No vague language | Criteria use specific, measurable terms | Contains "works correctly", "properly handles", "is complete" |
+| Coverage | Exit criteria address all tasks in the sprint | Some tasks have no corresponding exit criterion |
+
+Flag sprints with testability issues.
+
+### 16e. Context Fitness Check
+
+Estimate the turns required for each sprint using this formula:
+
+```
+estimated_turns = R + (C * 2) + (M * 2) + B + ceil(L / 75) + V + 5
+```
+
+Where:
+- **R** = number of files to read (entry criteria references + context files)
+- **C** = number of files to create
+- **M** = number of files to modify (edits)
+- **B** = number of build/compile steps
+- **L** = estimated total lines of code to write
+- **V** = number of verification steps (exit criteria count)
+- **5** = fixed overhead (reasoning, planning, error handling)
+
+| Verdict | Condition |
+|---------|-----------|
+| **Oversized** | `estimated_turns > context_budget * 0.80` |
+| **Right-sized** | Between 15% and 80% of budget |
+| **Undersized** | `estimated_turns < context_budget * 0.15` |
+
+### 16f. Automatic Rewrite
+
+Apply fixes for all flagged issues:
+
+| Issue | Fix |
+|-------|-----|
+| Oversized sprint | Split into two sprints at the natural halfway point (by task count or by subsystem boundary). Create entry/exit criteria for the split point. |
+| Undersized sprint | Merge with the adjacent sprint (prefer merging forward into the next sprint). Combine entry/exit criteria. |
+| Non-atomic (multiple concerns) | Split by concern. Each resulting sprint gets the tasks for one concern. |
+| Missing exit criteria | Add machine-verifiable criteria: file-exists checks for created files, build commands for code sprints, test commands for test sprints. |
+| Vague exit criteria | Replace vague language with specific checks. "works correctly" → "tests pass: `<test command>`". "is complete" → "file exists: `<path>`". |
+
+After all fixes:
+- Renumber sprints sequentially.
+- Update all cross-references.
+- Recalculate estimated turns for modified sprints to confirm they now pass.
+
+### 16g. Rewrite EXECUTION_PLAN.md
+
+Write the validated (and possibly modified) plan back to `$PROJECT_ROOT/EXECUTION_PLAN.md`, preserving all content but with fixes applied, updated numbering, and corrected cross-references.
+
+### 16h. Output Diagnostic Summary
+
+```
+## Evaluation Complete
+
+### Check Results
+
+| Check | Passed | Issues Found | Auto-Fixed |
+|-------|--------|-------------|------------|
+| Atomicity | <N> | <N> | <N> |
+| Testability | <N> | <N> | <N> |
+| Context Fitness | <N> | <N> | <N> |
+
+### Sprint Changes
+
+| Change | Count |
+|--------|-------|
+| Sprints before | <N> |
+| Sprints after | <N> |
+| Splits | <N> |
+| Merges | <N> |
+
+Context budget: <max_turns> turns per sprint
+
+Next step: /sprint-supervisor start
 ```
