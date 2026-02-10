@@ -1,10 +1,16 @@
 {
   "name": "Intrusive Memory Swift Packages",
   "overview": "Screenplay visualization and audio generation libraries by Intrusive Memory. Powers the Produciesta ecosystem for transforming screenplays into audio performances.",
-  "keywords": ["screenplay", "tts", "audio", "swift", "intrusive-memory"],
+  "keywords": [
+    "screenplay",
+    "tts",
+    "audio",
+    "swift",
+    "intrusive-memory"
+  ],
   "formatVersion": "1.0",
-  "revision": 1,
-  "generatedAt": "2026-01-28T00:00:00Z",
+  "revision": 2,
+  "generatedAt": "2026-02-10T00:58:29Z",
   "generatedBy": {
     "name": "Intrusive Memory"
   },
@@ -12,20 +18,48 @@
     {
       "url": "https://github.com/intrusive-memory/SwiftBruja.git",
       "summary": "On-device LLM inference for Apple Silicon via MLX. One-line queries with auto-download.",
-      "keywords": ["llm", "mlx", "ai", "apple-silicon"],
+      "keywords": [
+        "llm",
+        "mlx",
+        "ai",
+        "apple-silicon"
+      ],
       "readmeURL": "https://github.com/intrusive-memory/SwiftBruja/blob/main/README.md",
       "versions": [
         {
-          "version": "1.0.0",
+          "version": "1.0.10",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
               "packageName": "SwiftBruja",
-              "targets": [{ "name": "SwiftBruja", "moduleName": "SwiftBruja" }],
-              "products": [{ "name": "SwiftBruja", "type": { "library": ["automatic"] }, "targets": ["SwiftBruja"] }],
+              "targets": [
+                {
+                  "name": "SwiftBruja",
+                  "moduleName": "SwiftBruja"
+                }
+              ],
+              "products": [
+                {
+                  "name": "SwiftBruja",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "SwiftBruja"
+                  ]
+                }
+              ],
               "minimumPlatformVersions": [
-                { "name": "macOS", "version": "26.0" },
-                { "name": "iOS", "version": "26.0" }
+                {
+                  "name": "macOS",
+                  "version": "26.0"
+                },
+                {
+                  "name": "iOS",
+                  "version": "26.0"
+                }
               ]
             }
           },
@@ -36,7 +70,13 @@
     {
       "url": "https://github.com/intrusive-memory/SwiftCompartido.git",
       "summary": "Screenplay parsing, SwiftData models, and SwiftUI display components. Supports Fountain, FDX, PDF, Highland, and more.",
-      "keywords": ["screenplay", "fountain", "parser", "swiftui", "swiftdata"],
+      "keywords": [
+        "screenplay",
+        "fountain",
+        "parser",
+        "swiftui",
+        "swiftdata"
+      ],
       "readmeURL": "https://github.com/intrusive-memory/SwiftCompartido/blob/main/README.md",
       "versions": [
         {
@@ -45,11 +85,34 @@
             "6.2": {
               "toolsVersion": "6.2",
               "packageName": "SwiftCompartido",
-              "targets": [{ "name": "SwiftCompartido", "moduleName": "SwiftCompartido" }],
-              "products": [{ "name": "SwiftCompartido", "type": { "library": ["automatic"] }, "targets": ["SwiftCompartido"] }],
+              "targets": [
+                {
+                  "name": "SwiftCompartido",
+                  "moduleName": "SwiftCompartido"
+                }
+              ],
+              "products": [
+                {
+                  "name": "SwiftCompartido",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "SwiftCompartido"
+                  ]
+                }
+              ],
               "minimumPlatformVersions": [
-                { "name": "macOS", "version": "26.0" },
-                { "name": "iOS", "version": "26.0" }
+                {
+                  "name": "macOS",
+                  "version": "26.0"
+                },
+                {
+                  "name": "iOS",
+                  "version": "26.0"
+                }
               ]
             }
           },
@@ -60,7 +123,11 @@
     {
       "url": "https://github.com/intrusive-memory/SwiftEspeak.git",
       "summary": "Swift wrapper for eSpeak-NG text-to-speech engine. Experimental.",
-      "keywords": ["tts", "espeak", "speech"],
+      "keywords": [
+        "tts",
+        "espeak",
+        "speech"
+      ],
       "readmeURL": "https://github.com/intrusive-memory/SwiftEspeak/blob/main/README.md",
       "versions": [
         {
@@ -69,11 +136,34 @@
             "5.5": {
               "toolsVersion": "5.5",
               "packageName": "SwiftEspeak",
-              "targets": [{ "name": "SwiftEspeak", "moduleName": "SwiftEspeak" }],
-              "products": [{ "name": "SwiftEspeak", "type": { "library": ["automatic"] }, "targets": ["SwiftEspeak"] }],
+              "targets": [
+                {
+                  "name": "SwiftEspeak",
+                  "moduleName": "SwiftEspeak"
+                }
+              ],
+              "products": [
+                {
+                  "name": "SwiftEspeak",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "SwiftEspeak"
+                  ]
+                }
+              ],
               "minimumPlatformVersions": [
-                { "name": "macOS", "version": "11.0" },
-                { "name": "iOS", "version": "14.0" }
+                {
+                  "name": "macOS",
+                  "version": "11.0"
+                },
+                {
+                  "name": "iOS",
+                  "version": "14.0"
+                }
               ]
             }
           },
@@ -84,7 +174,12 @@
     {
       "url": "https://github.com/intrusive-memory/SwiftFFMpeg.git",
       "summary": "Swift wrapper for FFmpeg API for audio/video processing.",
-      "keywords": ["ffmpeg", "audio", "video", "media"],
+      "keywords": [
+        "ffmpeg",
+        "audio",
+        "video",
+        "media"
+      ],
       "readmeURL": "https://github.com/intrusive-memory/SwiftFFMpeg/blob/main/README.md",
       "versions": [
         {
@@ -93,10 +188,30 @@
             "6.2": {
               "toolsVersion": "6.2",
               "packageName": "SwiftFFmpeg",
-              "targets": [{ "name": "SwiftFFmpeg", "moduleName": "SwiftFFmpeg" }],
-              "products": [{ "name": "SwiftFFmpeg", "type": { "library": ["automatic"] }, "targets": ["SwiftFFmpeg"] }],
+              "targets": [
+                {
+                  "name": "SwiftFFmpeg",
+                  "moduleName": "SwiftFFmpeg"
+                }
+              ],
+              "products": [
+                {
+                  "name": "SwiftFFmpeg",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "SwiftFFmpeg"
+                  ]
+                }
+              ],
               "minimumPlatformVersions": [
-                { "name": "macOS", "version": "26.0" }
+                {
+                  "name": "macOS",
+                  "version": "26.0"
+                }
               ]
             }
           },
@@ -107,20 +222,47 @@
     {
       "url": "https://github.com/intrusive-memory/SwiftFijos.git",
       "summary": "Test fixture file discovery for Swift packages and Xcode projects.",
-      "keywords": ["testing", "fixtures", "test-utilities"],
+      "keywords": [
+        "testing",
+        "fixtures",
+        "test-utilities"
+      ],
       "readmeURL": "https://github.com/intrusive-memory/SwiftFijos/blob/main/README.md",
       "versions": [
         {
-          "version": "1.0.0",
+          "version": "1.4.0",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
               "packageName": "SwiftFijos",
-              "targets": [{ "name": "SwiftFijos", "moduleName": "SwiftFijos" }],
-              "products": [{ "name": "SwiftFijos", "type": { "library": ["automatic"] }, "targets": ["SwiftFijos"] }],
+              "targets": [
+                {
+                  "name": "SwiftFijos",
+                  "moduleName": "SwiftFijos"
+                }
+              ],
+              "products": [
+                {
+                  "name": "SwiftFijos",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "SwiftFijos"
+                  ]
+                }
+              ],
               "minimumPlatformVersions": [
-                { "name": "macOS", "version": "26.0" },
-                { "name": "iOS", "version": "26.0" }
+                {
+                  "name": "macOS",
+                  "version": "26.0"
+                },
+                {
+                  "name": "iOS",
+                  "version": "26.0"
+                }
               ]
             }
           },
@@ -131,26 +273,64 @@
     {
       "url": "https://github.com/intrusive-memory/SwiftHablare.git",
       "summary": "Voice generation library with Apple TTS, ElevenLabs, and Qwen TTS providers. SwiftUI components included.",
-      "keywords": ["tts", "voice", "audio", "speech-synthesis", "elevenlabs"],
+      "keywords": [
+        "tts",
+        "voice",
+        "audio",
+        "speech-synthesis",
+        "elevenlabs"
+      ],
       "readmeURL": "https://github.com/intrusive-memory/SwiftHablare/blob/main/README.md",
       "versions": [
         {
-          "version": "5.5.1",
+          "version": "5.6.0",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
               "packageName": "SwiftHablare",
               "targets": [
-                { "name": "SwiftHablare", "moduleName": "SwiftHablare" },
-                { "name": "QwenTTSEngine", "moduleName": "QwenTTSEngine" }
+                {
+                  "name": "SwiftHablare",
+                  "moduleName": "SwiftHablare"
+                },
+                {
+                  "name": "QwenTTSEngine",
+                  "moduleName": "QwenTTSEngine"
+                }
               ],
               "products": [
-                { "name": "SwiftHablare", "type": { "library": ["automatic"] }, "targets": ["SwiftHablare"] },
-                { "name": "QwenTTSEngine", "type": { "library": ["automatic"] }, "targets": ["QwenTTSEngine"] }
+                {
+                  "name": "SwiftHablare",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "SwiftHablare"
+                  ]
+                },
+                {
+                  "name": "QwenTTSEngine",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "QwenTTSEngine"
+                  ]
+                }
               ],
               "minimumPlatformVersions": [
-                { "name": "macOS", "version": "26.0" },
-                { "name": "iOS", "version": "26.0" }
+                {
+                  "name": "macOS",
+                  "version": "26.0"
+                },
+                {
+                  "name": "iOS",
+                  "version": "26.0"
+                }
               ]
             }
           },
@@ -161,20 +341,48 @@
     {
       "url": "https://github.com/intrusive-memory/SwiftProyecto.git",
       "summary": "Project metadata management, file discovery, and PROJECT.md parsing for screenplay projects.",
-      "keywords": ["project", "metadata", "file-discovery", "yaml"],
+      "keywords": [
+        "project",
+        "metadata",
+        "file-discovery",
+        "yaml"
+      ],
       "readmeURL": "https://github.com/intrusive-memory/SwiftProyecto/blob/main/README.md",
       "versions": [
         {
-          "version": "2.2.0",
+          "version": "2.6.0",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
               "packageName": "SwiftProyecto",
-              "targets": [{ "name": "SwiftProyecto", "moduleName": "SwiftProyecto" }],
-              "products": [{ "name": "SwiftProyecto", "type": { "library": ["automatic"] }, "targets": ["SwiftProyecto"] }],
+              "targets": [
+                {
+                  "name": "SwiftProyecto",
+                  "moduleName": "SwiftProyecto"
+                }
+              ],
+              "products": [
+                {
+                  "name": "SwiftProyecto",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "SwiftProyecto"
+                  ]
+                }
+              ],
               "minimumPlatformVersions": [
-                { "name": "macOS", "version": "26.0" },
-                { "name": "iOS", "version": "26.0" }
+                {
+                  "name": "macOS",
+                  "version": "26.0"
+                },
+                {
+                  "name": "iOS",
+                  "version": "26.0"
+                }
               ]
             }
           },
@@ -185,7 +393,10 @@
     {
       "url": "https://github.com/intrusive-memory/SwiftPruebas.git",
       "summary": "Shared test utilities and helpers for the Intrusive Memory ecosystem.",
-      "keywords": ["testing", "test-utilities"],
+      "keywords": [
+        "testing",
+        "test-utilities"
+      ],
       "readmeURL": "https://github.com/intrusive-memory/SwiftPruebas/blob/main/README.md",
       "versions": [
         {
@@ -194,11 +405,34 @@
             "6.2": {
               "toolsVersion": "6.2",
               "packageName": "SwiftPruebas",
-              "targets": [{ "name": "SwiftPruebas", "moduleName": "SwiftPruebas" }],
-              "products": [{ "name": "SwiftPruebas", "type": { "library": ["automatic"] }, "targets": ["SwiftPruebas"] }],
+              "targets": [
+                {
+                  "name": "SwiftPruebas",
+                  "moduleName": "SwiftPruebas"
+                }
+              ],
+              "products": [
+                {
+                  "name": "SwiftPruebas",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "SwiftPruebas"
+                  ]
+                }
+              ],
               "minimumPlatformVersions": [
-                { "name": "macOS", "version": "26.0" },
-                { "name": "iOS", "version": "26.0" }
+                {
+                  "name": "macOS",
+                  "version": "26.0"
+                },
+                {
+                  "name": "iOS",
+                  "version": "26.0"
+                }
               ]
             }
           },
@@ -209,20 +443,99 @@
     {
       "url": "https://github.com/intrusive-memory/SwiftSecuencia.git",
       "summary": "FCPXML timeline generation and audio export for Final Cut Pro X integration.",
-      "keywords": ["fcpxml", "final-cut-pro", "timeline", "audio-export"],
+      "keywords": [
+        "fcpxml",
+        "final-cut-pro",
+        "timeline",
+        "audio-export"
+      ],
       "readmeURL": "https://github.com/intrusive-memory/SwiftSecuencia/blob/main/README.md",
       "versions": [
         {
-          "version": "1.0.7",
+          "version": "1.0.8",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
               "packageName": "SwiftSecuencia",
-              "targets": [{ "name": "SwiftSecuencia", "moduleName": "SwiftSecuencia" }],
-              "products": [{ "name": "SwiftSecuencia", "type": { "library": ["automatic"] }, "targets": ["SwiftSecuencia"] }],
+              "targets": [
+                {
+                  "name": "SwiftSecuencia",
+                  "moduleName": "SwiftSecuencia"
+                }
+              ],
+              "products": [
+                {
+                  "name": "SwiftSecuencia",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "SwiftSecuencia"
+                  ]
+                }
+              ],
               "minimumPlatformVersions": [
-                { "name": "macOS", "version": "26.0" },
-                { "name": "iOS", "version": "26.0" }
+                {
+                  "name": "macOS",
+                  "version": "26.0"
+                },
+                {
+                  "name": "iOS",
+                  "version": "26.0"
+                }
+              ]
+            }
+          },
+          "defaultToolsVersion": "6.2"
+        }
+      ]
+    },
+    {
+      "url": "https://github.com/intrusive-memory/SwiftEchada.git",
+      "summary": "Shared Swift utilities and extensions for the Intrusive Memory ecosystem.",
+      "keywords": [
+        "utilities",
+        "extensions",
+        "swift"
+      ],
+      "readmeURL": "https://github.com/intrusive-memory/SwiftEchada/blob/main/README.md",
+      "versions": [
+        {
+          "version": "0.8.0",
+          "manifests": {
+            "6.2": {
+              "toolsVersion": "6.2",
+              "packageName": "SwiftEchada",
+              "targets": [
+                {
+                  "name": "SwiftEchada",
+                  "moduleName": "SwiftEchada"
+                }
+              ],
+              "products": [
+                {
+                  "name": "SwiftEchada",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "SwiftEchada"
+                  ]
+                }
+              ],
+              "minimumPlatformVersions": [
+                {
+                  "name": "macOS",
+                  "version": "26.0"
+                },
+                {
+                  "name": "iOS",
+                  "version": "26.0"
+                }
               ]
             }
           },

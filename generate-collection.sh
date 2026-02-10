@@ -24,7 +24,7 @@ REPOS=(
   "intrusive-memory/SwiftProyecto"
   "intrusive-memory/SwiftPruebas"
   "intrusive-memory/SwiftSecuencia"
-  "stovak/SwiftEchada"
+  "intrusive-memory/SwiftEchada"
 )
 
 # Package metadata (summary, keywords) keyed by repo name
