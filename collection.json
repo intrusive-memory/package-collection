@@ -9,8 +9,8 @@
     "intrusive-memory"
   ],
   "formatVersion": "1.0",
-  "revision": 2,
-  "generatedAt": "2026-02-10T00:58:29Z",
+  "revision": 3,
+  "generatedAt": "2026-02-10T08:30:00Z",
   "generatedBy": {
     "name": "Intrusive Memory"
   },
@@ -524,6 +524,203 @@
                   },
                   "targets": [
                     "SwiftEchada"
+                  ]
+                }
+              ],
+              "minimumPlatformVersions": [
+                {
+                  "name": "macOS",
+                  "version": "26.0"
+                },
+                {
+                  "name": "iOS",
+                  "version": "26.0"
+                }
+              ]
+            }
+          },
+          "defaultToolsVersion": "6.2"
+        }
+      ]
+    },
+    {
+      "url": "https://github.com/intrusive-memory/mlx-audio-swift.git",
+      "summary": "Modular Swift SDK for audio processing with MLX on Apple Silicon. Includes TTS, STT, codecs, and SwiftUI components.",
+      "keywords": [
+        "mlx",
+        "audio",
+        "tts",
+        "stt",
+        "apple-silicon",
+        "machine-learning"
+      ],
+      "readmeURL": "https://github.com/intrusive-memory/mlx-audio-swift/blob/main/README.md",
+      "versions": [
+        {
+          "version": "0.1.0",
+          "manifests": {
+            "6.2": {
+              "toolsVersion": "6.2",
+              "packageName": "MLXAudio",
+              "targets": [
+                {
+                  "name": "MLXAudioCore",
+                  "moduleName": "MLXAudioCore"
+                },
+                {
+                  "name": "MLXAudioCodecs",
+                  "moduleName": "MLXAudioCodecs"
+                },
+                {
+                  "name": "MLXAudioTTS",
+                  "moduleName": "MLXAudioTTS"
+                },
+                {
+                  "name": "MLXAudioSTT",
+                  "moduleName": "MLXAudioSTT"
+                },
+                {
+                  "name": "MLXAudioSTS",
+                  "moduleName": "MLXAudioSTS"
+                },
+                {
+                  "name": "MLXAudioUI",
+                  "moduleName": "MLXAudioUI"
+                }
+              ],
+              "products": [
+                {
+                  "name": "MLXAudioCore",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "MLXAudioCore"
+                  ]
+                },
+                {
+                  "name": "MLXAudioCodecs",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "MLXAudioCodecs"
+                  ]
+                },
+                {
+                  "name": "MLXAudioTTS",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "MLXAudioTTS"
+                  ]
+                },
+                {
+                  "name": "MLXAudioSTT",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "MLXAudioSTT"
+                  ]
+                },
+                {
+                  "name": "MLXAudioSTS",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "MLXAudioSTS"
+                  ]
+                },
+                {
+                  "name": "MLXAudioUI",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "MLXAudioUI"
+                  ]
+                },
+                {
+                  "name": "MLXAudio",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "MLXAudioCore",
+                    "MLXAudioCodecs",
+                    "MLXAudioTTS",
+                    "MLXAudioSTT",
+                    "MLXAudioSTS",
+                    "MLXAudioUI"
+                  ]
+                }
+              ],
+              "minimumPlatformVersions": [
+                {
+                  "name": "macOS",
+                  "version": "14.0"
+                },
+                {
+                  "name": "iOS",
+                  "version": "17.0"
+                }
+              ]
+            }
+          },
+          "defaultToolsVersion": "6.2"
+        }
+      ]
+    },
+    {
+      "url": "https://github.com/intrusive-memory/SwiftOnce.git",
+      "summary": "ElevenLabs TTS REST API wrapper with text-to-speech, voice discovery, and audio caching.",
+      "keywords": [
+        "elevenlabs",
+        "tts",
+        "api-wrapper",
+        "audio"
+      ],
+      "readmeURL": "https://github.com/intrusive-memory/SwiftOnce/blob/main/README.md",
+      "versions": [
+        {
+          "version": "0.2.0",
+          "manifests": {
+            "6.2": {
+              "toolsVersion": "6.2",
+              "packageName": "SwiftOnce",
+              "targets": [
+                {
+                  "name": "SwiftOnce",
+                  "moduleName": "SwiftOnce"
+                }
+              ],
+              "products": [
+                {
+                  "name": "SwiftOnce",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "SwiftOnce"
                   ]
                 }
               ],
