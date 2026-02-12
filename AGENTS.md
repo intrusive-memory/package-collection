@@ -54,7 +54,6 @@ Vibe: [MOOD]. No text. 1:1 Aspect Ratio.
 |---------|------|-----------|--------|
 | SwiftBruja | `intrusive-memory/SwiftBruja` | `SwiftBruja.jpg` | Done |
 | SwiftCompartido | `intrusive-memory/SwiftCompartido` | `SwiftCompartido.jpg` | Done |
-| SwiftEspeak | `intrusive-memory/SwiftEspeak` | `SwiftEspeak.jpg` | Done |
 | SwiftFFMpeg | `intrusive-memory/SwiftFFMpeg` | `SwiftFFmpeg.jpg` | Done |
 | SwiftFijos | `intrusive-memory/SwiftFijos` | `SwiftFijos.jpg` | Done |
 | SwiftHablare | `intrusive-memory/SwiftHablare` | `SwiftHablare.jpg` | Done |
@@ -127,24 +126,11 @@ Vibe: [MOOD]. No text. 1:1 Aspect Ratio.
 
 | Package | Purpose | Suggested Theme |
 |---------|---------|-----------------|
-| **SwiftEspeak** | eSpeak-NG TTS wrapper | Mannequin speaking into a vintage microphone |
 | **SwiftFFMpeg** | FFmpeg audio/video wrapper | Mannequin operating a vintage film projector or reel-to-reel |
 | **SwiftPruebas** | Shared test utilities | Mannequin with safety goggles holding a clipboard with checkmarks |
 | **SwiftSecuencia** | FCPXML timeline / Final Cut Pro | Mannequin arranging film strips or a clapperboard |
 
 ### Suggested Prompts for Missing Icons
-
-**SwiftEspeak**:
-```
-A high-resolution square icon in a 1950s Midcentury Modern illustration style.
-Subject: A single wooden articulated artist mannequin standing at a vintage
-ribbon microphone, mouth area positioned near the mic, one hand gesturing
-expressively. Environment: Warm honey-toned wood plank floor. Background:
-Atomic-age geometric room divider pattern of rounded cream squares and
-rectangles on thin vertical lines. Atmosphere: Dusty blue and seafoam gradient.
-Texture: Hand-painted with subtle brushstrokes and vintage paper overlay.
-No text. 1:1 Aspect Ratio.
-```
 
 **SwiftFFMpeg**:
 ```
