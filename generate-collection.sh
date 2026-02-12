@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/opt/homebrew/bin/bash
 #
 # generate-collection.sh
 # Queries GitHub API for each repo, extracts version/targets/products from
@@ -17,21 +17,19 @@ OUTPUT="${1:-${SCRIPT_DIR}/collection.json}"
 REPOS=(
   "intrusive-memory/SwiftBruja"
   "intrusive-memory/SwiftCompartido"
-  "intrusive-memory/SwiftEspeak"
   "intrusive-memory/SwiftFFMpeg"
   "intrusive-memory/SwiftFijos"
   "intrusive-memory/SwiftHablare"
   "intrusive-memory/SwiftProyecto"
   "intrusive-memory/SwiftPruebas"
   "intrusive-memory/SwiftSecuencia"
-  "stovak/SwiftEchada"
+  "intrusive-memory/SwiftEchada"
 )
 
 # Package metadata (summary, keywords) keyed by repo name
 declare -A SUMMARIES=(
   [SwiftBruja]="On-device LLM inference for Apple Silicon via MLX. One-line queries with auto-download."
   [SwiftCompartido]="Screenplay parsing, SwiftData models, and SwiftUI display components. Supports Fountain, FDX, PDF, Highland, and more."
-  [SwiftEspeak]="Swift wrapper for eSpeak-NG text-to-speech engine. Experimental."
   [SwiftFFMpeg]="Swift wrapper for FFmpeg API for audio/video processing."
   [SwiftFijos]="Test fixture file discovery for Swift packages and Xcode projects."
   [SwiftHablare]="Voice generation library with Apple TTS, ElevenLabs, and Qwen TTS providers. SwiftUI components included."
@@ -44,7 +42,6 @@ declare -A SUMMARIES=(
 declare -A KEYWORDS=(
   [SwiftBruja]='["llm","mlx","ai","apple-silicon"]'
   [SwiftCompartido]='["screenplay","fountain","parser","swiftui","swiftdata"]'
-  [SwiftEspeak]='["tts","espeak","speech"]'
   [SwiftFFMpeg]='["ffmpeg","audio","video","media"]'
   [SwiftFijos]='["testing","fixtures","test-utilities"]'
   [SwiftHablare]='["tts","voice","audio","speech-synthesis","elevenlabs"]'

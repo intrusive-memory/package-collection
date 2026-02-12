@@ -54,7 +54,6 @@ Vibe: [MOOD]. No text. 1:1 Aspect Ratio.
 |---------|------|-----------|--------|
 | SwiftBruja | `intrusive-memory/SwiftBruja` | `SwiftBruja.jpg` | Done |
 | SwiftCompartido | `intrusive-memory/SwiftCompartido` | `SwiftCompartido.jpg` | Done |
-| SwiftEspeak | `intrusive-memory/SwiftEspeak` | `SwiftEspeak.jpg` | Done |
 | SwiftFFMpeg | `intrusive-memory/SwiftFFMpeg` | `SwiftFFmpeg.jpg` | Done |
 | SwiftFijos | `intrusive-memory/SwiftFijos` | `SwiftFijos.jpg` | Done |
 | SwiftHablare | `intrusive-memory/SwiftHablare` | `SwiftHablare.jpg` | Done |
@@ -127,24 +126,11 @@ Vibe: [MOOD]. No text. 1:1 Aspect Ratio.
 
 | Package | Purpose | Suggested Theme |
 |---------|---------|-----------------|
-| **SwiftEspeak** | eSpeak-NG TTS wrapper | Mannequin speaking into a vintage microphone |
 | **SwiftFFMpeg** | FFmpeg audio/video wrapper | Mannequin operating a vintage film projector or reel-to-reel |
 | **SwiftPruebas** | Shared test utilities | Mannequin with safety goggles holding a clipboard with checkmarks |
 | **SwiftSecuencia** | FCPXML timeline / Final Cut Pro | Mannequin arranging film strips or a clapperboard |
 
 ### Suggested Prompts for Missing Icons
-
-**SwiftEspeak**:
-```
-A high-resolution square icon in a 1950s Midcentury Modern illustration style.
-Subject: A single wooden articulated artist mannequin standing at a vintage
-ribbon microphone, mouth area positioned near the mic, one hand gesturing
-expressively. Environment: Warm honey-toned wood plank floor. Background:
-Atomic-age geometric room divider pattern of rounded cream squares and
-rectangles on thin vertical lines. Atmosphere: Dusty blue and seafoam gradient.
-Texture: Hand-painted with subtle brushstrokes and vintage paper overlay.
-No text. 1:1 Aspect Ratio.
-```
 
 **SwiftFFMpeg**:
 ```
@@ -211,7 +197,7 @@ ln -s "$(pwd)/skills/<skill-name>" .claude/skills/<skill-name>
 | **ship-ios-app** | `/ship-ios-app` | Ships new versions of iOS/macOS apps via App Store Connect |
 | **ship-swift-library** | `/ship-swift-library` | Ship and release Swift library versions — merge PR, bump version, tag, create GitHub release |
 | **shortcuts-helper** | `/shortcuts-helper` | Create, run, and understand macOS Shortcuts workflows with CLI, URL schemes, and App Intents |
-| **sprint-supervisor** | `/sprint-supervisor` | Orchestrate multi-package Swift porting sprints with parallel agents, layer gating, and conflict resolution |
+| **sprint-supervisor** | `/sprint-supervisor` | Plan and execute sprints — `breakdown` generates a plan from requirements, `prioritize` reorders by strategic priority, `evaluate` validates quality, then `start/resume/status/stop/killall` orchestrate sprint agents |
 | **ui-ux-pro-max** | `/ui-ux-pro-max` | UI/UX design intelligence — 50 styles, 21 palettes, 50 font pairings, 20 charts, 8 framework stacks |
 
 ### Skill Structure

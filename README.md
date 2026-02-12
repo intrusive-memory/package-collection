@@ -8,7 +8,6 @@ A [Swift Package Collection](https://swift.org/blog/package-collections/) for al
 |---------|-------------|
 | SwiftBruja | On-device LLM inference via MLX |
 | SwiftCompartido | Screenplay parsing, SwiftData models, SwiftUI components |
-| SwiftEspeak | eSpeak-NG text-to-speech wrapper |
 | SwiftFFMpeg | FFmpeg audio/video processing |
 | SwiftFijos | Test fixture file discovery |
 | SwiftHablare | Voice generation (Apple TTS, ElevenLabs, Qwen) |
