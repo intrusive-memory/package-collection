@@ -254,7 +254,7 @@ Based on the parsed command:
 
 - **`start`**: Begin from scratch. Initialize SUPERVISOR_STATE.md. Dispatch Sprint 1 for each work unit that has no unsatisfied dependencies.
 - **`resume`**: Pick up where the last supervisor left off. Read state, determine what sprints need dispatching, continue.
-- **`status`**: Report current progress across all work units. Do NOT dispatch any sprints. Just read state and report.
+- **`status`**: Report current progress across all work units. Do NOT dispatch any sprints. Just read state and report. Include model usage summary for cost tracking.
 - **`stop`**: Graceful shutdown with escalation. See Shutdown Escalation section below.
 - **`killall`**: Emergency stop. Skip escalation — immediately terminate ALL running background agents, then update state. See the Kill All Procedure section below.
 
@@ -292,7 +292,9 @@ Repeat until all work units are `COMPLETED` or all active work units are `BLOCKE
       → Run verification checks to assess state.
       → Treat as FAILURE (increment attempt) or PARTIAL (if progress was made).
 4. DISPATCH: For each work unit in RUNNING state with sprint in PENDING, PARTIAL, or BACKOFF:
-   → Dispatch a new background agent.
+   → Run model selection (Section 6a) to choose haiku, sonnet, or opus.
+   → Log model selection decision in Decisions Log.
+   → Dispatch a new background agent with selected model.
    → For PARTIAL: use continuation prompt listing remaining work.
    → For BACKOFF: use augmented prompt referencing previous failure.
    → Update sprint state to DISPATCHED.
@@ -373,22 +375,124 @@ Based on the sprint's task type (from Step 2g):
 
 ## 6. Sprint Dispatch — Background Agents
 
+### 6a. Model Selection
+
+Before dispatching a sprint, select the appropriate Claude model based on task characteristics. The model choice balances cost (older models are cheaper) against task complexity.
+
+#### Model Capabilities & Cost
+
+| Model | Use Case | Relative Cost |
+|-------|----------|---------------|
+| `haiku` | Simple, well-defined tasks with clear requirements | 1x (cheapest) |
+| `sonnet` | Standard tasks requiring balanced capability and cost | 10x |
+| `opus` | Complex, ambiguous, or architecturally critical tasks | 30x (most expensive) |
+
+#### Selection Criteria
+
+Evaluate each sprint on these dimensions to compute a complexity score:
+
+**1. Task Complexity (0-10 points)**
+- Estimated turns from context fitness check (Section 16e):
+  - <10 turns: 1 point
+  - 10-20 turns: 3 points
+  - 21-35 turns: 5 points
+  - 36-50 turns: 8 points
+  - >50 turns: 10 points
+- Files to create or modify:
+  - 1-2 files: +0 points
+  - 3-5 files: +2 points
+  - 6-10 files: +4 points
+  - 11+ files: +6 points
+
+**2. Task Ambiguity (0-5 points)**
+- Exit criteria quality:
+  - All machine-verifiable, specific commands: 0 points
+  - Mix of machine/manual verification: 2 points
+  - Vague criteria ("works correctly", "properly handles"): 5 points
+- Task description clarity:
+  - Explicit file paths, function names, clear steps: 0 points
+  - High-level goals without implementation details: 3 points
+  - Open-ended ("improve", "optimize", "enhance"): 5 points
+
+**3. Foundation Importance (0-5 points)**
+- From priority analysis (Section 15b):
+  - Foundation score = 0 (leaf sprint): 0 points
+  - Foundation score = 1 (establishes patterns for 2+ sprints): 5 points
+- Dependency depth:
+  - 0-1 dependents: 0 points
+  - 2-5 dependents: 2 points
+  - 6+ dependents: 5 points
+
+**4. Risk Level (0-5 points)**
+- From priority analysis (Section 15b):
+  - Simple CRUD or config: 1 point
+  - File I/O or system calls: 2 points
+  - Complex algorithms: 3 points
+  - New technology/unfamiliar patterns: 4 points
+  - External API calls or integrations: 5 points
+
+**5. Task Type Modifier**
+- `code` type: Base score (no modifier)
+- `command` type: -3 points (well-defined, deterministic)
+- `background` type: -3 points (just needs to start process)
+- `deferred` type: -2 points (polling is straightforward)
+- `manual` type: -1 point (reporting findings is simple)
+
+#### Model Selection Algorithm
+
+Compute the complexity score (sum of all dimensions above), then select the model:
+
+```
+complexity_score = task_complexity + task_ambiguity + foundation_importance + risk_level + task_type_modifier
+```
+
+| Complexity Score | Model | Rationale |
+|-----------------|-------|-----------|
+| ≤ 5 | `haiku` | Simple, well-defined task. Haiku is sufficient and most cost-effective. |
+| 6-12 | `sonnet` | Standard complexity. Sonnet balances capability and cost. |
+| ≥ 13 | `opus` | High complexity, ambiguity, or critical foundation work. Opus provides maximum capability. |
+
+#### Override Conditions
+
+**Force Opus** (regardless of score):
+- Sprint is in BACKOFF state with 2+ prior failures (previous model wasn't sufficient)
+- Sprint establishes core architectural patterns (foundation_score = 1 AND dependency_depth ≥ 5)
+- Sprint has open questions or TBDs detected during completeness analysis (Section 17e)
+
+**Force Sonnet** (minimum model):
+- Sprint is in PARTIAL state (continuation from partial work — maintain consistency with prior model or upgrade)
+- Sprint is in first attempt but has vague exit criteria (need capable model for self-verification)
+
+#### Log Model Selection
+
+Record the model selection decision in the Decisions Log:
+
+```markdown
+## Decisions Log
+| Timestamp | Work Unit | Sprint | Decision | Rationale |
+|-----------|-----------|--------|----------|-----------|
+| <ISO 8601> | <name> | <N> | Model: opus | Complexity score 15 (high risk, new technology, 6 dependents) |
+```
+
+### 6b. Dispatch Parameters
+
 When dispatching a sprint, use the **Task tool** with these parameters:
 
 ```
 subagent_type: "general-purpose"
 run_in_background: true
 max_turns: 50
+model: <selected_model>  # "haiku", "sonnet", or "opus" from model selection
 ```
 
-### Approach A: Explicit Template (if detected in Step 2e)
+### 6c. Approach A: Explicit Template (if detected in Step 2e)
 
 Use the dispatch template from the plan, filling in variables:
 - Work unit name, directory, sprint number/ID, sprint name
 - Section references, file paths, any other template variables
 - Replace ALL hardcoded paths with `$PROJECT_ROOT`-relative paths
 
-### Approach B: Dynamic Prompt Construction (if no template found)
+### 6d. Approach B: Dynamic Prompt Construction (if no template found)
 
 Construct the prompt from four parts:
 
@@ -431,23 +535,25 @@ IMPORTANT:
 - Perform the checks described and report your findings. Do NOT mark this as complete — the user will verify.
 ```
 
-### Tracking Background Agents
+### 6e. Tracking Background Agents
 
 When a background Task is dispatched, the tool returns an `output_file` path. Record this in SUPERVISOR_STATE.md:
 
 ```markdown
 ## Active Agents
-| Work Unit | Sprint | Sprint State | Attempt | Task ID | Output File | Dispatched At |
-|-----------|--------|-------------|---------|---------|-------------|---------------|
-| <name> | <N> | DISPATCHED | 1/3 | <id> | <path> | <timestamp> |
+| Work Unit | Sprint | Sprint State | Attempt | Model | Complexity Score | Task ID | Output File | Dispatched At |
+|-----------|--------|-------------|---------|-------|-----------------|---------|-------------|---------------|
+| <name> | <N> | DISPATCHED | 1/3 | sonnet | 8 | <id> | <path> | <timestamp> |
 ```
 
 - **Sprint State**: Must be one of `DISPATCHED`, `RUNNING`, `BACKOFF`, `PARTIAL`. Use the formal sprint states defined in the State Machine section.
 - **Attempt**: `<current>/<max_retries>`. Increments each time a sprint is re-dispatched due to failure.
+- **Model**: The Claude model used for this sprint (`haiku`, `sonnet`, or `opus`).
+- **Complexity Score**: The computed score from model selection (Section 6a) for auditability.
 
 To check on an agent, use `TaskOutput` with `block: false` to get a non-blocking status check. If the agent is still running, move on and check again later. If it's complete, run verification (Section 5) to confirm the sprint outcome.
 
-### Polling Cadence
+### 6f. Polling Cadence
 
 - After dispatching background agents, wait briefly then begin polling.
 - Use `TaskOutput` with `block: false` and `timeout: 5000` for non-blocking checks.
@@ -493,6 +599,8 @@ Each work unit section in SUPERVISOR_STATE.md must include:
 - Current sprint: <ID> of <total>
 - Sprint state: PENDING | DISPATCHED | RUNNING | COMPLETED | PARTIAL | BACKOFF | FATAL
 - Sprint type: code | command | background | deferred | manual
+- Model: haiku | sonnet | opus
+- Complexity score: <N> (from Section 6a model selection)
 - Attempt: <current> of <max_retries>
 - Last verified: <what was confirmed>
 - Notes: <any issues>
@@ -536,10 +644,15 @@ All error recovery follows the state machine. The supervisor does not invent ad-
 Sprint state: RUNNING → COMPLETED. Normal path. Verification confirms sprint done. Next sprint (if any) enters PENDING. Event loop dispatches it.
 
 ### Sprint Agent Commits Partial Work
-Sprint state: RUNNING → PARTIAL. Verification shows partial progress. The event loop dispatches a continuation agent with a prompt listing only the remaining work. This does NOT increment the attempt counter — partial work is progress, not failure.
+Sprint state: RUNNING → PARTIAL. Verification shows partial progress. The event loop dispatches a continuation agent with:
+- **Model selection**: Per the override in Section 6a, use the same model as the previous attempt or upgrade to `sonnet` (minimum model for PARTIAL state to ensure continuation quality).
+- **Continuation prompt**: List only the remaining work from the exit criteria that wasn't completed.
+- **No attempt increment**: Partial work is progress, not failure. The attempt counter stays the same.
 
 ### Sprint Agent Fails
-Sprint state: RUNNING → BACKOFF (attempt counter increments). The event loop dispatches a retry agent with an augmented prompt: "Sprint N failed on attempt M. Here is what went wrong: <details from agent output>. Fix the issues, then complete the sprint."
+Sprint state: RUNNING → BACKOFF (attempt counter increments). The event loop dispatches a retry agent with:
+- **Model selection re-run**: Re-evaluate model using Section 6a. If attempt ≥ 2, the override condition forces `opus` (previous model was insufficient).
+- **Augmented prompt**: "Sprint N failed on attempt M. Here is what went wrong: <details from agent output>. Fix the issues, then complete the sprint."
 
 If attempt counter reaches `max_retries`: sprint state → FATAL, work unit state → BLOCKED. No further automatic dispatch. Report to user.
 
@@ -720,10 +833,10 @@ After each iteration of the event loop, output a status update to the user using
 
 ```
 ## Supervisor Status — <timestamp>
-| Work Unit | Deps | State | Sprint | Sprint State | Type | Attempt |
-|-----------|------|-------|--------|-------------|------|---------|
-| <name> | <deps or —> | RUNNING | 3/7 | DISPATCHED | code | 1/3 |
-| <name> | <deps or —> | NOT_STARTED | 0/5 | — | — | — |
+| Work Unit | Deps | State | Sprint | Sprint State | Type | Model | Attempt |
+|-----------|------|-------|--------|-------------|------|-------|---------|
+| <name> | <deps or —> | RUNNING | 3/7 | DISPATCHED | code | sonnet | 1/3 |
+| <name> | <deps or —> | NOT_STARTED | 0/5 | — | — | — | — |
 
 Active agents: N
 Blocked work units: 0
@@ -742,6 +855,15 @@ When all work units complete, output:
 ## Supervisor Complete
 All <total> sprints executed across <count> work units.
 All exit criteria verified.
+
+### Model Usage Summary
+| Model | Sprints | Relative Cost |
+|-------|---------|---------------|
+| haiku | <N> | <N>x |
+| sonnet | <N> | <N * 10>x |
+| opus | <N> | <N * 30>x |
+
+Total relative cost: <sum>x (baseline: haiku = 1x)
 ```
 
 ---
