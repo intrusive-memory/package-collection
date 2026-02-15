@@ -80,7 +80,7 @@
       "readmeURL": "https://github.com/intrusive-memory/SwiftCompartido/blob/main/README.md",
       "versions": [
         {
-          "version": "6.2.2",
+          "version": "6.6.0",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
