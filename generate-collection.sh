@@ -24,6 +24,7 @@ REPOS=(
   "intrusive-memory/SwiftPruebas"
   "intrusive-memory/SwiftSecuencia"
   "intrusive-memory/SwiftEchada"
+  "intrusive-memory/SwiftVoxAlta"
 )
 
 # Package metadata (summary, keywords) keyed by repo name
@@ -37,6 +38,7 @@ declare -A SUMMARIES=(
   [SwiftPruebas]="Shared test utilities and helpers for the Intrusive Memory ecosystem."
   [SwiftSecuencia]="FCPXML timeline generation and audio export for Final Cut Pro X integration."
   [SwiftEchada]="Shared Swift utilities and extensions for the Intrusive Memory ecosystem."
+  [SwiftVoxAlta]="On-device Qwen3-TTS voice design and cloning for SwiftHablare. Character voice pipeline with VoiceDesign, Base model cloning, and diga CLI."
 )
 
 declare -A KEYWORDS=(
@@ -49,6 +51,7 @@ declare -A KEYWORDS=(
   [SwiftPruebas]='["testing","test-utilities"]'
   [SwiftSecuencia]='["fcpxml","final-cut-pro","timeline","audio-export"]'
   [SwiftEchada]='["utilities","extensions","swift"]'
+  [SwiftVoxAlta]='["tts","qwen3","voice-cloning","voice-design","on-device","mlx"]'
 )
 
 # Get latest version tag for a repo. Tries releases first, falls back to tags.

@@ -9,8 +9,8 @@
     "intrusive-memory"
   ],
   "formatVersion": "1.0",
-  "revision": 4,
-  "generatedAt": "2026-02-12T02:43:17Z",
+  "revision": 5,
+  "generatedAt": "2026-02-15T00:19:07Z",
   "generatedBy": {
     "name": "Intrusive Memory"
   },
@@ -284,7 +284,7 @@
       "readmeURL": "https://github.com/intrusive-memory/SwiftProyecto/blob/main/README.md",
       "versions": [
         {
-          "version": "2.6.0",
+          "version": "3.0.0",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
@@ -336,7 +336,7 @@
       "readmeURL": "https://github.com/intrusive-memory/SwiftSecuencia/blob/main/README.md",
       "versions": [
         {
-          "version": "1.0.8",
+          "version": "2.0.0",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
@@ -387,7 +387,7 @@
       "readmeURL": "https://github.com/intrusive-memory/SwiftEchada/blob/main/README.md",
       "versions": [
         {
-          "version": "0.8.0",
+          "version": "0.9.0",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
@@ -408,6 +408,60 @@
                   },
                   "targets": [
                     "SwiftEchada"
+                  ]
+                }
+              ],
+              "minimumPlatformVersions": [
+                {
+                  "name": "macOS",
+                  "version": "26.0"
+                },
+                {
+                  "name": "iOS",
+                  "version": "26.0"
+                }
+              ]
+            }
+          },
+          "defaultToolsVersion": "6.2"
+        }
+      ]
+    },
+    {
+      "url": "https://github.com/intrusive-memory/SwiftVoxAlta.git",
+      "summary": "On-device Qwen3-TTS voice design and cloning for SwiftHablare. Character voice pipeline with VoiceDesign, Base model cloning, and diga CLI.",
+      "keywords": [
+        "tts",
+        "qwen3",
+        "voice-cloning",
+        "voice-design",
+        "on-device",
+        "mlx"
+      ],
+      "readmeURL": "https://github.com/intrusive-memory/SwiftVoxAlta/blob/main/README.md",
+      "versions": [
+        {
+          "version": "0.2.1",
+          "manifests": {
+            "6.2": {
+              "toolsVersion": "6.2",
+              "packageName": "SwiftVoxAlta",
+              "targets": [
+                {
+                  "name": "SwiftVoxAlta",
+                  "moduleName": "SwiftVoxAlta"
+                }
+              ],
+              "products": [
+                {
+                  "name": "SwiftVoxAlta",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "SwiftVoxAlta"
                   ]
                 }
               ],
