@@ -1,7 +1,7 @@
 ---
 name: sprint-supervisor
-description: Plan and execute sprints with sergeant precision. Give each agent ONE clear, measurable goal. Pre-execution commands (breakdown, analyze, prioritize, evaluate) create and refine an EXECUTION_PLAN.md from requirements. Execution commands (start, resume, status, stop, killall) orchestrate sprint agents with lean context and crystal-clear objectives. THE RITUAL (name-feature) generates humorous military operation names.
-argument-hint: "[breakdown|name-feature|analyze|prioritize|evaluate|start|resume|status|stop|killall] [path] [--max-turns=N]"
+description: Plan and execute sprints with sergeant precision. Give each agent ONE clear, measurable goal. Pre-execution commands (breakdown, refine + 4 subcommands) create and refine an EXECUTION_PLAN.md from requirements. Refine performs 4 passes: atomicity/testability, prioritization, parallelism (up to 4 sub-agents, builds only by supervisor), and open questions. Execution commands (start, resume, status, stop, killall) orchestrate sprint agents with lean context and crystal-clear objectives. THE RITUAL (name-feature) generates humorous military operation names.
+argument-hint: "[breakdown|name-feature|refine|refine-atomicity|refine-priority|refine-parallelism|refine-questions|start|resume|status|stop|killall] [path] [--max-turns=N]"
 disable-model-invocation: true
 allowed-tools: Read, Glob, Grep, Bash, Task, Write, Edit, TaskOutput, KillShell
 ---
@@ -98,16 +98,18 @@ Parse `$ARGUMENTS` as follows:
 
 | Category | Commands | Purpose |
 |----------|----------|---------|
-| **Pre-execution** | `breakdown`, `analyze`, `prioritize`, `evaluate` | Create and refine EXECUTION_PLAN.md from requirements |
+| **Pre-execution** | `breakdown`, `refine` (+ subcommands) | Create and refine EXECUTION_PLAN.md from requirements |
 | **The Ritual** | `name-feature` | Generate humorous military operation name (happens at `start`, or manual regeneration) |
 | **Execution** | `start`, `resume`, `status`, `stop`, `killall` | Orchestrate sprint agents against an existing plan |
 
 ### Pre-execution Command Signatures
 
 - **`breakdown [path/to/requirements.md]`**: Path to a requirements document. If omitted, search the current directory for common filenames: `REQUIREMENTS.md`, `PRD.md`, `SPEC.md`, `README.md` (in that order). If none found, STOP with an error.
-- **`analyze [path/to/EXECUTION_PLAN.md] [--max-turns=N]`**: Optional path to an existing execution plan (uses standard resolution logic). Performs three comprehensive analysis passes: completeness, atomicity & testability, and priority & parallelism. Optional `--max-turns` flag (default 50) for context budget.
-- **`prioritize [path/to/EXECUTION_PLAN.md]`**: Optional path to an existing execution plan. Uses the standard resolution logic below if omitted.
-- **`evaluate [path/to/EXECUTION_PLAN.md] [--max-turns=N]`**: Optional path (same resolution) plus optional `--max-turns` flag (default 50) to set the context budget for sprint agents.
+- **`refine [path/to/EXECUTION_PLAN.md] [--max-turns=N]`**: Runs all 4 refinement passes sequentially on an existing execution plan. Optional path (uses standard resolution logic). Optional `--max-turns` flag (default 50) for context budget. After all passes, declares the sprint ready and summarizes to user.
+- **`refine-atomicity [path/to/EXECUTION_PLAN.md] [--max-turns=N]`**: Pass 1 only. Checks if tasks are small, testable sprints that won't exhaust context window. Splits oversized tasks.
+- **`refine-priority [path/to/EXECUTION_PLAN.md]`**: Pass 2 only. Determines what needs to go first and what can wait. Establishes dependencies and execution order.
+- **`refine-parallelism [path/to/EXECUTION_PLAN.md]`**: Pass 3 only. Identifies what work can be done in parallel. Adds up to 4 other agents (sub-agents do NOT do builds - only the supervising agent builds).
+- **`refine-questions [path/to/EXECUTION_PLAN.md]`**: Pass 4 only. Identifies vague criteria in sprint gates, missing documentation, or research needed that may affect scope.
 
 ### The Ritual Command Signature
 
@@ -122,7 +124,7 @@ Parse `$ARGUMENTS` as follows:
 
 If no command is given: treat as `resume` if `SUPERVISOR_STATE.md` exists in the project root, otherwise treat as `start`.
 
-### Locate EXECUTION_PLAN.md (for `prioritize`, `evaluate`, and execution commands)
+### Locate EXECUTION_PLAN.md (for `refine` commands and execution commands)
 
 Resolve the execution plan path using this priority:
 
@@ -264,9 +266,11 @@ Based on the parsed command:
 #### Pre-execution Commands (skip Steps 1-5 — they have their own parsing)
 
 - **`breakdown`**: Jump directly to Section 15. Reads a requirements document and generates EXECUTION_PLAN.md. No existing plan is needed.
-- **`analyze`**: Jump directly to Section 18. Performs comprehensive three-pass analysis of an existing EXECUTION_PLAN.md: completeness, atomicity & testability, priority & parallelism.
-- **`prioritize`**: Jump directly to Section 16. Reads and reorders an existing EXECUTION_PLAN.md. Uses its own plan parsing.
-- **`evaluate`**: Jump directly to Section 17. Reads and validates an existing EXECUTION_PLAN.md. Uses its own plan parsing.
+- **`refine`**: Jump directly to Section 16. Runs all 4 refinement passes sequentially: atomicity, priority, parallelism, questions. After all passes, declares sprint ready and summarizes to user.
+- **`refine-atomicity`**: Jump directly to Section 16a. Pass 1: Atomicity and testability check.
+- **`refine-priority`**: Jump directly to Section 16b. Pass 2: Prioritization and dependency ordering.
+- **`refine-parallelism`**: Jump directly to Section 16c. Pass 3: Parallelism analysis (up to 4 agents, no builds by sub-agents).
+- **`refine-questions`**: Jump directly to Section 16d. Pass 4: Open questions and vague criteria detection.
 
 #### The Ritual Command
 
@@ -1356,660 +1360,317 @@ Output: $PROJECT_ROOT/EXECUTION_PLAN.md
 | Work units | <N> |
 | Sprints | <N> |
 
-Next step: /sprint-supervisor prioritize
+Next step: /sprint-supervisor refine
 ```
 
 ---
 
-## 16. Prioritize Command
+## 16. Refine Command
 
-The `prioritize` command reads an existing EXECUTION_PLAN.md, scores and reorders sprints by strategic priority, and rewrites the plan in place.
+The `refine` command performs 4 refinement passes over an existing EXECUTION_PLAN.md to ensure it's ready for execution. Each pass can be run independently as a subcommand, or all passes run sequentially via the main `refine` command.
 
-### 16a. Parse Existing Plan
+### 16a. Pass 1: Atomicity and Testability (refine-atomicity)
 
-Read `EXECUTION_PLAN.md` using the detection heuristics from Section 3 Step 2 (detect work units, sprints, dependencies, entry/exit criteria). Build an internal model of the plan structure.
+**Purpose**: Ensure every task is small, testable, and won't exhaust the context window.
 
-### 16b. Score Each Sprint
+**Process**:
 
-Evaluate each sprint on four dimensions:
+1. **Parse the plan**: Read EXECUTION_PLAN.md using detection heuristics from Section 3 Step 2.
+2. **Context budget**: Use `--max-turns` from arguments (default 50). Calibrate: ~15-20 productive actions per 50 turns.
 
-| Dimension | How to Measure | Weight |
-|-----------|---------------|--------|
-| **Dependency depth** | Count the number of sprints transitively blocked by this sprint (direct + indirect dependents) | 3x |
-| **Foundation score** | Does this sprint establish types, interfaces, or patterns reused by 2+ later sprints? (0 = no, 1 = yes) | 2x |
-| **Risk level** | Indicators: external API calls (3), new technology/unfamiliar patterns (3), complex algorithms (2), file I/O or system calls (2), simple CRUD or config (1). Use the highest matching indicator. | 1x |
-| **Complexity** | Based on: task count (1-3=1, 4-5=2, 6-7=3, 8+=4), files touched (1-2=1, 3-5=2, 6-10=3, 11+=4), verification complexity (checklist only=1, build check=2, test suite=3, integration test=4). Average the three sub-scores. | 0.5x |
+3. **Atomicity Check** - for each sprint, verify:
+   - **Single concern**: All tasks relate to one subsystem or feature
+   - **Clear artifact**: Sprint produces named, specific outputs
+   - **Bounded scope**: Estimated effort fits within context budget
+   - **Explicit inputs/outputs**: Entry criteria name specific artifacts; exit criteria name specific verifiable outcomes
 
-### 16c. Compute Composite Priority
+4. **Testability Check** - for each sprint, verify:
+   - **At least one machine-verifiable criterion**: Build command, test command, file-exists check, or grep check
+   - **No vague language**: No "works correctly", "properly handles", "is complete"
+   - **Coverage**: Exit criteria address all tasks in the sprint
 
-For each sprint:
+5. **Context Fitness Check** - estimate turns required:
+   ```
+   estimated_turns = R + (C * 2) + (M * 2) + B + ceil(L / 75) + V + 5
+   ```
+   Where: R=files to read, C=files to create, M=files to modify, B=build steps, L=total LoC, V=verification steps
 
-```
-priority = (dependency_depth * 3) + (foundation_score * 2) + (risk_level * 1) + (complexity * 0.5)
-```
+   | Verdict | Condition |
+   |---------|-----------|
+   | **Oversized** | `estimated_turns > context_budget * 0.80` |
+   | **Right-sized** | Between 15% and 80% of budget |
+   | **Undersized** | `estimated_turns < context_budget * 0.15` |
 
-Higher score = higher priority = should be executed earlier.
+6. **Auto-fix issues**:
+   - **Oversized sprint**: Split into two sprints at natural halfway point
+   - **Undersized sprint**: Merge with adjacent sprint
+   - **Non-atomic (multiple concerns)**: Split by concern
+   - **Missing exit criteria**: Add machine-verifiable criteria (file-exists, build, test commands)
+   - **Vague exit criteria**: Replace with specific checks
 
-### 16d. Reorder Within Hard Constraints
+7. **Rewrite plan**: Update EXECUTION_PLAN.md with fixes, renumber sprints, update cross-references.
 
-Reorder sprints to maximize priority while respecting:
+8. **Output**:
+   ```
+   ## Pass 1: Atomicity & Testability Complete
 
-1. **Dependency order**: A sprint cannot move before any sprint it depends on.
-2. **Work unit coherence**: Sprints within a work unit maintain relative order unless dependencies allow reordering.
-3. **Layer integrity**: Work units in Layer N cannot start before Layer N-1 completes.
+   | Check | Passed | Issues Found | Auto-Fixed |
+   |-------|--------|-------------|------------|
+   | Atomicity | <N> | <N> | <N> |
+   | Testability | <N> | <N> | <N> |
+   | Context Fitness | <N> | <N> | <N> |
 
-After reordering:
-- Renumber sprints sequentially (Sprint 1, Sprint 2, ...).
-- Update all cross-references (entry criteria that reference "Sprint N exit criteria" must point to the new number).
+   Sprints before: <N> | Sprints after: <N>
+   Splits: <N> | Merges: <N>
 
-### 16e. Add Priority Annotations
+   Context budget: <max_turns> turns per sprint
+   ```
 
-Add a `**Priority**:` line to each sprint definition:
+### 16b. Pass 2: Prioritization (refine-priority)
 
-```markdown
-### Sprint <N>: <Sprint Name>
+**Purpose**: Determine what needs to go first and what can wait. Establish dependencies and execution order.
 
-**Priority**: <score> — <one-line justification>
+**Process**:
 
-**Entry criteria**:
-...
-```
+1. **Parse the plan**: Read EXECUTION_PLAN.md using detection heuristics from Section 3 Step 2.
 
-The justification should name the dominant factor, e.g.:
-- `"12.5 — blocks 4 downstream sprints, establishes core types"`
-- `"3.0 — leaf sprint, low complexity, no dependents"`
+2. **Score each sprint** on four dimensions:
 
-### 16f. Update Dependency Structure
+   | Dimension | How to Measure | Weight |
+   |-----------|---------------|--------|
+   | **Dependency depth** | Count sprints transitively blocked by this sprint | 3x |
+   | **Foundation score** | Establishes types/interfaces/patterns reused by 2+ sprints? (0=no, 1=yes) | 2x |
+   | **Risk level** | External API (3), new tech (3), complex algorithms (2), file I/O (2), simple CRUD (1) | 1x |
+   | **Complexity** | Average of: task count score, files touched score, verification complexity score | 0.5x |
 
-If priority analysis reveals better layering (e.g., a sprint in Layer 2 has no actual dependency on Layer 1), adjust:
-- Move the sprint to an earlier layer if dependencies allow.
-- Update the Work Units table Layer column accordingly.
-- Log the change in the output summary.
+3. **Compute composite priority**:
+   ```
+   priority = (dependency_depth * 3) + (foundation_score * 2) + (risk_level * 1) + (complexity * 0.5)
+   ```
+   Higher score = higher priority = execute earlier.
 
-### 16g. Rewrite EXECUTION_PLAN.md
+4. **Reorder within hard constraints**:
+   - Dependency order: Sprint cannot move before any sprint it depends on
+   - Work unit coherence: Maintain relative order unless dependencies allow reordering
+   - Layer integrity: Layer N cannot start before Layer N-1 completes
 
-Write the reordered plan back to `$PROJECT_ROOT/EXECUTION_PLAN.md`, preserving all content but with updated ordering, numbering, cross-references, and priority annotations.
+5. **Add priority annotations** to each sprint:
+   ```markdown
+   ### Sprint <N>: <Sprint Name>
 
-### 16h. Output Summary
+   **Priority**: <score> — <justification>
 
-```
-## Prioritization Complete
+   **Entry criteria**:
+   ...
+   ```
 
-| Sprint | Name | Priority | Change |
-|--------|------|----------|--------|
-| 1 | <name> | <score> | was Sprint <old_N> / unchanged |
-| 2 | <name> | <score> | was Sprint <old_N> / unchanged |
-| ... | ... | ... | ... |
+6. **Update dependency structure**: Adjust layers if priority analysis reveals better layering.
 
-Sprints reordered: <N>
-Layer adjustments: <N or "none">
+7. **Rewrite plan**: Update EXECUTION_PLAN.md with reordered sprints, renumber, update cross-references.
 
-Next step: /sprint-supervisor evaluate
-```
+8. **Output**:
+   ```
+   ## Pass 2: Prioritization Complete
+
+   | Sprint | Name | Priority | Change |
+   |--------|------|----------|--------|
+   | 1 | <name> | <score> | was Sprint <old_N> / unchanged |
+
+   Sprints reordered: <N>
+   Layer adjustments: <N or "none">
+   ```
+
+### 16c. Pass 3: Parallelism (refine-parallelism)
+
+**Purpose**: Identify what work can be done in parallel. Add up to 4 sub-agents for concurrent execution. **CRITICAL**: Sub-agents do NOT do builds — only the supervising agent builds.
+
+**Process**:
+
+1. **Parse the plan**: Read EXECUTION_PLAN.md using detection heuristics from Section 3 Step 2.
+
+2. **Build dependency graph** across all work units and sprints:
+   - **Intra-work-unit dependencies**: Sprint N → Sprint N+1 within each work unit
+   - **Inter-work-unit dependencies**: Work unit A → Work unit B based on layer/explicit dependencies
+   - **Implicit dependencies**: Sprint X creates artifact used by Sprint Y
+
+3. **Identify parallelizable clusters**:
+   - **Same-layer work units**: Work units in same layer with no shared dependencies
+   - **Independent sprints**: Sprints within a work unit that don't share file dependencies
+   - **Concurrent vs sequential**: Work that's unnecessarily serialized
+
+4. **Calculate parallelism metrics**:
+   - **Critical path**: Longest dependency chain from start to finish
+   - **Maximum parallelism**: How many agents could run simultaneously
+   - **Current parallelism**: Based on layer structure
+   - **Missed opportunities**: Sprints that could be reordered for better parallelism
+
+5. **Add agent allocation annotations**:
+   - **Up to 4 sub-agents** for parallel work
+   - Annotate each parallelizable cluster with agent assignment
+   - **ENFORCE**: Mark sprints with builds as "supervising agent only"
+   - **ENFORCE**: Mark sub-agent sprints as "no build operations"
+
+6. **Add parallelism metadata** to plan:
+   ```markdown
+   ## Parallelism Structure
+
+   **Critical Path**: Sprint 1 → Sprint 3 → Sprint 7 → Sprint 12 (length: N sprints)
+
+   **Parallel Execution Groups**:
+   - **Group 1** (can run in parallel):
+     - Work Unit A: Sprint 1-3 (Agent 1)
+     - Work Unit B: Sprint 1-2 (Agent 2)
+   - **Group 2** (sequential, depends on Group 1):
+     - Work Unit A: Sprint 4 (Agent 1) — **SUPERVISING AGENT ONLY** (has build step)
+     - Work Unit C: Sprint 1 (Agent 3) — **NO BUILD** (sub-agent)
+
+   **Agent Constraints**:
+   - **Supervising agent**: Handles all sprints with build/compile steps
+   - **Sub-agents (up to 4)**: Handle work without build steps (research, file creation, documentation)
+   ```
+
+7. **Rewrite plan**: Add parallelism annotations to EXECUTION_PLAN.md.
+
+8. **Output**:
+   ```
+   ## Pass 3: Parallelism Complete
+
+   **Critical Path**: Sprint 1 → Sprint 3 → Sprint 7 → Sprint 12 (<N> sprints)
+
+   **Parallelism**:
+   - Current: <N> work units can run simultaneously
+   - Maximum: <N> agents could run simultaneously
+   - Agent allocation: 1 supervising + <N> sub-agents (max 4 sub-agents)
+
+   **Parallel Groups**: <N>
+   **Build Constraints**: <N> sprints restricted to supervising agent
+
+   **Missed Opportunities**:
+   - <List sprints that could be parallelized>
+   ```
+
+### 16d. Pass 4: Open Questions and Vague Criteria (refine-questions)
+
+**Purpose**: Identify vague criteria in sprint gates, missing documentation, or research needed that may affect scope.
+
+**Process**:
+
+1. **Parse the plan**: Read EXECUTION_PLAN.md using detection heuristics from Section 3 Step 2.
+
+2. **Scan for open questions** that would block execution:
+   - **TBD markers**: "TBD", "TODO", "determine later", "decide", "clarify"
+   - **Alternative approaches**: Multiple options presented without a decision
+   - **Missing specifics**: Vague references like "appropriate library", "suitable approach", "standard method"
+   - **External dependencies**: References to systems/APIs without documented interfaces
+
+3. **Scan for vague criteria**:
+   - **Entry criteria**:
+     - References to "previous work" without specifics
+     - "Setup is complete" without defining setup
+   - **Exit criteria**:
+     - "Works correctly", "properly handles", "is complete"
+     - "Tests pass" without naming specific tests
+     - "Build succeeds" without specifying build command
+
+4. **Identify missing documentation**:
+   - Sprint references files that don't exist
+   - Sprint references APIs without documented endpoints
+   - Sprint requires knowledge not present in the plan
+
+5. **Classify each issue**:
+   | Type | Description | Blocking Impact |
+   |------|-------------|----------------|
+   | **Open question** | Unresolved technical decision | High - sprint agent can't proceed |
+   | **Vague criterion** | Exit criterion not machine-verifiable | Medium - verification will be ambiguous |
+   | **Missing doc** | Referenced artifact doesn't exist | High - sprint agent lacks context |
+   | **External dependency** | Undocumented external system | High - sprint agent can't integrate |
+
+6. **Add clarity annotations** to plan:
+   ```markdown
+   ## Open Questions & Missing Documentation
+
+   ### Unresolved Items (must address before execution)
+
+   | Sprint | Issue Type | Description | Recommendation |
+   |--------|-----------|-------------|----------------|
+   | Sprint 3 | Open question | "Choose appropriate caching strategy" — no decision made | Research task: Compare Redis vs in-memory caching, document decision |
+   | Sprint 5 | Vague criterion | Exit: "API integration works correctly" | Replace with: "API integration tests pass: `swift test --filter APIIntegrationTests`" |
+   | Sprint 7 | Missing doc | References `API_SPEC.md` which doesn't exist | Create API_SPEC.md before Sprint 7 or add research task to Sprint 6 |
+   ```
+
+7. **Auto-fix where possible**:
+   - **Vague criteria**: Replace with machine-verifiable equivalents where obvious
+   - **Missing docs**: Add research tasks to preceding sprints to create the docs
+
+8. **Flag unresolvable issues** for manual review.
+
+9. **Rewrite plan**: Add clarity annotations, auto-fixed criteria, and research tasks.
+
+10. **Output**:
+    ```
+    ## Pass 4: Open Questions & Vague Criteria Complete
+
+    **Issues Found**: <N>
+    - Open questions: <N>
+    - Vague criteria: <N>
+    - Missing documentation: <N>
+    - External dependencies: <N>
+
+    **Auto-Fixed**: <N>
+    **Requires Manual Review**: <N>
+
+    <If manual review needed>:
+    **BLOCKED**: <N> issues require manual resolution before execution can start.
+    Review EXECUTION_PLAN.md "Open Questions & Missing Documentation" section.
+    ```
+
+### 16e. Main Refine Command (runs all 4 passes)
+
+When `refine` is invoked (without a subcommand), execute all 4 passes sequentially:
+
+1. **Run Pass 1**: Atomicity and testability (Section 16a)
+2. **Run Pass 2**: Prioritization (Section 16b)
+3. **Run Pass 3**: Parallelism (Section 16c)
+4. **Run Pass 4**: Open questions and vague criteria (Section 16d)
+
+5. **Declare sprint ready** if all passes succeed:
+   - No oversized sprints (all fit in context budget)
+   - No vague exit criteria (all machine-verifiable)
+   - Clear dependency structure and priority order
+   - Parallelism opportunities identified
+   - No blocking open questions
+
+6. **Output summary**:
+   ```
+   ## Refinement Complete — Sprint Ready to Start
+
+   ### Pass Results
+
+   | Pass | Status | Changes |
+   |------|--------|---------|
+   | 1. Atomicity & Testability | ✓ PASS | <N> sprints split, <N> merged, <N> criteria fixed |
+   | 2. Prioritization | ✓ PASS | <N> sprints reordered, priority scores added |
+   | 3. Parallelism | ✓ PASS | <N> parallel groups, 1 supervising + <N> sub-agents |
+   | 4. Open Questions & Vague Criteria | ✓ PASS / ✗ BLOCKED | <N> issues auto-fixed, <N> require manual review |
+
+   <If all passes succeeded>:
+   **VERDICT**: ✓ Sprint is ready to execute
+
+   ### Sprint Summary
+   - Total sprints: <N>
+   - Average sprint size: <X> turns (budget: <max_turns>)
+   - Critical path length: <N> sprints
+   - Parallelism: 1 supervising agent + <N> sub-agents (up to 4)
+   - Execution time estimate: <X> hours (assuming <Y> mins/sprint, <Z>% parallelism efficiency)
+
+   **Next step**: /sprint-supervisor start
+
+   <If Pass 4 found blocking issues>:
+   **VERDICT**: ✗ Sprint NOT ready — <N> blocking issues require manual resolution
+
+   Review "Open Questions & Missing Documentation" section in EXECUTION_PLAN.md, resolve issues, then re-run: /sprint-supervisor refine
+   ```
 
 ---
 
-## 17. Evaluate Command
 
-The `evaluate` command reads an existing EXECUTION_PLAN.md, checks sprint quality across multiple dimensions, auto-fixes problems, and rewrites the plan in place.
-
-### 17a. Parse Existing Plan
-
-Read `EXECUTION_PLAN.md` using the detection heuristics from Section 3 Step 2. Build an internal model of the plan structure.
-
-### 17b. Context Budget
-
-The context budget is the `--max-turns` value from the command arguments (default: 50). This represents the maximum turns available to each sprint agent. Use this to calibrate the "context fitness" check.
-
-**Calibration**: ~15-20 productive actions per 50 turns (the rest is reading, reasoning, and verification overhead).
-
-### 17c. Atomicity Check
-
-For each sprint, verify it is atomic:
-
-| Criterion | Pass | Fail |
-|-----------|------|------|
-| Single concern | All tasks relate to one subsystem or feature | Tasks span multiple unrelated subsystems |
-| Clear artifact | Sprint produces named, specific outputs | Vague deliverables ("make it work", "update things") |
-| Bounded scope | Estimated effort fits within context budget | Sprint requires more actions than budget allows |
-| Explicit inputs/outputs | Entry criteria name specific artifacts; exit criteria name specific verifiable outcomes | References to "previous work" without specifics |
-
-Flag sprints that fail any criterion. Record the specific issue for the auto-fix step.
-
-### 17d. Testability Check
-
-For each sprint, verify its exit criteria are machine-testable:
-
-| Criterion | Pass | Fail |
-|-----------|------|------|
-| At least one machine-verifiable criterion | Has a build command, test command, file-exists check, or grep check | Only human-judgment criteria ("looks good", "works correctly") |
-| No vague language | Criteria use specific, measurable terms | Contains "works correctly", "properly handles", "is complete" |
-| Coverage | Exit criteria address all tasks in the sprint | Some tasks have no corresponding exit criterion |
-
-Flag sprints with testability issues.
-
-### 17e. Context Fitness Check
-
-Estimate the turns required for each sprint using this formula:
-
-```
-estimated_turns = R + (C * 2) + (M * 2) + B + ceil(L / 75) + V + 5
-```
-
-Where:
-- **R** = number of files to read (entry criteria references + context files)
-- **C** = number of files to create
-- **M** = number of files to modify (edits)
-- **B** = number of build/compile steps
-- **L** = estimated total lines of code to write
-- **V** = number of verification steps (exit criteria count)
-- **5** = fixed overhead (reasoning, planning, error handling)
-
-| Verdict | Condition |
-|---------|-----------|
-| **Oversized** | `estimated_turns > context_budget * 0.80` |
-| **Right-sized** | Between 15% and 80% of budget |
-| **Undersized** | `estimated_turns < context_budget * 0.15` |
-
-### 17f. Automatic Rewrite
-
-Apply fixes for all flagged issues:
-
-| Issue | Fix |
-|-------|-----|
-| Oversized sprint | Split into two sprints at the natural halfway point (by task count or by subsystem boundary). Create entry/exit criteria for the split point. |
-| Undersized sprint | Merge with the adjacent sprint (prefer merging forward into the next sprint). Combine entry/exit criteria. |
-| Non-atomic (multiple concerns) | Split by concern. Each resulting sprint gets the tasks for one concern. |
-| Missing exit criteria | Add machine-verifiable criteria: file-exists checks for created files, build commands for code sprints, test commands for test sprints. |
-| Vague exit criteria | Replace vague language with specific checks. "works correctly" → "tests pass: `<test command>`". "is complete" → "file exists: `<path>`". |
-
-After all fixes:
-- Renumber sprints sequentially.
-- Update all cross-references.
-- Recalculate estimated turns for modified sprints to confirm they now pass.
-
-### 17g. Rewrite EXECUTION_PLAN.md
-
-Write the validated (and possibly modified) plan back to `$PROJECT_ROOT/EXECUTION_PLAN.md`, preserving all content but with fixes applied, updated numbering, and corrected cross-references.
-
-### 17h. Output Diagnostic Summary
-
-```
-## Evaluation Complete
-
-### Check Results
-
-| Check | Passed | Issues Found | Auto-Fixed |
-|-------|--------|-------------|------------|
-| Atomicity | <N> | <N> | <N> |
-| Testability | <N> | <N> | <N> |
-| Context Fitness | <N> | <N> | <N> |
-
-### Sprint Changes
-
-| Change | Count |
-|--------|-------|
-| Sprints before | <N> |
-| Sprints after | <N> |
-| Splits | <N> |
-| Merges | <N> |
-
-Context budget: <max_turns> turns per sprint
-
-Next step: /sprint-supervisor start
-```
-
----
-
-## 18. Analyze Command
-
-The `analyze` command orchestrates a comprehensive three-pass analysis of an existing EXECUTION_PLAN.md. It performs a completeness check (new), then delegates to the `evaluate` command (Section 17) and `prioritize` command (Section 16) for their respective analyses. The result is a complete diagnostic report.
-
-### 18a. Parse Existing Plan
-
-Read `EXECUTION_PLAN.md` using the detection heuristics from Section 3 Step 2 (detect work units, sprints, dependencies, entry/exit criteria). Build an internal model of the plan structure.
-
-### 17b. Context Budget
-
-The context budget is the `--max-turns` value from the command arguments (default: 50). This represents the maximum turns available to each sprint agent. Use this to calibrate analysis checks.
-
-**Calibration**: ~15-20 productive actions per 50 turns (the rest is reading, reasoning, and verification overhead).
-
----
-
-### Pass 1: Completeness Analysis
-
-This pass validates that the execution plan has clear boundaries and covers everything needed to get from point A to point B.
-
-#### 17c. Define Point A (Current State)
-
-Scan the plan for explicit statements about the starting state. Look for:
-
-1. **Preconditions section**: A section titled "Prerequisites", "Starting State", "Assumptions", or "Preconditions"
-2. **Entry criteria for Sprint 1**: The first sprint's entry criteria often describe the starting state
-3. **References to existing code/infrastructure**: Mentions of "existing", "current", "legacy" systems
-4. **Implicit context**: If no explicit starting state is documented, note this as a gap
-
-Record Point A findings:
-- What exists at the start?
-- What assumptions are made about the environment?
-- Are there any undocumented preconditions?
-
-Flag as **UNCLEAR** if:
-- No starting state is documented
-- Entry criteria reference files/systems not described anywhere
-- Assumptions conflict with each other
-
-#### 17d. Define Point B (Target State)
-
-Scan the plan for explicit statements about the end state. Look for:
-
-1. **Project goals section**: A section titled "Goals", "Objectives", "Success Criteria", or "Done Definition"
-2. **Final sprint exit criteria**: The last sprint's exit criteria describe the final state
-3. **Acceptance criteria**: What makes the project "done"
-4. **Deliverables list**: Explicit list of what will exist after completion
-
-Record Point B findings:
-- What should exist at the end?
-- What capabilities should be present?
-- What are the success criteria?
-
-Flag as **UNCLEAR** if:
-- No end state is documented
-- Final sprint doesn't have clear exit criteria
-- Success criteria are vague ("works well", "is complete")
-
-#### 17e. Coverage Gap Analysis
-
-For each requirement detected in the original requirements document (if available) or implied by the plan:
-
-1. **Requirement mapping**: Does each requirement have at least one sprint that addresses it?
-2. **Task coverage**: Does each sprint contribute to reaching Point B?
-3. **Dead-end detection**: Are there sprints that produce artifacts never used by later sprints?
-4. **Missing bridges**: Are there logical gaps between sprints where additional work is needed but not planned?
-
-Record coverage findings:
-- Requirements with no corresponding sprints
-- Sprints that don't contribute to Point B
-- Gaps in the dependency chain
-
-Flag as **INCOMPLETE** if:
-- Requirements exist without sprints
-- Point A → Point B path has logical gaps
-- Critical infrastructure/foundation work is missing
-
-#### 17f. Open Questions Detection
-
-Scan for unresolved questions that would block execution:
-
-1. **TBD markers**: "TBD", "TODO", "determine later", "decide", "clarify"
-2. **Alternative approaches**: Multiple options presented without a decision
-3. **Missing specifics**: Vague references like "appropriate library", "suitable approach", "standard method"
-4. **External dependencies**: References to systems/APIs without documented interfaces
-
-Record each open question with:
-- Location (sprint number + task)
-- Type (technical decision, requirement clarification, external dependency)
-- Blocking impact (which sprints are blocked)
-
-Flag as **BLOCKED** if:
-- Open questions would prevent sprint agents from starting work
-- External dependencies lack documented interfaces
-- Technical decisions affect multiple sprints
-
----
-
-### Pass 2: Atomicity & Testability Analysis
-
-This pass delegates to the **`evaluate` command** (Section 16) to perform atomicity, testability, and context fitness checks.
-
-#### 17g. Execute Evaluate Command
-
-Internally execute the `evaluate` command logic from Section 16:
-
-1. **Parse the plan** (Section 17a)
-2. **Apply context budget** (Section 17b) using the `--max-turns` value from analyze
-3. **Run atomicity check** (Section 17c) - verifies single concern, clear artifact, bounded scope, explicit I/O
-4. **Run testability check** (Section 17d) - verifies machine-verifiable criteria, no vague language, full coverage
-5. **Run context fitness check** (Section 17e) - estimates turns required, flags oversized/undersized sprints
-
-**Important**: Run evaluate in **diagnostic mode only** - collect findings but do NOT auto-fix or rewrite EXECUTION_PLAN.md. The analyze command produces a report, not modifications.
-
-Record all findings from evaluate:
-- Atomicity issues (sprints failing each criterion)
-- Testability issues (sprints with only manual verification, vague criteria)
-- Context fitness issues (oversized/undersized sprints with turn estimates)
-- Recommended fixes from Section 17f (without applying them)
-
----
-
-### Pass 3: Priority & Parallelism Analysis
-
-This pass delegates to the **`prioritize` command** (Section 16) to perform dependency analysis, priority scoring, and execution order validation.
-
-#### 17h. Execute Prioritize Command
-
-Internally execute the `prioritize` command logic from Section 16:
-
-1. **Parse the plan** (Section 16a)
-2. **Score each sprint** (Section 16b) - evaluate dependency depth, foundation score, risk level, complexity
-3. **Compute composite priority** (Section 16c) for each sprint
-4. **Analyze reordering opportunities** (Section 16d) - identify sprints that could be reordered within dependency constraints
-
-**Important**: Run prioritize in **diagnostic mode only** - collect priority scores and recommendations but do NOT reorder sprints or rewrite EXECUTION_PLAN.md. The analyze command produces a report, not modifications.
-
-Additionally, perform these supplementary analyses:
-
-#### 17i. Dependency Graph Analysis
-
-Build a complete dependency graph across all work units and sprints:
-
-1. **Intra-work-unit dependencies**: Sprint N → Sprint N+1 within each work unit
-2. **Inter-work-unit dependencies**: Work unit A → Work unit B based on layer/explicit dependencies
-3. **Implicit dependencies**: Sprint X creates artifact used by Sprint Y
-
-Record the graph structure:
-- Critical path (longest dependency chain from start to finish)
-- Parallelizable clusters (work units/sprints with no cross-dependencies)
-- Bottleneck sprints (many dependents waiting on this sprint)
-
-#### 17j. Parallelization Opportunities
-
-Identify work units that can execute in parallel:
-
-1. **Same-layer work units**: Work units in the same layer with no shared dependencies
-2. **Independent sprints**: Sprints within a work unit that don't share file dependencies
-3. **Concurrent vs sequential**: Work that's unnecessarily serialized
-
-Record parallelization findings:
-- Maximum parallelism (how many agents could run simultaneously)
-- Current parallelism (based on layer structure)
-- Missed opportunities (sprints that could be reordered for better parallelism)
-
-#### 17k. Execution Order Validation
-
-Check if the current sprint order aligns with optimal execution:
-
-1. **Foundation-first check**: Do foundational sprints (high foundation_score) execute before dependent sprints?
-2. **Risk-early check**: Do high-risk sprints execute early enough to allow time for recovery?
-3. **Bottleneck-early check**: Do bottleneck sprints execute as early as dependencies allow?
-
-Record execution order findings:
-- Sprints out of optimal order
-- Recommended reorderings (with constraints)
-- Rationale for each recommendation
-
----
-
-### 17l. Generate Analysis Report
-
-Write an `ANALYSIS_REPORT.md` file to `$PROJECT_ROOT/` with the following structure:
-
-```markdown
-# Execution Plan Analysis Report
-
-Generated: <ISO 8601 timestamp>
-Execution plan: <path>
-Context budget: <max_turns> turns per sprint
-
----
-
-## Pass 1: Completeness Analysis
-
-### Point A (Current State)
-Status: CLEAR | UNCLEAR
-
-<Description of starting state from the plan>
-
-**Findings**:
-- <List what's documented>
-- <List what's assumed but not documented>
-- <List what's unclear>
-
-### Point B (Target State)
-Status: CLEAR | UNCLEAR
-
-<Description of end state from the plan>
-
-**Findings**:
-- <List deliverables>
-- <List success criteria>
-- <List what's unclear>
-
-### Coverage Analysis
-Status: COMPLETE | INCOMPLETE
-
-| Requirement | Addressed By | Coverage |
-|-------------|-------------|----------|
-| <req> | Sprint N, Sprint M | ✓ Complete |
-| <req> | — | ✗ Missing |
-
-**Gaps**:
-- <List requirements without sprints>
-- <List logical gaps in Point A → Point B path>
-- <List dead-end sprints>
-
-### Open Questions
-Count: <N>
-
-| Question | Location | Type | Blocking Impact |
-|----------|----------|------|----------------|
-| <question text> | Sprint N, Task M | Technical decision | Blocks Sprint P, Q |
-
-**Recommendations**:
-- <Actions to resolve each open question>
-
----
-
-## Pass 2: Atomicity & Testability Analysis
-
-### Atomicity Check
-
-| Sprint | Single Concern | Clear Artifact | Bounded Scope | Explicit I/O | Verdict |
-|--------|---------------|---------------|---------------|-------------|---------|
-| 1 | ✓ | ✓ | ✓ | ✓ | PASS |
-| 2 | ✗ | ✓ | ✓ | ✓ | FAIL: Multiple concerns |
-| 3 | ✓ | ✓ | ✗ | ✓ | FAIL: Oversized (est. 65 turns) |
-
-**Issues**: <N>
-
-**Recommendations**:
-- Sprint 2: Split into Sprint 2a (authentication logic) and Sprint 2b (session management)
-- Sprint 3: Split into Sprint 3a (API client) and Sprint 3b (API integration)
-
-### Testability Check
-
-| Sprint | Machine-Verifiable | No Vague Language | Full Coverage | Verdict |
-|--------|-------------------|-------------------|--------------|---------|
-| 1 | ✓ | ✓ | ✓ | PASS |
-| 2 | ✗ | ✓ | ✓ | FAIL: Only manual checks |
-| 3 | ✓ | ✗ | ✓ | FAIL: Vague criteria |
-
-**Issues**: <N>
-
-**Recommendations**:
-- Sprint 2: Add build verification: `swift build`
-- Sprint 3: Replace "works correctly" with "tests pass: `swift test`"
-
-### Context Fitness Check
-
-| Sprint | Estimated Turns | Budget | Utilization | Verdict |
-|--------|----------------|--------|-------------|---------|
-| 1 | 25 | 50 | 50% | Right-sized |
-| 2 | 45 | 50 | 90% | Oversized |
-| 3 | 5 | 50 | 10% | Undersized |
-
-**Budget Summary**:
-- Total turns across all sprints: <N>
-- Average utilization: <N>%
-- Oversized sprints: <N>
-- Undersized sprints: <N>
-
----
-
-## Pass 3: Priority & Parallelism Analysis
-
-### Dependency Graph
-
-**Critical Path**: Sprint 1 → Sprint 3 → Sprint 7 → Sprint 12 (length: N sprints)
-
-**Parallelizable Clusters**:
-- Layer 1: Work Unit A, Work Unit B (can run in parallel)
-- Within Work Unit C: Sprint 4 and Sprint 5 are independent
-
-**Bottlenecks**:
-| Sprint | Blocks | Reason |
-|--------|--------|--------|
-| Sprint 3 | Sprint 6, 7, 8, 9 | Establishes core types |
-
-### Parallelization Opportunities
-
-**Current Parallelism**: <N> work units can run simultaneously (based on layer structure)
-
-**Maximum Parallelism**: <N> agents could run simultaneously if all independent work is parallelized
-
-**Missed Opportunities**:
-- Sprint 4 and Sprint 5 within Work Unit C could run in parallel (no shared dependencies)
-- Work Unit D could start in Layer 1 instead of Layer 2 (no actual dependency on Layer 1)
-
-### Priority Analysis
-
-| Sprint | Priority Score | Current Position | Optimal Position | Recommendation |
-|--------|---------------|-----------------|------------------|----------------|
-| 3 | 15.5 | 3 | 1 | Move earlier: blocks 4 downstream sprints, establishes core types |
-| 7 | 12.0 | 7 | 2 | Move earlier: high risk, new technology |
-| 5 | 3.0 | 5 | 9 | Move later: leaf sprint, no dependents |
-
-**High-Priority Sprints Appearing Late**:
-- Sprint 7 (score 12.0) should execute earlier due to high risk
-
-**Low-Priority Sprints Blocking High-Priority Work**:
-- Sprint 5 (score 3.0) blocks Sprint 6 (score 8.5) but could be reordered
-
-### Execution Order Recommendations
-
-1. **Foundation-first**: Sprint 3 should move to position 1 (establishes core types)
-2. **Risk-early**: Sprint 7 should move to position 2 (high risk, new technology)
-3. **Bottleneck-early**: Sprint 3 is correctly positioned (critical path item)
-
-**Proposed Reordering** (respecting dependencies):
-| Current | Proposed | Sprint | Rationale |
-|---------|----------|--------|-----------|
-| 1 | 2 | Sprint 1 | No change, but no longer first |
-| 2 | 4 | Sprint 2 | Move later, low priority |
-| 3 | 1 | Sprint 3 | Move earlier, establishes foundation |
-| 4 | 3 | Sprint 4 | No change |
-| 5 | 6 | Sprint 5 | Move later, leaf sprint |
-
----
-
-## Summary
-
-### Overall Assessment
-
-| Pass | Status | Issues | Recommendations |
-|------|--------|--------|----------------|
-| Completeness | <PASS/NEEDS_WORK> | <N> | <N> |
-| Atomicity & Testability | <PASS/NEEDS_WORK> | <N> | <N> |
-| Priority & Parallelism | <PASS/NEEDS_WORK> | <N> | <N> |
-
-**Total Issues Found**: <N>
-
-**Critical Issues** (must address before execution):
-- <List issues that would block execution>
-
-**Recommended Issues** (improve execution quality):
-- <List issues that would improve execution but aren't blockers>
-
-**Optional Improvements**:
-- <List nice-to-have improvements>
-
-### Next Steps
-
-**Automated fixes available**:
-- Run `/sprint-supervisor evaluate` to auto-fix atomicity/testability issues (Pass 2)
-- Run `/sprint-supervisor prioritize` to auto-reorder sprints by priority (Pass 3)
-
-**Manual review needed**:
-1. **If critical issues found**: Address critical issues in EXECUTION_PLAN.md, then re-run `/sprint-supervisor analyze`
-2. **If only recommended issues**: Optionally run evaluate/prioritize, or manually address and re-analyze
-3. **If only optional improvements**: Optionally run evaluate/prioritize, or proceed to execution
-4. **If all passes clear**: Proceed to `/sprint-supervisor start`
-
-**Note**: The `analyze` command produces a diagnostic report only. It does NOT modify EXECUTION_PLAN.md. To apply fixes, run `evaluate` and/or `prioritize`.
-
----
-
-## Detailed Findings
-
-<For each issue, provide detailed context, the specific problem, and concrete recommendations>
-
-### Issue 1: Sprint 2 has multiple concerns
-**Location**: Sprint 2
-**Type**: Atomicity
-**Severity**: Recommended
-
-**Problem**:
-Sprint 2 combines authentication logic (tasks 1-3) and session management (tasks 4-6). These are separate concerns that could be implemented independently.
-
-**Impact**:
-- Increases sprint complexity
-- Makes verification harder (multiple distinct exit criteria)
-- Risks context exhaustion
-
-**Recommendation**:
-Split into two sprints:
-- Sprint 2a: Authentication Logic
-  - Task 1: Create AuthService protocol
-  - Task 2: Implement credential validation
-  - Task 3: Add auth tests
-  - Exit: Build passes, auth tests pass
-- Sprint 2b: Session Management
-  - Task 4: Create SessionManager
-  - Task 5: Implement session lifecycle
-  - Task 6: Add session tests
-  - Exit: Build passes, session tests pass
-
-<Continue for each issue>
-
-```
-
-### 17m. Output Summary
-
-After writing `ANALYSIS_REPORT.md`, output a brief summary to the user:
-
-```
-## Analysis Complete
-
-Report: $PROJECT_ROOT/ANALYSIS_REPORT.md
-
-### Summary
-
-| Pass | Status | Critical | Recommended | Optional |
-|------|--------|----------|------------|----------|
-| Completeness | <PASS/NEEDS_WORK> | <N> | <N> | <N> |
-| Atomicity & Testability | <PASS/NEEDS_WORK> | <N> | <N> | <N> |
-| Priority & Parallelism | <PASS/NEEDS_WORK> | <N> | <N> | <N> |
-
-**Total Issues**: <N> (<N> critical, <N> recommended, <N> optional)
-
-### Critical Issues (must address before execution)
-<If any, list them here>
-
-### Next Steps
-
-<If critical issues found>:
-- Review ANALYSIS_REPORT.md
-- Address critical issues in EXECUTION_PLAN.md
-- Re-run: /sprint-supervisor analyze
-
-<If only recommended/optional issues>:
-- Optional: /sprint-supervisor evaluate (auto-fix Pass 2: atomicity/testability)
-- Optional: /sprint-supervisor prioritize (auto-apply Pass 3: priority reordering)
-- Ready to execute: /sprint-supervisor start
-
-**Workflow Note**:
-- `analyze` orchestrates three passes: completeness (new) + evaluate + prioritize
-- `analyze` produces diagnostic report only (no modifications to EXECUTION_PLAN.md)
-- `evaluate` and `prioritize` can be run separately to apply specific fixes
-```
