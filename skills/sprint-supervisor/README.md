@@ -7,15 +7,18 @@ Orchestrate multi-agent sprint execution with automatic verification, retry logi
 The Sprint Supervisor is an agentic orchestrator that breaks down complex projects into atomic sprints and dispatches background agents to execute them in parallel. It manages state, handles failures with automatic retry, and enforces dependency constraints.
 
 **Key Features**:
-- **Pre-execution pipeline**: Analyze requirements, generate execution plans, validate quality
-- **Parallel execution**: Run independent work units simultaneously
+- **Pre-execution pipeline**: Break down requirements, refine execution plans with 4 automated passes
+- **Parallel execution**: Run independent work units simultaneously (up to 4 sub-agents)
 - **Automatic verification**: Validate sprint completion via git state, exit criteria, and agent output
-- **Fault tolerance**: Automatic retry with exponential backoff, graceful degradation
+- **Fault tolerance**: Automatic retry with backoff, graceful degradation
 - **State persistence**: Crash-safe state management across invocations
+- **The Ritual**: Humorous military operation names generated at execution start
 
 ---
 
-## Workflow
+## Recommended Workflow
+
+The recommended path is **breakdown** then **refine** then restart the context window with **start**.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -28,9 +31,9 @@ The Sprint Supervisor is an agentic orchestrator that breaks down complex projec
                   │  /sprint-supervisor │
                   │      breakdown      │
                   └──────────┬──────────┘
-                            │
-                            │ Generates
-                            ▼
+                             │
+                             │ Generates
+                             ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                      EXECUTION_PLAN.md                       │
 │  • Work units (packages/components/phases)                   │
@@ -42,82 +45,79 @@ The Sprint Supervisor is an agentic orchestrator that breaks down complex projec
                             ▼
                   ┌─────────────────────┐
                   │  /sprint-supervisor │
-                  │       analyze       │◄─────┐
-                  └──────────┬──────────┘      │
-                            │                  │
-                            │ Orchestrates     │
-                            ▼                  │
-        ┌───────────────────────────────────┐ │
-        │                                   │ │
-        │  Pass 1: Completeness Check       │ │
-        │  • Point A → Point B coverage     │ │
-        │  • Open questions detection       │ │
-        │  • Gap analysis                   │ │
-        │                                   │ │
-        └───────────────┬───────────────────┘ │
-                        │                      │
-                        ▼                      │
-        ┌───────────────────────────────────┐ │
-        │                                   │ │
-        │  Pass 2: Atomicity & Testability  │ │
-        │  (delegates to evaluate)          │ │
-        │  • Sprint sizing check            │ │
-        │  • Verification criteria          │ │
-        │  • Context budget fit             │ │
-        │                                   │ │
-        └───────────────┬───────────────────┘ │
-                        │                      │
-                        ▼                      │
-        ┌───────────────────────────────────┐ │
-        │                                   │ │
-        │  Pass 3: Priority & Parallelism   │ │
-        │  (delegates to prioritize)        │ │
-        │  • Dependency graph               │ │
-        │  • Priority scoring               │ │
-        │  • Parallelization opportunities  │ │
-        │                                   │ │
-        └───────────────┬───────────────────┘ │
-                        │                      │
-                        ▼                      │
-        ┌───────────────────────────────────┐ │
-        │     ANALYSIS_REPORT.md            │ │
-        │  • Diagnostic findings            │ │
-        │  • Critical/recommended/optional  │ │
-        │  • Auto-fix recommendations       │ │
-        └───────────────┬───────────────────┘ │
-                        │                      │
-              ┌─────────┴─────────┐            │
-              ▼                   ▼            │
-    ┌─────────────────┐ ┌─────────────────┐   │
-    │  /sprint-super- │ │  /sprint-super- │   │
-    │    visor        │ │    visor        │   │
-    │    evaluate     │ │    prioritize   │   │
-    │                 │ │                 │   │
-    │  Auto-fix       │ │  Auto-reorder   │   │
-    │  atomicity/     │ │  sprints by     │   │
-    │  testability    │ │  priority       │   │
-    └────────┬────────┘ └────────┬────────┘   │
-             │                   │             │
-             └─────────┬─────────┘             │
-                       │                       │
-                       │ Optional fixes        │
-                       │ modify plan ──────────┘
-                       ▼
+                  │       refine        │
+                  └──────────┬──────────┘
+                             │
+                             │ Runs 4 passes sequentially
+                             ▼
+        ┌───────────────────────────────────┐
+        │                                   │
+        │  Pass 1: Atomicity & Testability  │
+        │  (refine-atomicity)               │
+        │  • Context fitness check          │
+        │  • Sprint sizing (split/merge)    │
+        │  • Machine-verifiable criteria    │
+        │                                   │
+        └───────────────┬───────────────────┘
+                        │
+                        ▼
+        ┌───────────────────────────────────┐
+        │                                   │
+        │  Pass 2: Prioritization           │
+        │  (refine-priority)                │
+        │  • Dependency depth scoring       │
+        │  • Foundation/risk/complexity     │
+        │  • Priority-based reordering      │
+        │                                   │
+        └───────────────┬───────────────────┘
+                        │
+                        ▼
+        ┌───────────────────────────────────┐
+        │                                   │
+        │  Pass 3: Parallelism              │
+        │  (refine-parallelism)             │
+        │  • Dependency graph analysis      │
+        │  • Agent allocation (up to 4)     │
+        │  • Builds: supervising agent only │
+        │  • Critical path identification   │
+        │                                   │
+        └───────────────┬───────────────────┘
+                        │
+                        ▼
+        ┌───────────────────────────────────┐
+        │                                   │
+        │  Pass 4: Open Questions           │
+        │  (refine-questions)               │
+        │  • TBD/TODO marker detection      │
+        │  • Vague criteria replacement     │
+        │  • Missing documentation flags    │
+        │  • External dependency checks     │
+        │                                   │
+        └───────────────┬───────────────────┘
+                        │
+                        ▼
 ┌─────────────────────────────────────────────────────────────┐
-│              EXECUTION_PLAN.md (validated)                   │
+│              EXECUTION_PLAN.md (refined)                     │
 │  • Atomic sprints (right-sized for context budget)          │
 │  • Machine-verifiable exit criteria                         │
 │  • Optimal execution order (priority-based)                 │
+│  • Parallelism annotations (agent allocation)               │
+│  • Open questions resolved or flagged                       │
 └───────────────────────┬─────────────────────────────────────┘
+                        │
+                        │ ✦ RESTART CONTEXT WINDOW ✦
+                        │ (fresh context for execution)
                         │
                         ▼
               ┌─────────────────────┐
               │  /sprint-supervisor │
               │        start        │
               └──────────┬──────────┘
-                        │
-                        │ Initializes
-                        ▼
+                         │
+                         │ 1. THE RITUAL (name-feature)
+                         │    Generates operation name
+                         │ 2. Initializes state
+                         ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                   SUPERVISOR_STATE.md                        │
 │  • Work unit states (NOT_STARTED → RUNNING → COMPLETED)    │
@@ -174,9 +174,17 @@ The Sprint Supervisor is an agentic orchestrator that breaks down complex projec
 | Command | Purpose | Input | Output |
 |---------|---------|-------|--------|
 | `breakdown` | Generate execution plan from requirements | Requirements doc | EXECUTION_PLAN.md |
-| `analyze` | Three-pass comprehensive analysis | EXECUTION_PLAN.md | ANALYSIS_REPORT.md |
-| `evaluate` | Auto-fix atomicity/testability issues | EXECUTION_PLAN.md | EXECUTION_PLAN.md (modified) |
-| `prioritize` | Auto-reorder sprints by priority | EXECUTION_PLAN.md | EXECUTION_PLAN.md (modified) |
+| `refine` | Run all 4 refinement passes sequentially | EXECUTION_PLAN.md | EXECUTION_PLAN.md (refined) |
+| `refine-atomicity` | Pass 1: Check sprint sizing and testability | EXECUTION_PLAN.md | EXECUTION_PLAN.md (modified) |
+| `refine-priority` | Pass 2: Score and reorder by priority | EXECUTION_PLAN.md | EXECUTION_PLAN.md (modified) |
+| `refine-parallelism` | Pass 3: Identify parallel work, allocate agents | EXECUTION_PLAN.md | EXECUTION_PLAN.md (modified) |
+| `refine-questions` | Pass 4: Flag vague criteria and open questions | EXECUTION_PLAN.md | EXECUTION_PLAN.md (modified) |
+
+### The Ritual
+
+| Command | Purpose |
+|---------|---------|
+| `name-feature` | Generate humorous military operation name (called automatically by `start`) |
 
 ### Execution Commands
 
@@ -337,31 +345,40 @@ The supervisor classifies sprints by task type to determine dispatch and verific
 
 **Output**: `EXECUTION_PLAN.md` with work units, sprints, entry/exit criteria
 
-### Analyze plan quality
+### Refine the plan (all 4 passes)
 
 ```bash
-/sprint-supervisor analyze
+/sprint-supervisor refine
 ```
 
-**Output**: `ANALYSIS_REPORT.md` with three-pass diagnostic:
-- Pass 1: Completeness (Point A → Point B coverage, gaps, open questions)
-- Pass 2: Atomicity & Testability (sprint sizing, verification criteria)
-- Pass 3: Priority & Parallelism (dependency graph, execution order)
+**Output**: Refined `EXECUTION_PLAN.md` with:
+- Pass 1: Atomicity & Testability (sprint sizing, machine-verifiable criteria)
+- Pass 2: Prioritization (dependency-aware priority scoring and reordering)
+- Pass 3: Parallelism (agent allocation, critical path, build constraints)
+- Pass 4: Open Questions (vague criteria, missing docs, TBD markers)
 
-### Auto-fix quality issues
+### Run individual refinement passes
 
 ```bash
-# Fix atomicity/testability issues (split oversized sprints, add exit criteria)
-/sprint-supervisor evaluate
+# Pass 1 only: Check sprint sizing and testability
+/sprint-supervisor refine-atomicity
 
-# Reorder sprints by priority (foundation-first, risk-early, bottleneck-early)
-/sprint-supervisor prioritize
+# Pass 2 only: Score and reorder sprints by priority
+/sprint-supervisor refine-priority
+
+# Pass 3 only: Analyze parallelism opportunities
+/sprint-supervisor refine-parallelism
+
+# Pass 4 only: Flag open questions and vague criteria
+/sprint-supervisor refine-questions
 ```
 
 ### Execute the plan
 
 ```bash
-# Start from scratch
+# ✦ Start a fresh context window first ✦
+
+# Start from scratch (generates operation name via THE RITUAL)
 /sprint-supervisor start
 
 # Check status (non-blocking)
@@ -380,26 +397,22 @@ The supervisor classifies sprints by task type to determine dispatch and verific
 ### Typical workflow
 
 ```bash
-# 1. Generate plan
+# 1. Generate plan from requirements
 /sprint-supervisor breakdown requirements.md
 
-# 2. Analyze quality
-/sprint-supervisor analyze
+# 2. Refine plan (all 4 passes)
+/sprint-supervisor refine
 
-# 3. Auto-fix issues (optional)
-/sprint-supervisor evaluate
-/sprint-supervisor prioritize
+# 3. ✦ RESTART CONTEXT WINDOW ✦
+#    (fresh context = more budget for execution)
 
-# 4. Re-analyze to verify (optional)
-/sprint-supervisor analyze
-
-# 5. Execute
+# 4. Execute
 /sprint-supervisor start
 
-# 6. Monitor (in another session)
-watch -n 5 '/sprint-supervisor status'
+# 5. Monitor (in another session or periodically)
+/sprint-supervisor status
 
-# 7. If issues arise
+# 6. If issues arise
 /sprint-supervisor stop      # graceful shutdown
 # ... fix issues manually ...
 /sprint-supervisor resume    # continue execution
@@ -482,8 +495,7 @@ All recovery follows the state machine — no ad-hoc fixes:
 
 | File | Created By | Purpose |
 |------|-----------|---------|
-| `EXECUTION_PLAN.md` | `breakdown` | Work units, sprints, entry/exit criteria |
-| `ANALYSIS_REPORT.md` | `analyze` | Three-pass diagnostic report |
+| `EXECUTION_PLAN.md` | `breakdown`, `refine` | Work units, sprints, entry/exit criteria, parallelism annotations |
 | `SUPERVISOR_STATE.md` | `start` | Persistent state (work unit/sprint states, active agents, attempt counters) |
 
 ---
@@ -497,8 +509,8 @@ Default: 50 turns per sprint agent
 Set with `--max-turns=N` flag:
 
 ```bash
-/sprint-supervisor analyze --max-turns=100
-/sprint-supervisor evaluate --max-turns=100
+/sprint-supervisor refine --max-turns=100
+/sprint-supervisor refine-atomicity --max-turns=100
 ```
 
 Calibration: ~15-20 productive actions per 50 turns (rest is overhead)
@@ -535,6 +547,13 @@ Work units in the same layer with no shared dependencies execute in parallel:
 | Utils     | 1     | none        |  ← Both execute in parallel
 | API       | 2     | Core        |
 ```
+
+### Agent Allocation
+
+The `refine-parallelism` pass allocates up to 4 sub-agents for concurrent execution:
+
+- **Supervising agent**: Handles all sprints with build/compile steps
+- **Sub-agents (up to 4)**: Handle work without build steps (code generation, documentation, research)
 
 ### Compound Sprints
 
@@ -576,6 +595,18 @@ Supervisor polls verification command until success — does not fail after retr
 
 ---
 
+## Model Selection
+
+The supervisor selects the cheapest appropriate model for each sprint:
+
+| Model | Cost | Use When |
+|-------|------|----------|
+| haiku | 1x | Simple, well-defined tasks (file creation, config changes) |
+| sonnet | 10x | Standard complexity (feature implementation, test writing) |
+| opus | 30x | Complex, ambiguous, or critical work (architecture, debugging) |
+
+---
+
 ## Troubleshooting
 
 ### Plan won't parse
@@ -600,14 +631,13 @@ Supervisor polls verification command until success — does not fail after retr
 ### Execution too slow
 
 - Check if work units are serialized unnecessarily (layer structure)
-- Review `ANALYSIS_REPORT.md` Pass 3 for parallelization opportunities
-- Run `/sprint-supervisor prioritize` to optimize order
+- Run `/sprint-supervisor refine-parallelism` to optimize parallelism
+- Run `/sprint-supervisor refine-priority` to optimize order
 
 ### Context exhaustion
 
 - Sprints are too large (too many tasks/files)
-- Run `/sprint-supervisor analyze` to identify oversized sprints
-- Run `/sprint-supervisor evaluate` to auto-split oversized sprints
+- Run `/sprint-supervisor refine-atomicity` to identify and split oversized sprints
 - Or increase context budget: `--max-turns=100`
 
 ---
@@ -637,9 +667,3 @@ The Sprint Supervisor is a **state machine orchestrator**, not a code generator:
 - **Write state before dispatching**: Crash-safe (state never lost)
 - **Verification cascade**: Multiple sources of truth (agent output, git, files, commands)
 - **Graceful degradation**: PARTIAL → continuation, FAILURE → retry, FATAL → BLOCKED
-
----
-
-## License
-
-Part of the Anthropic Claude Code package collection.
