@@ -1,6 +1,8 @@
 # Name Feature Sub-Skill
 
-Part of the Sprint Supervisor skill. Generates humorous military operation names for execution plans.
+Part of the Mission Supervisor skill. Generates humorous military operation names for execution plans.
+
+> **Terminology reminder**: A *mission* is the definable scope of work. A *sortie* is an atomic agent task within that mission.
 
 **Model**: Use **haiku only** (cheapest, pattern-based generation)
 
@@ -156,15 +158,15 @@ Output the operation name with ceremony:
 │                                             │
 │  Mission: [one-line summary]               │
 │  Status: COMMENCING                        │
-│  Sprints: [N] across [M] work units        │
+│  Sorties: [N] across [M] work units        │
 └─────────────────────────────────────────────┘
 
 Operation name logged in EXECUTION_PLAN.md frontmatter.
 
-Ready to roll? Dispatching Sprint 1...
+Ready to roll? Dispatching Sortie 1...
 ```
 
-**Important**: The line "Ready to roll? Dispatching Sprint 1..." signals to the `start` command that naming is complete and execution should begin.
+**Important**: The line "Ready to roll? Dispatching Sortie 1..." signals to the `start` command that naming is complete and execution should begin.
 
 ---
 
@@ -201,8 +203,8 @@ Updated EXECUTION_PLAN.md frontmatter.
 Whoa there, soldier! Can't name an operation without a plan.
 
 Run one of these first:
-- /sprint-supervisor breakdown [requirements.md] (create a plan)
-- Provide the plan path: /sprint-supervisor name-feature /path/to/EXECUTION_PLAN.md
+- /mission-supervisor breakdown [requirements.md] (create a plan)
+- Provide the plan path: /mission-supervisor name-feature /path/to/EXECUTION_PLAN.md
 ```
 
 ### Empty or Invalid Plan
@@ -233,11 +235,11 @@ Falling back to: OPERATION [PROJECT_DIR_NAME]
 1. `start` detects missing `feature_name` frontmatter
 2. `start` invokes name-feature logic (Context B)
 3. name-feature generates name, displays ceremony
-4. name-feature outputs "Ready to roll? Dispatching Sprint 1..."
-5. `start` continues with sprint dispatch
+4. name-feature outputs "Ready to roll? Dispatching Sortie 1..."
+5. `start` continues with sortie dispatch
 
 **When user calls manually**:
-1. User runs `/sprint-supervisor name-feature`
+1. User runs `/mission-supervisor name-feature`
 2. Check context (A, B, or C)
 3. Route to appropriate handler
 4. If Context A: reproach and stop

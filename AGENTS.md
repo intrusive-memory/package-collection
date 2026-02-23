@@ -197,7 +197,7 @@ ln -s "$(pwd)/skills/<skill-name>" .claude/skills/<skill-name>
 | **ship-ios-app** | `/ship-ios-app` | Ships new versions of iOS/macOS apps via App Store Connect |
 | **ship-swift-library** | `/ship-swift-library` | Ship and release Swift library versions — merge PR, bump version, tag, create GitHub release |
 | **shortcuts-helper** | `/shortcuts-helper` | Create, run, and understand macOS Shortcuts workflows with CLI, URL schemes, and App Intents |
-| **sprint-supervisor** | `/sprint-supervisor` | Plan and execute sprints — `breakdown` generates a plan from requirements, `refine` performs 4 passes (atomicity, priority, parallelism, open questions), then restart context and `start/resume/status/stop/killall` orchestrate sprint agents |
+| **mission-supervisor** | `/mission-supervisor` | Plan and execute missions — `breakdown` generates a plan from requirements, `refine` performs 4 passes (atomicity, priority, parallelism, open questions), then restart context and `start/resume/status/stop/killall` orchestrate sortie agents |
 | **ui-ux-pro-max** | `/ui-ux-pro-max` | UI/UX design intelligence — 50 styles, 21 palettes, 50 font pairings, 20 charts, 8 framework stacks |
 
 ### Skill Structure
