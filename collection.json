@@ -9,8 +9,8 @@
     "intrusive-memory"
   ],
   "formatVersion": "1.0",
-  "revision": 6,
-  "generatedAt": "2026-02-15T00:19:07Z",
+  "revision": 9,
+  "generatedAt": "2026-02-23T20:44:04Z",
   "generatedBy": {
     "name": "Intrusive Memory"
   },
@@ -27,7 +27,7 @@
       "readmeURL": "https://github.com/intrusive-memory/SwiftBruja/blob/main/README.md",
       "versions": [
         {
-          "version": "1.0.11",
+          "version": "1.1.0",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
@@ -80,7 +80,7 @@
       "readmeURL": "https://github.com/intrusive-memory/SwiftCompartido/blob/main/README.md",
       "versions": [
         {
-          "version": "6.6.0",
+          "version": "7.0.0",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
@@ -284,7 +284,7 @@
       "readmeURL": "https://github.com/intrusive-memory/SwiftProyecto/blob/main/README.md",
       "versions": [
         {
-          "version": "3.0.0",
+          "version": "3.1.0",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
@@ -387,7 +387,7 @@
       "readmeURL": "https://github.com/intrusive-memory/SwiftEchada/blob/main/README.md",
       "versions": [
         {
-          "version": "0.9.0",
+          "version": "0.9.4",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
@@ -441,7 +441,7 @@
       "readmeURL": "https://github.com/intrusive-memory/SwiftVoxAlta/blob/main/README.md",
       "versions": [
         {
-          "version": "0.2.1",
+          "version": "0.7.1",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
@@ -462,112 +462,6 @@
                   },
                   "targets": [
                     "SwiftVoxAlta"
-                  ]
-                }
-              ],
-              "minimumPlatformVersions": [
-                {
-                  "name": "macOS",
-                  "version": "26.0"
-                },
-                {
-                  "name": "iOS",
-                  "version": "26.0"
-                }
-              ]
-            }
-          },
-          "defaultToolsVersion": "6.2"
-        }
-      ]
-    },
-    {
-      "url": "https://github.com/intrusive-memory/SwiftOnce.git",
-      "summary": "Swift 6.2 library wrapping the ElevenLabs TTS REST API with text-to-speech, voice discovery, voice design, streaming, and caching.",
-      "keywords": [
-        "tts",
-        "elevenlabs",
-        "api",
-        "voice",
-        "audio"
-      ],
-      "readmeURL": "https://github.com/intrusive-memory/SwiftOnce/blob/main/README.md",
-      "versions": [
-        {
-          "version": "0.2.0",
-          "manifests": {
-            "6.2": {
-              "toolsVersion": "6.2",
-              "packageName": "SwiftOnce",
-              "targets": [
-                {
-                  "name": "SwiftOnce",
-                  "moduleName": "SwiftOnce"
-                }
-              ],
-              "products": [
-                {
-                  "name": "SwiftOnce",
-                  "type": {
-                    "library": [
-                      "automatic"
-                    ]
-                  },
-                  "targets": [
-                    "SwiftOnce"
-                  ]
-                }
-              ],
-              "minimumPlatformVersions": [
-                {
-                  "name": "macOS",
-                  "version": "26.0"
-                },
-                {
-                  "name": "iOS",
-                  "version": "26.0"
-                }
-              ]
-            }
-          },
-          "defaultToolsVersion": "6.2"
-        }
-      ]
-    },
-    {
-      "url": "https://github.com/intrusive-memory/SwiftAcervo.git",
-      "summary": "Shared AI model discovery and management for HuggingFace models on Apple platforms.",
-      "keywords": [
-        "ai",
-        "models",
-        "huggingface",
-        "mlx",
-        "management"
-      ],
-      "readmeURL": "https://github.com/intrusive-memory/SwiftAcervo/blob/main/README.md",
-      "versions": [
-        {
-          "version": "0.1.0",
-          "manifests": {
-            "6.2": {
-              "toolsVersion": "6.2",
-              "packageName": "SwiftAcervo",
-              "targets": [
-                {
-                  "name": "SwiftAcervo",
-                  "moduleName": "SwiftAcervo"
-                }
-              ],
-              "products": [
-                {
-                  "name": "SwiftAcervo",
-                  "type": {
-                    "library": [
-                      "automatic"
-                    ]
-                  },
-                  "targets": [
-                    "SwiftAcervo"
                   ]
                 }
               ],
