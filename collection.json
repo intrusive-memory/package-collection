@@ -9,8 +9,8 @@
     "intrusive-memory"
   ],
   "formatVersion": "1.0",
-  "revision": 7,
-  "generatedAt": "2026-02-23T20:09:16Z",
+  "revision": 8,
+  "generatedAt": "2026-02-23T20:25:22Z",
   "generatedBy": {
     "name": "Intrusive Memory"
   },
@@ -387,7 +387,7 @@
       "readmeURL": "https://github.com/intrusive-memory/SwiftEchada/blob/main/README.md",
       "versions": [
         {
-          "version": "0.9.3",
+          "version": "0.9.4",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
@@ -441,7 +441,7 @@
       "readmeURL": "https://github.com/intrusive-memory/SwiftVoxAlta/blob/main/README.md",
       "versions": [
         {
-          "version": "0.7.0",
+          "version": "0.7.1",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
