@@ -110,7 +110,14 @@ Progress files and git state are ground truth. If SUPERVISOR_STATE.md disagrees 
 
 ### Step 6: Execute Command
 
-- **`start`**: Begin from scratch. **THE RITUAL**: Check for `feature_name` frontmatter in EXECUTION_PLAN.md. If missing, call `name-feature` to generate operation name and display ceremonial announcement. Then initialize SUPERVISOR_STATE.md and dispatch Sortie 1 for each work unit that has no unsatisfied dependencies.
+- **`start`**: Begin from scratch. Execute the **MISSION INITIALIZATION SEQUENCE** in order:
+  1. **Record Starting Point**: Capture current HEAD as the starting point commit: `git rev-parse HEAD`.
+  2. **Detect Iteration Number**: Glob for `*_BRIEF.md` files in `$PROJECT_ROOT`. If found, extract the highest iteration number `NN` and set current iteration to `NN + 1`. Otherwise, iteration is `1`.
+  3. **THE RITUAL**: Check for `feature_name` frontmatter in EXECUTION_PLAN.md. If missing, call `name-feature` to generate operation name and display ceremonial announcement.
+  4. **Create Mission Branch**: Derive slug from operation name (lowercase, hyphens, drop "operation-" prefix). Create and switch to branch: `git checkout -b mission/<slug>/<NN>`. If the branch already exists (resuming from a previous partial start), switch to it without creating.
+  5. **Update Frontmatter**: Add/update EXECUTION_PLAN.md frontmatter with `starting_point_commit`, `mission_branch`, and `iteration` fields.
+  6. **Initialize State**: Create SUPERVISOR_STATE.md with Mission Metadata section including starting point commit, mission branch, and iteration number.
+  7. **Dispatch**: Dispatch Sortie 1 for each work unit that has no unsatisfied dependencies.
 - **`resume`**: Pick up where the last supervisor left off. Read state, determine what sorties need dispatching, continue.
 
 ---

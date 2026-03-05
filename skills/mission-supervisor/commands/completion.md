@@ -326,3 +326,23 @@ All <N> sorties executed across <count> work units.
 
 Detailed analysis available in: $PROJECT_ROOT/COMPLETE_<PROJECT_NAME>.md
 ```
+
+## 7. Trigger Post-Mission Brief
+
+After outputting the completion summary, prompt the user:
+
+```
+Mission complete. Ready to run the post-mission brief?
+
+The brief will:
+- Harvest hard discoveries and process lessons
+- Assess sortie accuracy
+- Identify open decisions for the next iteration (if any)
+- Record iteration metadata (starting point, branch, rollback target)
+
+Run now? /mission-supervisor brief
+```
+
+If the user confirms, invoke the `brief` command (see `commands/brief.md`).
+
+The brief is **mandatory for iterative missions** (Rodillo Liso process). For one-shot missions where no rollback is planned, the brief is recommended but optional.
