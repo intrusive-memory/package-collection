@@ -9,12 +9,64 @@
     "intrusive-memory"
   ],
   "formatVersion": "1.0",
-  "revision": 9,
-  "generatedAt": "2026-02-23T20:44:04Z",
+  "revision": 10,
+  "generatedAt": "2026-03-09T21:13:30Z",
   "generatedBy": {
     "name": "Intrusive Memory"
   },
   "packages": [
+    {
+      "url": "https://github.com/intrusive-memory/SwiftAcervo.git",
+      "summary": "Shared AI model discovery and management for HuggingFace models on Apple platforms.",
+      "keywords": [
+        "ai-models",
+        "huggingface",
+        "model-management",
+        "caching"
+      ],
+      "readmeURL": "https://github.com/intrusive-memory/SwiftAcervo/blob/main/README.md",
+      "versions": [
+        {
+          "version": "0.1.0",
+          "manifests": {
+            "6.2": {
+              "toolsVersion": "6.2",
+              "packageName": "SwiftAcervo",
+              "targets": [
+                {
+                  "name": "SwiftAcervo",
+                  "moduleName": "SwiftAcervo"
+                }
+              ],
+              "products": [
+                {
+                  "name": "SwiftAcervo",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "SwiftAcervo"
+                  ]
+                }
+              ],
+              "minimumPlatformVersions": [
+                {
+                  "name": "macOS",
+                  "version": "26.0"
+                },
+                {
+                  "name": "iOS",
+                  "version": "26.0"
+                }
+              ]
+            }
+          },
+          "defaultToolsVersion": "6.2"
+        }
+      ]
+    },
     {
       "url": "https://github.com/intrusive-memory/SwiftBruja.git",
       "summary": "On-device LLM inference for Apple Silicon via MLX. One-line queries with auto-download.",
@@ -80,7 +132,7 @@
       "readmeURL": "https://github.com/intrusive-memory/SwiftCompartido/blob/main/README.md",
       "versions": [
         {
-          "version": "7.0.0",
+          "version": "7.0.1",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
@@ -101,6 +153,57 @@
                   },
                   "targets": [
                     "SwiftCompartido"
+                  ]
+                }
+              ],
+              "minimumPlatformVersions": [
+                {
+                  "name": "macOS",
+                  "version": "26.0"
+                },
+                {
+                  "name": "iOS",
+                  "version": "26.0"
+                }
+              ]
+            }
+          },
+          "defaultToolsVersion": "6.2"
+        }
+      ]
+    },
+    {
+      "url": "https://github.com/intrusive-memory/SwiftEchada.git",
+      "summary": "Shared Swift utilities and extensions for the Intrusive Memory ecosystem.",
+      "keywords": [
+        "utilities",
+        "extensions",
+        "swift"
+      ],
+      "readmeURL": "https://github.com/intrusive-memory/SwiftEchada/blob/main/README.md",
+      "versions": [
+        {
+          "version": "0.10.2",
+          "manifests": {
+            "6.2": {
+              "toolsVersion": "6.2",
+              "packageName": "SwiftEchada",
+              "targets": [
+                {
+                  "name": "SwiftEchada",
+                  "moduleName": "SwiftEchada"
+                }
+              ],
+              "products": [
+                {
+                  "name": "SwiftEchada",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "SwiftEchada"
                   ]
                 }
               ],
@@ -232,7 +335,7 @@
       "readmeURL": "https://github.com/intrusive-memory/SwiftHablare/blob/main/README.md",
       "versions": [
         {
-          "version": "5.7.0",
+          "version": "5.7.1",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
@@ -273,6 +376,59 @@
       ]
     },
     {
+      "url": "https://github.com/intrusive-memory/SwiftOnce.git",
+      "summary": "Swift wrapper for the ElevenLabs TTS REST API with voice discovery, voice design, streaming, and audio caching.",
+      "keywords": [
+        "elevenlabs",
+        "tts",
+        "voice-design",
+        "streaming",
+        "audio"
+      ],
+      "readmeURL": "https://github.com/intrusive-memory/SwiftOnce/blob/main/README.md",
+      "versions": [
+        {
+          "version": "0.2.0",
+          "manifests": {
+            "6.2": {
+              "toolsVersion": "6.2",
+              "packageName": "SwiftOnce",
+              "targets": [
+                {
+                  "name": "SwiftOnce",
+                  "moduleName": "SwiftOnce"
+                }
+              ],
+              "products": [
+                {
+                  "name": "SwiftOnce",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "SwiftOnce"
+                  ]
+                }
+              ],
+              "minimumPlatformVersions": [
+                {
+                  "name": "macOS",
+                  "version": "26.0"
+                },
+                {
+                  "name": "iOS",
+                  "version": "26.0"
+                }
+              ]
+            }
+          },
+          "defaultToolsVersion": "6.2"
+        }
+      ]
+    },
+    {
       "url": "https://github.com/intrusive-memory/SwiftProyecto.git",
       "summary": "Project metadata management, file discovery, and PROJECT.md parsing for screenplay projects.",
       "keywords": [
@@ -284,7 +440,7 @@
       "readmeURL": "https://github.com/intrusive-memory/SwiftProyecto/blob/main/README.md",
       "versions": [
         {
-          "version": "3.1.0",
+          "version": "3.1.1",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
@@ -336,7 +492,7 @@
       "readmeURL": "https://github.com/intrusive-memory/SwiftSecuencia/blob/main/README.md",
       "versions": [
         {
-          "version": "2.0.0",
+          "version": "3.0.1",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
@@ -377,57 +533,6 @@
       ]
     },
     {
-      "url": "https://github.com/intrusive-memory/SwiftEchada.git",
-      "summary": "Shared Swift utilities and extensions for the Intrusive Memory ecosystem.",
-      "keywords": [
-        "utilities",
-        "extensions",
-        "swift"
-      ],
-      "readmeURL": "https://github.com/intrusive-memory/SwiftEchada/blob/main/README.md",
-      "versions": [
-        {
-          "version": "0.9.4",
-          "manifests": {
-            "6.2": {
-              "toolsVersion": "6.2",
-              "packageName": "SwiftEchada",
-              "targets": [
-                {
-                  "name": "SwiftEchada",
-                  "moduleName": "SwiftEchada"
-                }
-              ],
-              "products": [
-                {
-                  "name": "SwiftEchada",
-                  "type": {
-                    "library": [
-                      "automatic"
-                    ]
-                  },
-                  "targets": [
-                    "SwiftEchada"
-                  ]
-                }
-              ],
-              "minimumPlatformVersions": [
-                {
-                  "name": "macOS",
-                  "version": "26.0"
-                },
-                {
-                  "name": "iOS",
-                  "version": "26.0"
-                }
-              ]
-            }
-          },
-          "defaultToolsVersion": "6.2"
-        }
-      ]
-    },
-    {
       "url": "https://github.com/intrusive-memory/SwiftVoxAlta.git",
       "summary": "On-device Qwen3-TTS voice design and cloning for SwiftHablare. Character voice pipeline with VoiceDesign, Base model cloning, and diga CLI.",
       "keywords": [
@@ -441,7 +546,7 @@
       "readmeURL": "https://github.com/intrusive-memory/SwiftVoxAlta/blob/main/README.md",
       "versions": [
         {
-          "version": "0.7.1",
+          "version": "0.8.1",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
