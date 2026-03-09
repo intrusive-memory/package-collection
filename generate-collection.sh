@@ -15,25 +15,29 @@ OUTPUT="${1:-${SCRIPT_DIR}/collection.json}"
 
 # Repos: owner/name pairs
 REPOS=(
+  "intrusive-memory/SwiftAcervo"
   "intrusive-memory/SwiftBruja"
   "intrusive-memory/SwiftCompartido"
+  "intrusive-memory/SwiftEchada"
   "intrusive-memory/SwiftFFMpeg"
   "intrusive-memory/SwiftFijos"
   "intrusive-memory/SwiftHablare"
+  "intrusive-memory/SwiftOnce"
   "intrusive-memory/SwiftProyecto"
   "intrusive-memory/SwiftPruebas"
   "intrusive-memory/SwiftSecuencia"
-  "intrusive-memory/SwiftEchada"
   "intrusive-memory/SwiftVoxAlta"
 )
 
 # Package metadata (summary, keywords) keyed by repo name
 declare -A SUMMARIES=(
+  [SwiftAcervo]="Shared AI model discovery and management for HuggingFace models on Apple platforms."
   [SwiftBruja]="On-device LLM inference for Apple Silicon via MLX. One-line queries with auto-download."
   [SwiftCompartido]="Screenplay parsing, SwiftData models, and SwiftUI display components. Supports Fountain, FDX, PDF, Highland, and more."
   [SwiftFFMpeg]="Swift wrapper for FFmpeg API for audio/video processing."
   [SwiftFijos]="Test fixture file discovery for Swift packages and Xcode projects."
   [SwiftHablare]="Voice generation library with Apple TTS, ElevenLabs, and Qwen TTS providers. SwiftUI components included."
+  [SwiftOnce]="Swift wrapper for the ElevenLabs TTS REST API with voice discovery, voice design, streaming, and audio caching."
   [SwiftProyecto]="Project metadata management, file discovery, and PROJECT.md parsing for screenplay projects."
   [SwiftPruebas]="Shared test utilities and helpers for the Intrusive Memory ecosystem."
   [SwiftSecuencia]="FCPXML timeline generation and audio export for Final Cut Pro X integration."
@@ -42,11 +46,13 @@ declare -A SUMMARIES=(
 )
 
 declare -A KEYWORDS=(
+  [SwiftAcervo]='["ai-models","huggingface","model-management","caching"]'
   [SwiftBruja]='["llm","mlx","ai","apple-silicon"]'
   [SwiftCompartido]='["screenplay","fountain","parser","swiftui","swiftdata"]'
   [SwiftFFMpeg]='["ffmpeg","audio","video","media"]'
   [SwiftFijos]='["testing","fixtures","test-utilities"]'
   [SwiftHablare]='["tts","voice","audio","speech-synthesis","elevenlabs"]'
+  [SwiftOnce]='["elevenlabs","tts","voice-design","streaming","audio"]'
   [SwiftProyecto]='["project","metadata","file-discovery","yaml"]'
   [SwiftPruebas]='["testing","test-utilities"]'
   [SwiftSecuencia]='["fcpxml","final-cut-pro","timeline","audio-export"]'
