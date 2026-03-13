@@ -322,6 +322,27 @@ When `resume` starts, check for existing brief files:
 
 ---
 
+## Archive Brief File
+
+After the brief file is written, move it to `docs/complete/` with the operation name slug:
+
+1. Derive the slug from `feature_name` (lowercase, hyphens, drop "operation-" prefix).
+2. Move the brief:
+   ```bash
+   mkdir -p $PROJECT_ROOT/docs/complete
+   mv $PROJECT_ROOT/<OPERATION_NAME>_<NN>_BRIEF.md $PROJECT_ROOT/docs/complete/<slug>-<NN>-brief.md
+   git add docs/complete/<slug>-<NN>-brief.md
+   git commit -m "Archive brief for <OPERATION NAME> iteration <NN>"
+   ```
+3. Report:
+   ```
+   Brief archived to: docs/complete/<slug>-<NN>-brief.md
+   ```
+
+This ensures all mission artifacts end up in `docs/complete/` with consistent naming.
+
+---
+
 ## Personality
 
 The brief is **honest, not diplomatic**. It names what went wrong without hedging. It credits what went right without false modesty. The tone is a post-flight debrief, not a retrospective ceremony.
