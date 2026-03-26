@@ -14,7 +14,7 @@ This skill handles the complete release process for Swift libraries.
 
 ## Process Overview
 
-You will perform the following steps in order:
+You will perform the following 12 steps in order:
 
 ### 1. Check for Open Pull Request
 
@@ -51,6 +51,14 @@ git pull origin development
 
 Edit the version file (e.g. `Sources/<LibraryName>/<LibraryName>.swift`).
 
+**Run `make lint` to format all Swift source files before committing:**
+
+```bash
+make lint
+```
+
+This runs `swift format -i -r .` across the entire project. Any formatting changes will be included in the commit.
+
 **Then organize and update project documentation** using the organize-agent-docs skill:
 
 ```
@@ -72,7 +80,7 @@ This will:
 - Update platform requirements (iOS/macOS/Swift/Xcode versions)
 - Verify all doc links point to existing files
 
-Commit everything together — version bump + doc updates — in a single commit:
+Commit everything together — version bump + lint fixes + doc updates — in a single commit:
 
 ```bash
 git add Sources/<LibraryName>/<LibraryName>.swift README.md AGENTS.md CLAUDE.md GEMINI.md
@@ -191,17 +199,50 @@ Verify:
 - Target is `main` branch
 - URL is accessible
 
-### 10. Sync Development Branch
+### 10. Sync Local Branches and Development
 
-Ensure development has the squash merge from main (avoids future merge conflicts):
+Update both local branches to match remote state after the release:
 
 ```bash
+# Update local main with the merge commit and tag
+git checkout main
+git pull origin main
+
+# Switch to development and merge main back (avoids future merge conflicts)
 git checkout development
+git pull origin development
 git merge origin/main
 git push origin development
 ```
 
-### 11. Summary Report
+### 11. Create Next Development Cycle PR
+
+Create a new (empty) pull request from `development` to `main`. This signals that the development branch is open for new work and provides a landing target for future feature PRs:
+
+```bash
+gh pr create \
+  --base main \
+  --head development \
+  --title "Development → Main" \
+  --body "$(cat <<'EOF'
+## Next Development Cycle
+
+Development branch is synced with main after vX.Y.Z release and ready for new work.
+
+This PR will collect changes for the next release.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+EOF
+)"
+```
+
+Confirm the PR was created:
+
+```bash
+gh pr list --base main --head development
+```
+
+### 12. Summary Report
 
 Provide final summary:
 
@@ -209,6 +250,7 @@ Provide final summary:
 Release vX.Y.Z Complete
 
 - Version bumped to X.Y.Z on development ✅
+- Swift source formatted with make lint ✅
 - Documentation organized with /organize-agent-docs ✅
   - AGENTS.md: Universal project documentation
   - CLAUDE.md: Claude-specific instructions only
@@ -218,9 +260,12 @@ Release vX.Y.Z Complete
 - Pull Request #<NUMBER> merged to main (includes version bump + docs) ✅
 - Tag vX.Y.Z created on main ✅
 - GitHub release published ✅
-- Development branch synced with main ✅
+- Local branches updated (main and development) ✅
+- Development synced with main ✅
+- New development cycle PR #<NEW_NUMBER> created ✅
 
 Release URL: https://github.com/<owner>/<repo>/releases/tag/vX.Y.Z
+Next cycle PR: https://github.com/<owner>/<repo>/pull/<NEW_NUMBER>
 
 The library is now ready for use via Swift Package Manager.
 ```
@@ -228,19 +273,21 @@ The library is now ready for use via Swift Package Manager.
 ## Critical Rules (NEVER VIOLATE)
 
 1. **Bump version BEFORE merging** - The version bump must be part of the PR
-2. **Organize docs with /organize-agent-docs** - Ensure proper separation of universal vs agent-specific documentation
-3. **Wait for CI after version bump** - Don't merge until the new CI run passes
-4. **Use --squash** - Keep main branch history clean with single commits per PR
-5. **Don't delete development** - It's a long-lived branch
-6. **Tag on main after merge** - The tag goes on the squash merge commit
-7. **Sync development after release** - Merge main back to avoid future conflicts
+2. **Run `make lint` before committing** - Format all Swift source files with swift format
+3. **Organize docs with /organize-agent-docs** - Ensure proper separation of universal vs agent-specific documentation
+4. **Wait for CI after version bump** - Don't merge until the new CI run passes
+5. **Use --squash** - Keep main branch history clean with single commits per PR
+6. **Don't delete development** - It's a long-lived branch
+7. **Tag on main after merge** - The tag goes on the squash merge commit
+8. **Sync development after release** - Merge main back to avoid future conflicts
+9. **Create next cycle PR** - Always open a new development→main PR after release so the branch is ready for new work
 
 ## Correct Flow
 
 ```
-development: [features] -> [version bump] -> [/organize-agent-docs] -> (CI passes) -> PR merged
+development: [features] -> [version bump] -> [make lint] -> [/organize-agent-docs] -> (CI passes) -> PR merged
 main:        -----------------------------------------------------------------> [squash commit] -> [tag vX.Y.Z] -> [release]
-development: [merge main back] ------------------------------------------------->
+development: [sync local branches] -> [merge main back] -> [push] -> [new empty PR to main]
 ```
 
 ## Error Handling
