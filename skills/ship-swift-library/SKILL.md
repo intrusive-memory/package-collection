@@ -199,21 +199,23 @@ Verify:
 - Target is `main` branch
 - URL is accessible
 
-### 10. Sync Local Branches and Development
+### 10. Rebase Development onto Main
 
-Update both local branches to match remote state after the release:
+After a squash merge, development's original commits are not ancestors of the squash commit on main. A `git merge main` would make the code identical but leave those old commits visible in the next PR (tons of commits, zero diff). Rebase eliminates them by replaying any new work on top of main's squash commit.
 
 ```bash
 # Update local main with the merge commit and tag
 git checkout main
 git pull origin main
 
-# Switch to development and merge main back (avoids future merge conflicts)
+# Rebase development onto main (fast-forwards when no new commits exist)
 git checkout development
 git pull origin development
-git merge origin/main
-git push origin development
+git rebase main
+git push origin development --force-with-lease
 ```
+
+**Why rebase instead of merge?** Squash merge creates a new commit on main that has no ancestry relationship with development's commits. `git merge main` brings the content in but leaves the old commits dangling — the next PR shows them all with 0 diff. Rebase moves development's base to main's tip, so only truly new commits appear in the next PR.
 
 ### 11. Create Next Development Cycle PR
 
@@ -279,7 +281,7 @@ The library is now ready for use via Swift Package Manager.
 5. **Use --squash** - Keep main branch history clean with single commits per PR
 6. **Don't delete development** - It's a long-lived branch
 7. **Tag on main after merge** - The tag goes on the squash merge commit
-8. **Sync development after release** - Merge main back to avoid future conflicts
+8. **Rebase development after release** - Rebase onto main (not merge) to avoid phantom commits in the next PR
 9. **Create next cycle PR** - Always open a new development→main PR after release so the branch is ready for new work
 
 ## Correct Flow
@@ -287,7 +289,7 @@ The library is now ready for use via Swift Package Manager.
 ```
 development: [features] -> [version bump] -> [make lint] -> [/organize-agent-docs] -> (CI passes) -> PR merged
 main:        -----------------------------------------------------------------> [squash commit] -> [tag vX.Y.Z] -> [release]
-development: [sync local branches] -> [merge main back] -> [push] -> [new empty PR to main]
+development: [rebase onto main] -> [force-push] -> [new empty PR to main]
 ```
 
 ## Error Handling

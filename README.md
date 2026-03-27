@@ -6,14 +6,31 @@ A [Swift Package Collection](https://swift.org/blog/package-collections/) for al
 
 | Package | Description |
 |---------|-------------|
+| SwiftAcervo | AI model discovery and management for HuggingFace models |
 | SwiftBruja | On-device LLM inference via MLX |
 | SwiftCompartido | Screenplay parsing, SwiftData models, SwiftUI components |
+| SwiftEchada | Shared Swift utilities and extensions |
 | SwiftFFMpeg | FFmpeg audio/video processing |
 | SwiftFijos | Test fixture file discovery |
 | SwiftHablare | Voice generation (Apple TTS, ElevenLabs, Qwen) |
+| SwiftOnce | ElevenLabs TTS REST API wrapper |
 | SwiftProyecto | Project metadata and file discovery |
-| SwiftPruebas | Shared test utilities |
 | SwiftSecuencia | FCPXML timeline generation for Final Cut Pro |
+| SwiftTuberia | MLX diffusion pipeline infrastructure |
+| SwiftVinetas | Image generation with FLUX.2 and PixArt-Sigma |
+| SwiftVoxAlta | On-device Qwen3-TTS voice design and cloning |
+| flux-2-swift-mlx | FLUX.2 text-to-image generation via MLX |
+| mlx-audio-swift | Audio TTS/STT/STS inference via MLX |
+| pixart-swift-mlx | PixArt-Sigma DiT backbone plugin |
+
+## Excluded Repos
+
+| Repo | Reason |
+|------|--------|
+| SwiftEspeak | Deprecated/archived, replaced by SwiftVoxAlta |
+| SwiftPruebas | Xcode project only, no Package.swift |
+| SwiftVerificar | Multi-sub-package structure, no top-level Package.swift yet |
+| mlx-image-swift | Research/docs only, not a Swift package |
 
 ## Adding the Collection
 

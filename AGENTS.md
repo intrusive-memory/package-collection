@@ -52,14 +52,22 @@ Vibe: [MOOD]. No text. 1:1 Aspect Ratio.
 
 | Package | Repo | Icon File | Status |
 |---------|------|-----------|--------|
+| SwiftAcervo | `intrusive-memory/SwiftAcervo` | — | Missing |
 | SwiftBruja | `intrusive-memory/SwiftBruja` | `SwiftBruja.jpg` | Done |
 | SwiftCompartido | `intrusive-memory/SwiftCompartido` | `SwiftCompartido.jpg` | Done |
+| SwiftEchada | `intrusive-memory/SwiftEchada` | — | Missing |
 | SwiftFFMpeg | `intrusive-memory/SwiftFFMpeg` | `SwiftFFmpeg.jpg` | Done |
 | SwiftFijos | `intrusive-memory/SwiftFijos` | `SwiftFijos.jpg` | Done |
 | SwiftHablare | `intrusive-memory/SwiftHablare` | `SwiftHablare.jpg` | Done |
+| SwiftOnce | `intrusive-memory/SwiftOnce` | — | Missing |
 | SwiftProyecto | `intrusive-memory/SwiftProyecto` | `SwiftProyecto.jpg` | Done |
-| SwiftPruebas | `intrusive-memory/SwiftPruebas` | `SwiftPruebas.jpg` | Done |
 | SwiftSecuencia | `intrusive-memory/SwiftSecuencia` | `SwiftSecuencia.jpg` | Done |
+| SwiftTuberia | `intrusive-memory/SwiftTuberia` | — | Missing |
+| SwiftVinetas | `intrusive-memory/SwiftVinetas` | — | Missing |
+| SwiftVoxAlta | `intrusive-memory/SwiftVoxAlta` | — | Missing |
+| flux-2-swift-mlx | `intrusive-memory/flux-2-swift-mlx` | — | Missing |
+| mlx-audio-swift | `intrusive-memory/mlx-audio-swift` | — | Missing |
+| pixart-swift-mlx | `intrusive-memory/pixart-swift-mlx` | — | Missing |
 
 ---
 
@@ -126,9 +134,17 @@ Vibe: [MOOD]. No text. 1:1 Aspect Ratio.
 
 | Package | Purpose | Suggested Theme |
 |---------|---------|-----------------|
+| **SwiftAcervo** | AI model discovery/management | Mannequin browsing a card catalog or filing cabinet of models |
+| **SwiftEchada** | Shared utilities/extensions | Mannequin with a Swiss army knife or multi-tool |
 | **SwiftFFMpeg** | FFmpeg audio/video wrapper | Mannequin operating a vintage film projector or reel-to-reel |
-| **SwiftPruebas** | Shared test utilities | Mannequin with safety goggles holding a clipboard with checkmarks |
+| **SwiftOnce** | ElevenLabs TTS API wrapper | Mannequin speaking into a vintage telephone or radio mic |
 | **SwiftSecuencia** | FCPXML timeline / Final Cut Pro | Mannequin arranging film strips or a clapperboard |
+| **SwiftTuberia** | Diffusion pipeline infrastructure | Mannequin assembling copper pipes or plumbing fixtures |
+| **SwiftVinetas** | Image generation orchestration | Mannequin painting on an easel with colorful splashes |
+| **SwiftVoxAlta** | On-device voice design/cloning | Mannequin at a mixing console with sound waves |
+| **flux-2-swift-mlx** | FLUX.2 text-to-image | Mannequin with glowing blueprint or technical drawing |
+| **mlx-audio-swift** | MLX audio inference | Mannequin wearing headphones at a reel-to-reel |
+| **pixart-swift-mlx** | PixArt-Sigma backbone | Mannequin examining pixels through a loupe |
 
 ### Suggested Prompts for Missing Icons
 
@@ -142,18 +158,6 @@ geometric room divider pattern of rounded cream squares and rectangles on
 thin vertical lines. Atmosphere: Dusty blue and seafoam gradient. Texture:
 Hand-painted with subtle brushstrokes and vintage paper overlay. No text.
 1:1 Aspect Ratio.
-```
-
-**SwiftPruebas**:
-```
-A high-resolution square icon in a 1950s Midcentury Modern illustration style.
-Subject: A single wooden articulated artist mannequin wearing safety goggles
-pushed up on forehead, holding a clipboard with checkmarks in one hand and
-a magnifying glass in the other. 3/4 shot. Environment: Warm honey-toned
-wood plank floor. Background: Atomic-age geometric room divider pattern of
-rounded cream squares and rectangles on thin vertical lines. Atmosphere:
-Dusty blue and seafoam gradient. Texture: Hand-painted with subtle
-brushstrokes and vintage paper overlay. No text. 1:1 Aspect Ratio.
 ```
 
 **SwiftSecuencia**:
