@@ -545,27 +545,42 @@
       "readmeURL": "https://github.com/intrusive-memory/SwiftTuberia/blob/main/README.md",
       "versions": [
         {
-          "version": "0.1.2",
+          "version": "0.2.7",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
               "packageName": "SwiftTuberia",
               "targets": [
                 {
-                  "name": "SwiftTuberia",
-                  "moduleName": "SwiftTuberia"
+                  "name": "Tuberia",
+                  "moduleName": "Tuberia"
+                },
+                {
+                  "name": "TuberiaCatalog",
+                  "moduleName": "TuberiaCatalog"
                 }
               ],
               "products": [
                 {
-                  "name": "SwiftTuberia",
+                  "name": "Tuberia",
                   "type": {
                     "library": [
                       "automatic"
                     ]
                   },
                   "targets": [
-                    "SwiftTuberia"
+                    "Tuberia"
+                  ]
+                },
+                {
+                  "name": "TuberiaCatalog",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "TuberiaCatalog"
                   ]
                 }
               ],
@@ -762,7 +777,7 @@
     },
     {
       "url": "https://github.com/intrusive-memory/mlx-audio-swift.git",
-      "summary": "On-device audio inference via MLX — text-to-speech, speech-to-text, speech-to-speech, and codec models.",
+      "summary": "On-device audio inference via MLX \u2014 text-to-speech, speech-to-text, speech-to-speech, and codec models.",
       "keywords": [
         "audio",
         "tts",
