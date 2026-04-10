@@ -9,8 +9,8 @@
     "intrusive-memory"
   ],
   "formatVersion": "1.0",
-  "revision": 11,
-  "generatedAt": "2026-03-27T13:33:35Z",
+  "revision": 12,
+  "generatedAt": "2026-04-09T00:00:00Z",
   "generatedBy": {
     "name": "Intrusive Memory"
   },
@@ -27,7 +27,7 @@
       "readmeURL": "https://github.com/intrusive-memory/SwiftAcervo/blob/main/README.md",
       "versions": [
         {
-          "version": "0.5.2",
+          "version": "0.6.0",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
