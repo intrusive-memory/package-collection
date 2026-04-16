@@ -146,9 +146,9 @@ Generated with [Claude Code](https://claude.com/claude-code)"
 git push origin vX.Y.Z
 ```
 
-### 8. Create GitHub Release
+### 8. Create GitHub Release (metadata only — NO tarball upload)
 
-Create a GitHub release from the tag:
+Create a GitHub release from the tag. **Do NOT upload any tarball or binary assets** — the `release.yml` CI workflow fires automatically on `release: published` and builds + uploads the canonical tarball, then dispatches the Homebrew formula update.
 
 ```bash
 gh release create vX.Y.Z \
@@ -186,9 +186,11 @@ EOF
 )"
 ```
 
-### 9. Verify Release
+**CRITICAL**: Never pass a local file path to `gh release create`. Never run `make dist` as part of the release process. CI owns binary production.
 
-Confirm the release was created successfully:
+### 9. Verify Release and Wait for CI
+
+Confirm the release was created, then let CI do its work:
 
 ```bash
 gh release view vX.Y.Z --json tagName,targetCommitish,url
@@ -198,6 +200,25 @@ Verify:
 - Tag is `vX.Y.Z`
 - Target is `main` branch
 - URL is accessible
+
+Then watch for the CI release workflow to complete:
+
+```bash
+gh run list --workflow=release.yml --limit=3
+```
+
+Wait until the run for `vX.Y.Z` shows `completed / success`. This workflow:
+1. Builds the tarball with `make dist` on a clean CI runner
+2. Uploads it to the GitHub release
+3. Dispatches a `formula-update` event to the homebrew-tap repo
+
+Once CI completes, confirm the Homebrew formula was updated:
+
+```bash
+cd <path-to-homebrew-tap> && git fetch origin && git log --oneline origin/main -5
+```
+
+Look for a commit like `Update <formula> to vX.Y.Z`. **Never manually edit the Homebrew formula** — if the CI dispatch didn't trigger it, investigate the `formula-update` workflow in homebrew-tap instead of patching by hand.
 
 ### 10. Rebase Development onto Main
 
@@ -261,7 +282,9 @@ Release vX.Y.Z Complete
 - CI checks passed ✅
 - Pull Request #<NUMBER> merged to main (includes version bump + docs) ✅
 - Tag vX.Y.Z created on main ✅
-- GitHub release published ✅
+- GitHub release published (metadata only — no manual tarball) ✅
+- CI release workflow triggered (builds tarball + updates Homebrew) ✅
+- Homebrew formula updated by CI at homebrew-tap ✅
 - Local branches updated (main and development) ✅
 - Development synced with main ✅
 - New development cycle PR #<NEW_NUMBER> created ✅
@@ -269,7 +292,7 @@ Release vX.Y.Z Complete
 Release URL: https://github.com/<owner>/<repo>/releases/tag/vX.Y.Z
 Next cycle PR: https://github.com/<owner>/<repo>/pull/<NEW_NUMBER>
 
-The library is now ready for use via Swift Package Manager.
+The library is now ready for use via Swift Package Manager and Homebrew.
 ```
 
 ## Critical Rules (NEVER VIOLATE)
@@ -283,12 +306,16 @@ The library is now ready for use via Swift Package Manager.
 7. **Tag on main after merge** - The tag goes on the squash merge commit
 8. **Rebase development after release** - Rebase onto main (not merge) to avoid phantom commits in the next PR
 9. **Create next cycle PR** - Always open a new development→main PR after release so the branch is ready for new work
+10. **NEVER manually build or upload release tarballs** - The `release.yml` CI workflow owns binary production. Never run `make dist` as part of releasing, never pass local file paths to `gh release create`.
+11. **NEVER manually edit the Homebrew formula** - CI dispatches a `formula-update` event to homebrew-tap after uploading the tarball. The tap updates itself. If it doesn't, investigate the CI workflow — do not patch the formula by hand.
 
 ## Correct Flow
 
 ```
 development: [features] -> [version bump] -> [make lint] -> [/organize-agent-docs] -> (CI passes) -> PR merged
-main:        -----------------------------------------------------------------> [squash commit] -> [tag vX.Y.Z] -> [release]
+main:        -----------------------------------------------------------------> [squash commit] -> [tag vX.Y.Z] -> [release (metadata only)]
+CI:          -------------------------------------------------------------------------^-- [build tarball] -> [upload to release] -> [dispatch formula-update to homebrew-tap]
+homebrew-tap:--------------------------------------------------------------------^-- (auto-updated by formula-update event)
 development: [rebase onto main] -> [force-push] -> [new empty PR to main]
 ```
 
