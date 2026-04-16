@@ -29,13 +29,24 @@ gh pr list --base main --head development
 
 ### 2. Determine Version Number
 
-Find the current version (usually `Sources/<LibraryName>/<LibraryName>.swift`):
+**CRITICAL**: The version string embedded in source code is NOT authoritative. It may be stale, wrong, or ahead of what was actually released. Always derive the current version from git tags.
 
-```swift
-public static let version = "X.Y.Z"
+```bash
+git fetch --tags
+git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -5
 ```
 
-Ask the user what version this release should be. Version increment rules:
+This lists the most recent semver tags in descending order. The first result is the last released version. If no tags exist, treat the last released version as `v0.0.0`.
+
+Also check the source file version for reference only — do not trust it as the authoritative released version:
+
+```bash
+grep 'version' Sources/<LibraryName>/<LibraryName>.swift
+```
+
+If the source version differs from the latest tag, flag this to the user before proceeding.
+
+Ask the user what version this release should be, presenting the last tagged version as the baseline. Version increment rules:
 - **Patch** (x.y.Z): Bug fixes, small improvements
 - **Minor** (x.Y.0): New features, non-breaking changes
 - **Major** (X.0.0): Breaking changes
@@ -297,7 +308,8 @@ The library is now ready for use via Swift Package Manager and Homebrew.
 
 ## Critical Rules (NEVER VIOLATE)
 
-1. **Bump version BEFORE merging** - The version bump must be part of the PR
+1. **Derive version from git tags, not source code** - Always run `git tag --sort=-v:refname` to find the last released version. The `version` string in source is informational and may be stale. If source version ≠ latest tag, flag it before proceeding.
+2. **Bump version BEFORE merging** - The version bump must be part of the PR
 2. **Run `make lint` before committing** - Format all Swift source files with swift format
 3. **Organize docs with /organize-agent-docs** - Ensure proper separation of universal vs agent-specific documentation
 4. **Wait for CI after version bump** - Don't merge until the new CI run passes
