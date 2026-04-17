@@ -233,21 +233,65 @@ Look for a commit like `Update <formula> to vX.Y.Z`. **Never manually edit the H
 
 ### 10. Rebase Development onto Main
 
-After a squash merge, development's original commits are not ancestors of the squash commit on main. A `git merge main` would make the code identical but leave those old commits visible in the next PR (tons of commits, zero diff). Rebase eliminates them by replaying any new work on top of main's squash commit.
+After a squash merge, development's original commits are not ancestors of the squash commit on main. A `git merge main` would make the code identical but leave those old commits visible in the next PR (tons of commits, zero diff).
+
+**Why not just `git rebase main`?** The `development` branch is protected with `allow_force_pushes: false`. A normal rebase requires force-push, which gets rejected. Additionally, the phantom commits conflict with the squash commit during rebase, causing conflicts even though there is no real diff. The solution is to temporarily unlock force-push, identify genuinely new commits using `git cherry`, reset development to main's tip, cherry-pick only the new commits, force-push, then restore the protection.
 
 ```bash
-# Update local main with the merge commit and tag
-git checkout main
-git pull origin main
+# Step 1: Update local main
+git checkout main && git pull origin main
+git checkout development && git pull origin development
 
-# Rebase development onto main (fast-forwards when no new commits exist)
-git checkout development
-git pull origin development
-git rebase main
+# Step 2: Find genuinely new commits on development using git cherry.
+# git cherry marks commits '+' if they are NOT already in upstream (genuinely new),
+# and '-' if their diff is already present in main (phantom/squashed). We keep only '+'.
+REPO=$(gh repo view --json nameWithOwner --jq '.nameWithOwner')
+NEW_COMMITS=$(git cherry origin/main | grep '^+ ' | awk '{print $2}')
+echo "Commits to preserve: ${NEW_COMMITS:-none}"
+
+# Step 3: Temporarily enable force-push on the protected branch
+gh api --method PUT "repos/${REPO}/branches/development/protection" \
+  --input - <<'JSON'
+{
+  "required_status_checks": {"strict": true, "contexts": ["Test on macOS", "Test on iOS Simulator"]},
+  "enforce_admins": false,
+  "required_pull_request_reviews": null,
+  "restrictions": null,
+  "allow_force_pushes": true
+}
+JSON
+
+# Step 4: Reset development to main's tip, then cherry-pick any new commits
+git reset --hard origin/main
+if [ -n "$NEW_COMMITS" ]; then
+  git cherry-pick $NEW_COMMITS
+fi
+
+# Step 5: Force-push the clean development branch
 git push origin development --force-with-lease
+
+# Step 6: Restore branch protection (disable force-push)
+gh api --method PUT "repos/${REPO}/branches/development/protection" \
+  --input - <<'JSON'
+{
+  "required_status_checks": {"strict": true, "contexts": ["Test on macOS", "Test on iOS Simulator"]},
+  "enforce_admins": false,
+  "required_pull_request_reviews": null,
+  "restrictions": null,
+  "allow_force_pushes": false
+}
+JSON
+
+echo "Development rebased onto main. Force-push protection restored."
 ```
 
-**Why rebase instead of merge?** Squash merge creates a new commit on main that has no ancestry relationship with development's commits. `git merge main` brings the content in but leaves the old commits dangling — the next PR shows them all with 0 diff. Rebase moves development's base to main's tip, so only truly new commits appear in the next PR.
+**Verify the result**: `git log --oneline -3` on development should show main's squash commit as the base, with only genuinely new commits on top (zero new commits is normal right after a release).
+
+**If the CI status check names differ** from `"Test on macOS"` and `"Test on iOS Simulator"`, look them up first:
+```bash
+gh api "repos/${REPO}/branches/development/protection" --jq '.required_status_checks.checks[].context'
+```
+Use those exact strings in the protection API calls above.
 
 ### 11. Create Next Development Cycle PR
 
@@ -316,7 +360,7 @@ The library is now ready for use via Swift Package Manager and Homebrew.
 5. **Use --squash** - Keep main branch history clean with single commits per PR
 6. **Don't delete development** - It's a long-lived branch
 7. **Tag on main after merge** - The tag goes on the squash merge commit
-8. **Rebase development after release** - Rebase onto main (not merge) to avoid phantom commits in the next PR
+8. **Rebase development after release** - Use the protected-branch rebase procedure (Step 10): temporarily enable force-push via `gh api`, identify new commits with `git cherry`, reset to main, cherry-pick new commits, force-push, restore protection. Never use `git merge main` — it leaves phantom commits in the next PR.
 9. **Create next cycle PR** - Always open a new development→main PR after release so the branch is ready for new work
 10. **NEVER manually build or upload release tarballs** - The `release.yml` CI workflow owns binary production. Never run `make dist` as part of releasing, never pass local file paths to `gh release create`.
 11. **NEVER manually edit the Homebrew formula** - CI dispatches a `formula-update` event to homebrew-tap after uploading the tarball. The tap updates itself. If it doesn't, investigate the CI workflow — do not patch the formula by hand.
