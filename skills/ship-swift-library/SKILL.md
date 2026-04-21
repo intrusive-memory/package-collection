@@ -1,6 +1,6 @@
 ---
 name: ship-swift-library
-description: Ship and release Swift library versions by bumping the version on development, merging the PR once CI passes, then tagging and creating a GitHub release from main
+description: Ship and release Swift library versions by bumping the version on a short-lived release branch, merging the PR once CI passes, then tagging and creating a GitHub release from main
 allowed-tools: Bash, Read, Grep, Glob, Edit, Skill
 dependencies:
   - organize-agent-docs
@@ -10,24 +10,13 @@ dependencies:
 
 This skill handles the complete release process for Swift libraries.
 
-**CRITICAL RULE**: Bump the version on `development` BEFORE merging the PR. The version bump ships as part of the PR merge to `main`. NEVER merge development directly to main when a PR exists.
+**CRITICAL RULE**: Bump the version on a short-lived `release/vX.Y.Z` branch and ship it via a PR squash-merged into `main`. NEVER push the version bump directly to `main` — CI must run on the PR before the release is tagged.
 
 ## Process Overview
 
-You will perform the following 12 steps in order:
+You will perform the following 10 steps in order. The library uses a single `main` branch; release work happens on a short-lived `release/vX.Y.Z` branch that is deleted after merge.
 
-### 1. Check for Open Pull Request
-
-Check if there's an open PR from `development` to `main`:
-
-```bash
-gh pr list --base main --head development
-```
-
-**If PR exists**: Proceed to step 2
-**If no PR**: Ask user if they want to create one
-
-### 2. Determine Version Number
+### 1. Determine Version Number
 
 **CRITICAL**: The version string embedded in source code is NOT authoritative. It may be stale, wrong, or ahead of what was actually released. Always derive the current version from git tags.
 
@@ -51,14 +40,19 @@ Ask the user what version this release should be, presenting the last tagged ver
 - **Minor** (x.Y.0): New features, non-breaking changes
 - **Major** (X.0.0): Breaking changes
 
-### 3. Bump Version, Update Dependencies, and Audit Documentation
+### 2. Create Release Branch
 
-Make sure you're on the `development` branch, then update the version:
+Start from a clean `main` and cut a short-lived release branch:
 
 ```bash
-git checkout development
-git pull origin development
+git checkout main
+git pull origin main
+git checkout -b release/vX.Y.Z
 ```
+
+The release branch lives only for the duration of this release and is deleted by `gh pr merge --delete-branch` in step 5.
+
+### 3. Bump Version, Update Dependencies, and Audit Documentation
 
 Edit the version file (e.g. `Sources/<LibraryName>/<LibraryName>.swift`).
 
@@ -132,37 +126,51 @@ Dependencies updated to latest published versions:
 - All dependencies pinned to next major version boundary
 
 Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
-git push origin development
+git push -u origin release/vX.Y.Z
 ```
 
-**Important**: The version bump, dependency updates, and doc changes are now part of the PR diff and will be included when the PR is merged.
+### 4. Open Pull Request and Verify CI
 
-### 4. Verify CI Checks Pass
-
-Wait for CI to run on the updated PR (the version bump push triggers a new CI run):
+Open the release PR from the release branch to main:
 
 ```bash
-gh pr checks <PR_NUMBER>
+gh pr create \
+  --base main \
+  --head release/vX.Y.Z \
+  --title "Release vX.Y.Z" \
+  --body "$(cat <<'EOF'
+## Release vX.Y.Z
+
+Version bump, dependency audit, lint, and documentation updates for the vX.Y.Z release.
+
+### Changes
+- Version bumped to vX.Y.Z
+- Dependencies audited and pinned to `.upToNextMajor()`
+- Documentation organized with `/organize-agent-docs`
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+EOF
+)"
 ```
 
-If any checks fail, inform the user and do not proceed. If checks are pending, poll until they complete:
+Wait for CI to complete:
 
 ```bash
 gh pr checks <PR_NUMBER> --watch
 ```
 
-### 5. Merge Pull Request
+If any checks fail, stop and report — do not proceed to merge.
 
-**CRITICAL**: Squash merge the PR to keep main branch history clean:
+### 5. Squash-Merge and Delete the Release Branch
 
 ```bash
-gh pr merge <PR_NUMBER> --squash --delete-branch=false
+gh pr merge <PR_NUMBER> --squash --delete-branch
 ```
 
 **Important**:
-- Use `--squash` (clean single commit on main)
-- Do NOT delete development branch (it's long-lived)
-- The squash commit on main now contains the version bump
+- `--squash` keeps `main` history clean (single commit per release)
+- `--delete-branch` removes both the local and remote `release/vX.Y.Z` branch
+- The squash commit on `main` now contains the version bump
 
 ### 6. Pull Merge Commit to Local Main
 
@@ -265,96 +273,7 @@ cd <path-to-homebrew-tap> && git fetch origin && git log --oneline origin/main -
 
 Look for a commit like `Update <formula> to vX.Y.Z`. **Never manually edit the Homebrew formula** — if the CI dispatch didn't trigger it, investigate the `formula-update` workflow in homebrew-tap instead of patching by hand.
 
-### 10. Rebase Development onto Main
-
-After a squash merge, development's original commits are not ancestors of the squash commit on main. A `git merge main` would make the code identical but leave those old commits visible in the next PR (tons of commits, zero diff).
-
-**Why not just `git rebase main`?** The `development` branch is protected with `allow_force_pushes: false`. A normal rebase requires force-push, which gets rejected. Additionally, the phantom commits conflict with the squash commit during rebase, causing conflicts even though there is no real diff. The solution is to temporarily unlock force-push, identify genuinely new commits using `git cherry`, reset development to main's tip, cherry-pick only the new commits, force-push, then restore the protection.
-
-```bash
-# Step 1: Update local main
-git checkout main && git pull origin main
-git checkout development && git pull origin development
-
-# Step 2: Find genuinely new commits on development using git cherry.
-# git cherry marks commits '+' if they are NOT already in upstream (genuinely new),
-# and '-' if their diff is already present in main (phantom/squashed). We keep only '+'.
-REPO=$(gh repo view --json nameWithOwner --jq '.nameWithOwner')
-NEW_COMMITS=$(git cherry origin/main | grep '^+ ' | awk '{print $2}')
-echo "Commits to preserve: ${NEW_COMMITS:-none}"
-
-# Step 3: Temporarily enable force-push on the protected branch
-gh api --method PUT "repos/${REPO}/branches/development/protection" \
-  --input - <<'JSON'
-{
-  "required_status_checks": {"strict": true, "contexts": ["Test on macOS", "Test on iOS Simulator"]},
-  "enforce_admins": false,
-  "required_pull_request_reviews": null,
-  "restrictions": null,
-  "allow_force_pushes": true
-}
-JSON
-
-# Step 4: Reset development to main's tip, then cherry-pick any new commits
-git reset --hard origin/main
-if [ -n "$NEW_COMMITS" ]; then
-  git cherry-pick $NEW_COMMITS
-fi
-
-# Step 5: Force-push the clean development branch
-git push origin development --force-with-lease
-
-# Step 6: Restore branch protection (disable force-push)
-gh api --method PUT "repos/${REPO}/branches/development/protection" \
-  --input - <<'JSON'
-{
-  "required_status_checks": {"strict": true, "contexts": ["Test on macOS", "Test on iOS Simulator"]},
-  "enforce_admins": false,
-  "required_pull_request_reviews": null,
-  "restrictions": null,
-  "allow_force_pushes": false
-}
-JSON
-
-echo "Development rebased onto main. Force-push protection restored."
-```
-
-**Verify the result**: `git log --oneline -3` on development should show main's squash commit as the base, with only genuinely new commits on top (zero new commits is normal right after a release).
-
-**If the CI status check names differ** from `"Test on macOS"` and `"Test on iOS Simulator"`, look them up first:
-```bash
-gh api "repos/${REPO}/branches/development/protection" --jq '.required_status_checks.checks[].context'
-```
-Use those exact strings in the protection API calls above.
-
-### 11. Create Next Development Cycle PR
-
-Create a new (empty) pull request from `development` to `main`. This signals that the development branch is open for new work and provides a landing target for future feature PRs:
-
-```bash
-gh pr create \
-  --base main \
-  --head development \
-  --title "Development → Main" \
-  --body "$(cat <<'EOF'
-## Next Development Cycle
-
-Development branch is synced with main after vX.Y.Z release and ready for new work.
-
-This PR will collect changes for the next release.
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-EOF
-)"
-```
-
-Confirm the PR was created:
-
-```bash
-gh pr list --base main --head development
-```
-
-### 12. Summary Report
+### 10. Summary Report
 
 Provide final summary:
 
@@ -364,25 +283,21 @@ Release vX.Y.Z Complete
 - Dependencies audited and updated to latest published versions ✅
   - No local path references in Package.swift
   - All dependencies pinned with .upToNextMajor()
-- Version bumped to X.Y.Z on development ✅
+- Version bumped to X.Y.Z on release/vX.Y.Z branch ✅
 - Swift source formatted with make lint ✅
 - Documentation organized with /organize-agent-docs ✅
   - AGENTS.md: Universal project documentation
   - CLAUDE.md: Claude-specific instructions only
   - GEMINI.md: Gemini-specific instructions only
 - README.md updated (user-facing documentation) ✅
-- CI checks passed ✅
-- Pull Request #<NUMBER> merged to main (includes version bump + dependency updates + docs) ✅
+- CI checks passed on PR ✅
+- Pull Request #<NUMBER> squash-merged to main; release branch deleted ✅
 - Tag vX.Y.Z created on main ✅
 - GitHub release published (metadata only — no manual tarball) ✅
 - CI release workflow triggered (builds tarball + updates Homebrew) ✅
 - Homebrew formula updated by CI at homebrew-tap ✅
-- Local branches updated (main and development) ✅
-- Development synced with main ✅
-- New development cycle PR #<NEW_NUMBER> created ✅
 
 Release URL: https://github.com/<owner>/<repo>/releases/tag/vX.Y.Z
-Next cycle PR: https://github.com/<owner>/<repo>/pull/<NEW_NUMBER>
 
 The library is now ready for use via Swift Package Manager and Homebrew.
 ```
@@ -390,27 +305,23 @@ The library is now ready for use via Swift Package Manager and Homebrew.
 ## Critical Rules (NEVER VIOLATE)
 
 1. **Derive version from git tags, not source code** - Always run `git tag --sort=-v:refname` to find the last released version. The `version` string in source is informational and may be stale. If source version ≠ latest tag, flag it before proceeding.
-2. **Bump version BEFORE merging** - The version bump must be part of the PR
+2. **Bump version on a release branch BEFORE merging** - Cut `release/vX.Y.Z` from main, do all version/dep/doc work there, ship via PR. Never push the version bump directly to main.
 3. **Audit and update ALL dependencies BEFORE version bump** - No library can ship with local file path references (`.path()`) in Package.swift. All dependencies MUST reference published GitHub releases and be pinned using `.upToNextMajor(from: "X.Y.Z")` to allow patch updates within the same major version. Check for local references first: `grep -n '\.path(' Package.swift` — if any exist, replace with GitHub URLs before proceeding.
 4. **Run `make lint` before committing** - Format all Swift source files with swift format
 5. **Organize docs with /organize-agent-docs** - Ensure proper separation of universal vs agent-specific documentation
-6. **Wait for CI after version bump** - Don't merge until the new CI run passes
-7. **Use --squash** - Keep main branch history clean with single commits per PR
-8. **Don't delete development** - It's a long-lived branch
-9. **Tag on main after merge** - The tag goes on the squash merge commit
-10. **Rebase development after release** - Use the protected-branch rebase procedure (Step 10): temporarily enable force-push via `gh api`, identify new commits with `git cherry`, reset to main, cherry-pick new commits, force-push, restore protection. Never use `git merge main` — it leaves phantom commits in the next PR.
-11. **Create next cycle PR** - Always open a new development→main PR after release so the branch is ready for new work
-12. **NEVER manually build or upload release tarballs** - The `release.yml` CI workflow owns binary production. Never run `make dist` as part of releasing, never pass local file paths to `gh release create`.
-13. **NEVER manually edit the Homebrew formula** - CI dispatches a `formula-update` event to homebrew-tap after uploading the tarball. The tap updates itself. If it doesn't, investigate the CI workflow — do not patch the formula by hand.
+6. **Wait for CI on the PR** - Don't merge until the PR's CI run passes
+7. **Use --squash --delete-branch** - One squash commit per release on main; release branch is deleted on merge
+8. **Tag on main after merge** - The tag goes on the squash merge commit
+9. **NEVER manually build or upload release tarballs** - The `release.yml` CI workflow owns binary production. Never run `make dist` as part of releasing, never pass local file paths to `gh release create`.
+10. **NEVER manually edit the Homebrew formula** - CI dispatches a `formula-update` event to homebrew-tap after uploading the tarball. The tap updates itself. If it doesn't, investigate the CI workflow — do not patch the formula by hand.
 
 ## Correct Flow
 
 ```
-development: [features] -> [version bump] -> [make lint] -> [/organize-agent-docs] -> (CI passes) -> PR merged
-main:        -----------------------------------------------------------------> [squash commit] -> [tag vX.Y.Z] -> [release (metadata only)]
-CI:          -------------------------------------------------------------------------^-- [build tarball] -> [upload to release] -> [dispatch formula-update to homebrew-tap]
-homebrew-tap:--------------------------------------------------------------------^-- (auto-updated by formula-update event)
-development: [rebase onto main] -> [force-push] -> [new empty PR to main]
+main:               [stable] -----------------------------------------------------------> [squash commit] -> [tag vX.Y.Z] -> [release (metadata only)]
+release/vX.Y.Z:        └─ [version bump + deps + lint + docs] -> (CI passes on PR) -> PR merged -> branch deleted
+CI:                                                                                         ^-- [build tarball] -> [upload to release] -> [dispatch formula-update to homebrew-tap]
+homebrew-tap:                                                                                                                          ^-- (auto-updated by formula-update event)
 ```
 
 ## Error Handling
@@ -426,3 +337,4 @@ If any step fails:
 - Requires GitHub CLI (`gh`) authenticated
 - Requires git configured with merge permissions
 - All commits include Claude Code attribution
+- The release branch is short-lived: it exists only between step 2 (creation) and step 5 (delete on merge)
