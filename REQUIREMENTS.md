@@ -7,6 +7,9 @@ that `collection.json` can converge on stable, version-pinned releases.
 
 Last refreshed: 2026-04-21 (collection revision 17)
 
+See [DEPENDENCIES.md](DEPENDENCIES.md) for the visual dependency graph —
+every red node/edge in that graph maps to a section below.
+
 ---
 
 ## 1. Branch-pinned internal dependencies
