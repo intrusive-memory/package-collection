@@ -202,6 +202,7 @@ ln -s "$(pwd)/skills/<skill-name>" .claude/skills/<skill-name>
 | **ship-swift-library** | `/ship-swift-library` | Ship and release Swift library versions — merge PR, bump version, tag, create GitHub release |
 | **shortcuts-helper** | `/shortcuts-helper` | Create, run, and understand macOS Shortcuts workflows with CLI, URL schemes, and App Intents |
 | **mission-supervisor** | `/mission-supervisor` | Plan and execute missions — `breakdown` generates a plan from requirements, `refine` performs 4 passes (atomicity, priority, parallelism, open questions), then restart context and `start/resume/status/stop/killall` orchestrate sortie agents |
+| **package-iterator** | `/package-iterator` | Fan out a skill across every library (or a subset) in a JSON package collection in dependency order; same-level siblings run in parallel, failures auto-escalate to a diagnostic agent before flagging for follow-up |
 | **ui-ux-pro-max** | `/ui-ux-pro-max` | UI/UX design intelligence — 50 styles, 21 palettes, 50 font pairings, 20 charts, 8 framework stacks |
 | **update-package-library** | `/update-package-library` | Refresh `collection.json` with the latest published GitHub releases — sub-commands: `update`, `update-deps`, `list`, `diff`, `verify`, `add-package`, `remove-package` |
 
