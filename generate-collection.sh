@@ -14,6 +14,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUTPUT="${1:-${SCRIPT_DIR}/collection.json}"
 
 # Repos: owner/name pairs
+#
+# NOTE: SwiftPruebas is intentionally excluded. It's an experimental package
+# and should not appear in the public collection until it graduates beyond
+# the theoretical stage.
 REPOS=(
   "intrusive-memory/SwiftAcervo"
   "intrusive-memory/SwiftBruja"
@@ -24,7 +28,6 @@ REPOS=(
   "intrusive-memory/SwiftHablare"
   "intrusive-memory/SwiftOnce"
   "intrusive-memory/SwiftProyecto"
-  "intrusive-memory/SwiftPruebas"
   "intrusive-memory/SwiftSecuencia"
   "intrusive-memory/SwiftVoxAlta"
 )

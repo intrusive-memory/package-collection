@@ -9,8 +9,8 @@
     "intrusive-memory"
   ],
   "formatVersion": "1.0",
-  "revision": 10,
-  "generatedAt": "2026-03-09T21:13:30Z",
+  "revision": 17,
+  "generatedAt": "2026-04-21T13:03:35Z",
   "generatedBy": {
     "name": "Intrusive Memory"
   },
@@ -27,7 +27,7 @@
       "readmeURL": "https://github.com/intrusive-memory/SwiftAcervo/blob/main/README.md",
       "versions": [
         {
-          "version": "0.1.0",
+          "version": "0.7.2",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
@@ -65,7 +65,10 @@
           },
           "defaultToolsVersion": "6.2"
         }
-      ]
+      ],
+      "dependencies": {
+        "apple/swift-argument-parser": "upToNextMajor: 1.7.1"
+      }
     },
     {
       "url": "https://github.com/intrusive-memory/SwiftBruja.git",
@@ -79,7 +82,7 @@
       "readmeURL": "https://github.com/intrusive-memory/SwiftBruja/blob/main/README.md",
       "versions": [
         {
-          "version": "1.1.0",
+          "version": "1.5.1",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
@@ -117,7 +120,14 @@
           },
           "defaultToolsVersion": "6.2"
         }
-      ]
+      ],
+      "dependencies": {
+        "ml-explore/mlx-swift": "upToNextMajor: 0.31.3",
+        "ml-explore/mlx-swift-lm": "upToNextMajor: 3.31.3",
+        "DePasqualeOrg/swift-tokenizers-mlx": "upToNextMajor: 0.2.0",
+        "intrusive-memory/SwiftAcervo": "upToNextMajor: 0.7.2",
+        "apple/swift-argument-parser": "upToNextMajor: 1.7.1"
+      }
     },
     {
       "url": "https://github.com/intrusive-memory/SwiftCompartido.git",
@@ -132,7 +142,7 @@
       "readmeURL": "https://github.com/intrusive-memory/SwiftCompartido/blob/main/README.md",
       "versions": [
         {
-          "version": "7.0.1",
+          "version": "7.0.2",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
@@ -170,7 +180,13 @@
           },
           "defaultToolsVersion": "6.2"
         }
-      ]
+      ],
+      "dependencies": {
+        "mcritz/TextBundle": "from: 1.0.0",
+        "weichsel/ZIPFoundation": "from: 0.9.0",
+        "intrusive-memory/SwiftFijos": "branch: main",
+        "swiftlang/swift-markdown": "from: 0.7.0"
+      }
     },
     {
       "url": "https://github.com/intrusive-memory/SwiftEchada.git",
@@ -183,7 +199,7 @@
       "readmeURL": "https://github.com/intrusive-memory/SwiftEchada/blob/main/README.md",
       "versions": [
         {
-          "version": "0.10.2",
+          "version": "0.10.3",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
@@ -221,7 +237,16 @@
           },
           "defaultToolsVersion": "6.2"
         }
-      ]
+      ],
+      "dependencies": {
+        "intrusive-memory/SwiftProyecto": "branch: main",
+        "intrusive-memory/SwiftVoxAlta": "branch: main",
+        "apple/swift-argument-parser": "from: 1.3.0",
+        "ml-explore/mlx-swift": "from: 0.21.0",
+        "ml-explore/mlx-swift-lm": "branch: main",
+        "intrusive-memory/mlx-audio-swift": "branch: main",
+        "intrusive-memory/vox-format": "branch: main"
+      }
     },
     {
       "url": "https://github.com/intrusive-memory/SwiftFFMpeg.git",
@@ -269,7 +294,8 @@
           },
           "defaultToolsVersion": "6.2"
         }
-      ]
+      ],
+      "dependencies": {}
     },
     {
       "url": "https://github.com/intrusive-memory/SwiftFijos.git",
@@ -320,7 +346,8 @@
           },
           "defaultToolsVersion": "6.2"
         }
-      ]
+      ],
+      "dependencies": {}
     },
     {
       "url": "https://github.com/intrusive-memory/SwiftHablare.git",
@@ -335,7 +362,7 @@
       "readmeURL": "https://github.com/intrusive-memory/SwiftHablare/blob/main/README.md",
       "versions": [
         {
-          "version": "5.7.1",
+          "version": "5.7.2",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
@@ -373,7 +400,14 @@
           },
           "defaultToolsVersion": "6.2"
         }
-      ]
+      ],
+      "dependencies": {
+        "intrusive-memory/SwiftFijos": "branch: main",
+        "intrusive-memory/SwiftCompartido": "branch: main",
+        "intrusive-memory/SwiftProyecto": "branch: main",
+        "intrusive-memory/SwiftOnce": "branch: main",
+        "apple/swift-argument-parser": "from: 1.3.0"
+      }
     },
     {
       "url": "https://github.com/intrusive-memory/SwiftOnce.git",
@@ -426,7 +460,8 @@
           },
           "defaultToolsVersion": "6.2"
         }
-      ]
+      ],
+      "dependencies": {}
     },
     {
       "url": "https://github.com/intrusive-memory/SwiftProyecto.git",
@@ -440,7 +475,7 @@
       "readmeURL": "https://github.com/intrusive-memory/SwiftProyecto/blob/main/README.md",
       "versions": [
         {
-          "version": "3.1.1",
+          "version": "3.4.0",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
@@ -478,7 +513,13 @@
           },
           "defaultToolsVersion": "6.2"
         }
-      ]
+      ],
+      "dependencies": {
+        "marcprux/universal": "from: 5.3.0",
+        "intrusive-memory/SwiftBruja": "from: 1.4.0",
+        "intrusive-memory/SwiftAcervo": "from: 0.6.0",
+        "apple/swift-argument-parser": "from: 1.7.0"
+      }
     },
     {
       "url": "https://github.com/intrusive-memory/SwiftSecuencia.git",
@@ -492,7 +533,7 @@
       "readmeURL": "https://github.com/intrusive-memory/SwiftSecuencia/blob/main/README.md",
       "versions": [
         {
-          "version": "3.0.1",
+          "version": "3.2.1",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
@@ -530,7 +571,74 @@
           },
           "defaultToolsVersion": "6.2"
         }
-      ]
+      ],
+      "dependencies": {
+        "intrusive-memory/SwiftCompartido": "branch: main",
+        "intrusive-memory/SwiftFijos": "branch: main",
+        "orchetect/swift-timecode": "from: 3.0.0",
+        "mattt/WebVTT": "from: 1.0.0",
+        "apple/swift-argument-parser": "from: 1.3.0",
+        "marcprux/universal": "from: 5.3.0",
+        "intrusive-memory/pipeline-neo": "branch: development"
+      }
+    },
+    {
+      "url": "https://github.com/intrusive-memory/SwiftTuberia.git",
+      "summary": "Componentized generation pipeline for MLX inference. Typed pipe segments, diffusion compositor, and shared component catalog.",
+      "keywords": [
+        "mlx",
+        "pipeline",
+        "diffusion",
+        "generation",
+        "components"
+      ],
+      "readmeURL": "https://github.com/intrusive-memory/SwiftTuberia/blob/main/README.md",
+      "versions": [
+        {
+          "version": "0.4.0",
+          "manifests": {
+            "6.2": {
+              "toolsVersion": "6.2",
+              "packageName": "SwiftTuberia",
+              "targets": [
+                {
+                  "name": "SwiftTuberia",
+                  "moduleName": "SwiftTuberia"
+                }
+              ],
+              "products": [
+                {
+                  "name": "SwiftTuberia",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "SwiftTuberia"
+                  ]
+                }
+              ],
+              "minimumPlatformVersions": [
+                {
+                  "name": "macOS",
+                  "version": "26.0"
+                },
+                {
+                  "name": "iOS",
+                  "version": "26.0"
+                }
+              ]
+            }
+          },
+          "defaultToolsVersion": "6.2"
+        }
+      ],
+      "dependencies": {
+        "ml-explore/mlx-swift": "upToNextMajor: 0.31.3",
+        "intrusive-memory/SwiftAcervo": "upToNextMajor: 0.7.2",
+        "huggingface/swift-transformers": "upToNextMajor: 1.3.0"
+      }
     },
     {
       "url": "https://github.com/intrusive-memory/SwiftVoxAlta.git",
@@ -546,7 +654,7 @@
       "readmeURL": "https://github.com/intrusive-memory/SwiftVoxAlta/blob/main/README.md",
       "versions": [
         {
-          "version": "0.8.1",
+          "version": "0.9.8",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
@@ -584,7 +692,212 @@
           },
           "defaultToolsVersion": "6.2"
         }
-      ]
+      ],
+      "dependencies": {
+        "intrusive-memory/SwiftHablare": "upToNextMajor: 5.7.5",
+        "intrusive-memory/mlx-audio-swift": "upToNextMajor: 0.3.5",
+        "intrusive-memory/SwiftAcervo": "upToNextMajor: 0.7.1",
+        "intrusive-memory/SwiftTuberia": "upToNextMajor: 0.3.6",
+        "apple/swift-argument-parser": "upToNextMajor: 1.7.1",
+        "intrusive-memory/vox-format": "upToNextMajor: 0.3.1"
+      }
+    },
+    {
+      "url": "https://github.com/intrusive-memory/mlx-audio-swift.git",
+      "summary": "MLX-powered audio on Apple Silicon: TTS (Qwen3, Orpheus, Marvis), STT, and audio codecs (SNAC, Mimi, Vocos). Fork of Blaizzy/mlx-audio-swift.",
+      "keywords": [
+        "mlx",
+        "audio",
+        "tts",
+        "stt",
+        "qwen3",
+        "voice-cloning",
+        "apple-silicon"
+      ],
+      "readmeURL": "https://github.com/intrusive-memory/mlx-audio-swift/blob/main/README.md",
+      "versions": [
+        {
+          "version": "0.4.0",
+          "manifests": {
+            "6.2": {
+              "toolsVersion": "6.2",
+              "packageName": "MLXAudio",
+              "targets": [
+                {
+                  "name": "MLXAudioCodecs",
+                  "moduleName": "MLXAudioCodecs"
+                },
+                {
+                  "name": "MLXAudioCore",
+                  "moduleName": "MLXAudioCore"
+                },
+                {
+                  "name": "MLXAudioSTS",
+                  "moduleName": "MLXAudioSTS"
+                },
+                {
+                  "name": "MLXAudioSTT",
+                  "moduleName": "MLXAudioSTT"
+                },
+                {
+                  "name": "MLXAudioTTS",
+                  "moduleName": "MLXAudioTTS"
+                },
+                {
+                  "name": "MLXAudioUI",
+                  "moduleName": "MLXAudioUI"
+                }
+              ],
+              "products": [
+                {
+                  "name": "MLXAudioCore",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "MLXAudioCore"
+                  ]
+                },
+                {
+                  "name": "MLXAudioCodecs",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "MLXAudioCodecs"
+                  ]
+                },
+                {
+                  "name": "MLXAudioTTS",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "MLXAudioTTS"
+                  ]
+                },
+                {
+                  "name": "MLXAudioSTT",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "MLXAudioSTT"
+                  ]
+                },
+                {
+                  "name": "MLXAudioSTS",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "MLXAudioSTS"
+                  ]
+                },
+                {
+                  "name": "MLXAudioUI",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "MLXAudioUI"
+                  ]
+                }
+              ],
+              "minimumPlatformVersions": [
+                {
+                  "name": "macOS",
+                  "version": "26.0"
+                },
+                {
+                  "name": "iOS",
+                  "version": "26.0"
+                }
+              ]
+            }
+          },
+          "defaultToolsVersion": "6.2"
+        }
+      ],
+      "dependencies": {
+        "ml-explore/mlx-swift": "upToNextMajor: 0.31.3",
+        "ml-explore/mlx-swift-lm": "upToNextMajor: 3.31.3",
+        "huggingface/swift-transformers": "upToNextMajor: 1.3.0",
+        "intrusive-memory/SwiftAcervo": "upToNextMajor: 0.7.2",
+        "apple/swift-numerics": "upToNextMajor: 1.1.1",
+        "apple/swift-collections": "upToNextMajor: 1.4.1",
+        "apple/swift-crypto": "upToNextMajor: 4.4.0",
+        "ibireme/yyjson": "upToNextMajor: 0.12.0"
+      }
+    },
+    {
+      "url": "https://github.com/intrusive-memory/vox-format.git",
+      "summary": "Open vendor-neutral file format (.vox) for persisting voice identities across TTS engines.",
+      "keywords": [
+        "voice",
+        "tts",
+        "file-format",
+        "voice-identity",
+        "portability"
+      ],
+      "readmeURL": "https://github.com/intrusive-memory/vox-format/blob/main/README.md",
+      "versions": [
+        {
+          "version": "0.3.1",
+          "manifests": {
+            "6.2": {
+              "toolsVersion": "6.2",
+              "packageName": "VoxFormat",
+              "targets": [
+                {
+                  "name": "VoxFormat",
+                  "moduleName": "VoxFormat"
+                }
+              ],
+              "products": [
+                {
+                  "name": "VoxFormat",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "VoxFormat"
+                  ]
+                }
+              ],
+              "minimumPlatformVersions": [
+                {
+                  "name": "macOS",
+                  "version": "13.0"
+                },
+                {
+                  "name": "iOS",
+                  "version": "16.0"
+                }
+              ]
+            }
+          },
+          "defaultToolsVersion": "6.2"
+        }
+      ],
+      "dependencies": {
+        "weichsel/ZIPFoundation": "from: 0.9.0",
+        "apple/swift-argument-parser": "from: 1.2.0"
+      }
     }
   ]
 }

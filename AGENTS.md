@@ -199,6 +199,7 @@ ln -s "$(pwd)/skills/<skill-name>" .claude/skills/<skill-name>
 | **shortcuts-helper** | `/shortcuts-helper` | Create, run, and understand macOS Shortcuts workflows with CLI, URL schemes, and App Intents |
 | **mission-supervisor** | `/mission-supervisor` | Plan and execute missions — `breakdown` generates a plan from requirements, `refine` performs 4 passes (atomicity, priority, parallelism, open questions), then restart context and `start/resume/status/stop/killall` orchestrate sortie agents |
 | **ui-ux-pro-max** | `/ui-ux-pro-max` | UI/UX design intelligence — 50 styles, 21 palettes, 50 font pairings, 20 charts, 8 framework stacks |
+| **update-package-library** | `/update-package-library` | Refresh `collection.json` with the latest published GitHub releases — sub-commands: `update`, `update-deps`, `list`, `diff`, `verify`, `add-package`, `remove-package` |
 
 ### Skill Structure
 
