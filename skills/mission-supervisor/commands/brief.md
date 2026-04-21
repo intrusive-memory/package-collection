@@ -322,6 +322,49 @@ When `resume` starts, check for existing brief files:
 
 ---
 
+## Archive Brief File and Clean Up Work Files
+
+After the brief file is written, archive it and clean up all temporary mission work files:
+
+### Step 1: Archive the Brief
+
+1. Derive the slug from `feature_name` (lowercase, hyphens, drop "operation-" prefix).
+2. Move the brief:
+   ```bash
+   mkdir -p $PROJECT_ROOT/Docs/complete
+   mv $PROJECT_ROOT/<OPERATION_NAME>_<NN>_BRIEF.md $PROJECT_ROOT/Docs/complete/<slug>-<NN>-brief.md
+   ```
+
+### Step 2: Clean Up Work Files
+
+The brief consolidates all key findings. Detailed sortie deliverables are preserved on the mission branch via git history, but should be removed from the active workspace:
+
+```bash
+# Remove mission state
+rm -f $PROJECT_ROOT/SUPERVISOR_STATE.md
+
+# Remove sortie deliverables from Docs/complete/
+rm -f $PROJECT_ROOT/Docs/complete/sortie-*.md
+rm -f $PROJECT_ROOT/Docs/complete/sortie-*.txt
+rm -f $PROJECT_ROOT/Docs/complete/sortie-*.fcpxml
+rm -f $PROJECT_ROOT/Docs/complete/SORTIE-*.md
+
+# Keep only the brief in Docs/complete/
+```
+
+### Step 3: Report
+
+```
+Brief archived to: Docs/complete/<slug>-<NN>-brief.md
+Work files cleaned up. Only brief remains in Docs/complete/.
+```
+
+**Rationale**: The brief is the authoritative post-mission record. Sortie deliverables served their purpose during execution and are preserved in git history on the mission branch. Keeping them in the workspace creates clutter and confusion about what's "source of truth."
+
+This ensures all mission artifacts end up in `Docs/complete/` with consistent naming, and the workspace stays clean.
+
+---
+
 ## Personality
 
 The brief is **honest, not diplomatic**. It names what went wrong without hedging. It credits what went right without false modesty. The tone is a post-flight debrief, not a retrospective ceremony.

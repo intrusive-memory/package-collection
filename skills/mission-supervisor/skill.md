@@ -1,6 +1,6 @@
 ---
 name: mission-supervisor
-description: Plan and execute sorties with sergeant precision. Give each agent ONE clear, measurable goal. Pre-execution commands (breakdown, refine + 4 subcommands) create and refine an EXECUTION_PLAN.md from requirements. Refine performs 4 passes: atomicity/testability, prioritization, parallelism (up to 4 sub-agents, builds only by supervisor), and open questions. Execution commands (start, resume, status, stop, killall) orchestrate sortie agents with lean context and crystal-clear objectives. THE RITUAL (name-feature) generates humorous military operation names. Post-mission (brief) harvests lessons into a structured review before rollback.
+description: Plan and execute sorties with sergeant precision. Give each agent ONE clear, measurable goal. Pre-execution commands (breakdown, refine + 4 subcommands) create and refine an EXECUTION_PLAN.md from requirements. Refine performs 4 passes: atomicity/testability, prioritization, parallelism (up to 4 sub-agents, builds only by supervisor), and open questions. Execution commands (start, resume, status, stop, killall) orchestrate sortie agents with lean context and crystal-clear objectives. THE RITUAL (name-feature) generates humorous military operation names. Post-mission (brief) harvests lessons into a structured review before rollback. On completion, mission files are archived to docs/complete/ with operation-name-based filenames.
 argument-hint: "[breakdown|name-feature|refine|refine-atomicity|refine-priority|refine-parallelism|refine-questions|start|resume|status|stop|killall|brief] [path] [--max-turns=N]"
 disable-model-invocation: true
 allowed-tools: Read, Glob, Grep, Bash, Task, Write, Edit, TaskOutput, KillShell
@@ -142,7 +142,7 @@ Each command is documented in its own file. Read the referenced file for full in
 | `brief` | `commands/brief.md` | Post-mission review — harvest lessons, assess sortie accuracy, prepare for rollback |
 
 **Supporting documents** (referenced by execution commands):
-- `commands/completion.md` — COMPLETE_*.md management (audit trail + final verification)
+- `commands/completion.md` — COMPLETE_*.md management (audit trail + final verification + archive to docs/complete/)
 - `PERSONALITY_GUIDELINES.md` — Voice, tone, key phrases
 - `OPERATION_NAME_EXAMPLES.md` — Pattern examples for name generation
 

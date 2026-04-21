@@ -29,38 +29,57 @@ REPOS=(
   "intrusive-memory/SwiftOnce"
   "intrusive-memory/SwiftProyecto"
   "intrusive-memory/SwiftSecuencia"
+  "intrusive-memory/SwiftTuberia"
+  "intrusive-memory/SwiftVinetas"
   "intrusive-memory/SwiftVoxAlta"
+  "intrusive-memory/flux-2-swift-mlx"
+  "intrusive-memory/mlx-audio-swift"
+  "intrusive-memory/pixart-swift-mlx"
 )
+
+# Excluded repos (not Swift packages or deprecated):
+#   SwiftPruebas    — Xcode project only, no Package.swift
+#   SwiftEspeak     — Deprecated/archived, replaced by SwiftVoxAlta
+#   SwiftVerificar  — Multi-sub-package structure, no top-level Package.swift yet
+#   mlx-image-swift — Research/docs only, no Package.swift
 
 # Package metadata (summary, keywords) keyed by repo name
 declare -A SUMMARIES=(
   [SwiftAcervo]="Shared AI model discovery and management for HuggingFace models on Apple platforms."
   [SwiftBruja]="On-device LLM inference for Apple Silicon via MLX. One-line queries with auto-download."
   [SwiftCompartido]="Screenplay parsing, SwiftData models, and SwiftUI display components. Supports Fountain, FDX, PDF, Highland, and more."
+  [SwiftEchada]="Shared Swift utilities and extensions for the Intrusive Memory ecosystem."
   [SwiftFFMpeg]="Swift wrapper for FFmpeg API for audio/video processing."
   [SwiftFijos]="Test fixture file discovery for Swift packages and Xcode projects."
   [SwiftHablare]="Voice generation library with Apple TTS, ElevenLabs, and Qwen TTS providers. SwiftUI components included."
   [SwiftOnce]="Swift wrapper for the ElevenLabs TTS REST API with voice discovery, voice design, streaming, and audio caching."
   [SwiftProyecto]="Project metadata management, file discovery, and PROJECT.md parsing for screenplay projects."
-  [SwiftPruebas]="Shared test utilities and helpers for the Intrusive Memory ecosystem."
   [SwiftSecuencia]="FCPXML timeline generation and audio export for Final Cut Pro X integration."
-  [SwiftEchada]="Shared Swift utilities and extensions for the Intrusive Memory ecosystem."
+  [SwiftTuberia]="Componentized MLX diffusion pipeline infrastructure with protocols, schedulers, and model-agnostic generation."
+  [SwiftVinetas]="Image generation orchestration with FLUX.2 and PixArt-Sigma backends via SwiftTuberia pipelines."
   [SwiftVoxAlta]="On-device Qwen3-TTS voice design and cloning for SwiftHablare. Character voice pipeline with VoiceDesign, Base model cloning, and diga CLI."
+  [flux-2-swift-mlx]="FLUX.2 text-to-image generation on Apple Silicon via MLX. Includes text encoders, transformer backbone, and VAE decoder."
+  [mlx-audio-swift]="On-device audio inference via MLX — text-to-speech, speech-to-text, speech-to-speech, and codec models."
+  [pixart-swift-mlx]="PixArt-Sigma DiT backbone plugin for SwiftTuberia diffusion pipelines."
 )
 
 declare -A KEYWORDS=(
   [SwiftAcervo]='["ai-models","huggingface","model-management","caching"]'
   [SwiftBruja]='["llm","mlx","ai","apple-silicon"]'
   [SwiftCompartido]='["screenplay","fountain","parser","swiftui","swiftdata"]'
+  [SwiftEchada]='["utilities","extensions","swift"]'
   [SwiftFFMpeg]='["ffmpeg","audio","video","media"]'
   [SwiftFijos]='["testing","fixtures","test-utilities"]'
   [SwiftHablare]='["tts","voice","audio","speech-synthesis","elevenlabs"]'
   [SwiftOnce]='["elevenlabs","tts","voice-design","streaming","audio"]'
   [SwiftProyecto]='["project","metadata","file-discovery","yaml"]'
-  [SwiftPruebas]='["testing","test-utilities"]'
   [SwiftSecuencia]='["fcpxml","final-cut-pro","timeline","audio-export"]'
-  [SwiftEchada]='["utilities","extensions","swift"]'
+  [SwiftTuberia]='["mlx","diffusion","pipeline","image-generation","apple-silicon"]'
+  [SwiftVinetas]='["image-generation","flux","pixart","diffusion","mlx"]'
   [SwiftVoxAlta]='["tts","qwen3","voice-cloning","voice-design","on-device","mlx"]'
+  [flux-2-swift-mlx]='["flux","image-generation","mlx","text-to-image","apple-silicon"]'
+  [mlx-audio-swift]='["audio","tts","stt","mlx","speech","apple-silicon"]'
+  [pixart-swift-mlx]='["pixart","dit","diffusion","mlx","image-generation"]'
 )
 
 # Get latest version tag for a repo. Tries releases first, falls back to tags.
