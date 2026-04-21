@@ -70,7 +70,7 @@ A repo we maintain as a fork solely to offer pull requests back to an external p
 
 ### `<PascalCaseWord>` with no `Swift` prefix — CLI tool or app (skill does NOT apply)
 
-Standalone CLI tools or apps. These may have their own `ship-*` skill (e.g. `ship-ios-app`) or a custom release flow.
+Standalone CLI tools or apps. Apps have their own per-app `ship-<app-name>` skill that embeds the App Store Connect references for that specific app — there is no generalized app-shipping skill.
 
 | Repo | Kind |
 |---|---|
