@@ -36,23 +36,37 @@ The suffix is typically a Spanish noun or verb that hints at the library's purpo
 
 **Exceptions to the Spanish-word pattern:** the suffix may be an English/tech name when wrapping a known upstream tech (e.g. `SwiftFFMpeg` for the FFmpeg wrapper).
 
-### `<kebab-case>-swift` — Swift port or fork (skill applies)
+### `<kebab-case>-swift` — Swift port or independent fork (skill applies)
 
-Swift libraries that started as ports or forks of upstream projects. They follow upstream naming rather than the Spanish-noun pattern, but the release flow is identical to in-house libraries.
+Swift libraries that started as ports or independent forks of upstream projects. Naming follows upstream rather than the Spanish-noun convention, but releases belong to us and the flow is identical to in-house libraries.
 
 | Repo | Notes |
 |---|---|
-| mlx-audio-swift | Independent fork of `Blaizzy/mlx-audio-swift` |
+| mlx-audio-swift | Independent fork of `Blaizzy/mlx-audio-swift`; our own release train |
 
-### `<kebab-case>` (no `-swift` suffix) — ancillary/non-library (skill does NOT apply)
+### `<domain>-format` — file format library (skill applies)
 
-Format specs, data-driven repos, tooling, or other non-library artifacts. Each has its own release cadence — **do not run this skill on these**.
+Libraries that define and implement a file format, typically shipping a Swift reader/writer plus a CLI. These are ancillary in scope but are still releasable Swift libraries with their own tags, Homebrew formulae (where applicable), and dependency graphs.
 
-| Repo | Kind | Release flow |
+| Repo | Format |
+|---|---|
+| vox-format | VOX open voice identity file format |
+
+### `<kebab-case>` data/source-of-truth repo (skill does NOT apply)
+
+Single-file or data-driven repos where the "release" is the file itself, not a tagged library version.
+
+| Repo | What it is | Release flow |
 |---|---|---|
-| vox-format | File format spec with a Swift reader | Standard dev→main (library-ish) |
-| pipeline-neo | Generation pipeline tooling | Standard dev→main |
-| package-collection | Swift Package Collection JSON (single-file source of truth) | **main-only, no development branch** |
+| package-collection | Swift Package Collection JSON | **main-only, no development branch** |
+
+### Collaboration fork — local copy for upstreaming (skill does NOT apply)
+
+A repo we maintain as a fork solely to offer pull requests back to an external primary maintainer. We do not cut our own releases — the upstream does. Never run this skill against one of these.
+
+| Repo | Upstream / collaborator |
+|---|---|
+| pipeline-neo | Maintained to send PRs to the primary maintainer |
 
 ### `<PascalCaseWord>` with no `Swift` prefix — CLI tool or app (skill does NOT apply)
 
