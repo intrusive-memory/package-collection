@@ -346,25 +346,44 @@ Look for a commit like `Update <formula> to vX.Y.Z`. **Never manually edit the H
 
 After a squash merge, development's original commits are not ancestors of the squash commit on main. A `git merge main` would make the code identical but leave those old commits visible in the next PR (tons of commits, zero diff).
 
-**Why not just `git rebase main`?** The `development` branch is protected with `allow_force_pushes: false`. A normal rebase requires force-push, which gets rejected. Additionally, the phantom commits conflict with the squash commit during rebase, causing conflicts even though there is no real diff. The solution is to temporarily unlock force-push, identify genuinely new commits using `git cherry`, reset development to main's tip, cherry-pick only the new commits, force-push, then restore the protection.
+**Why not just `git rebase main`?** The `development` branch is protected with `allow_force_pushes: false`. A normal rebase requires force-push, which gets rejected. Additionally, the phantom commits from the merged PR conflict with the squash commit during rebase, causing conflicts even though there is no real diff. The solution is to temporarily unlock force-push, reset development to main's tip, cherry-pick only *genuinely new* commits (those added after the PR was created), force-push, then restore the protection.
+
+**Why NOT `git cherry` for detecting new commits?** `git cherry` compares by patch-id. After a squash merge, the individual dev commits each have different patch-ids than the combined squash commit on main — so `git cherry` flags ALL of them as "+" (new) even though their content is already in main. Cherry-picking those phantoms produces duplicates or no-op conflicts. Use the **content diff** as the primary signal, and the **PR's own commit list** as the exclusion set.
 
 ```bash
-# Step 1: Update local main
+# Step 1: Update local main and development
 git checkout main && git pull origin main
 git checkout development && git pull origin development
 
-# Step 2: Find genuinely new commits on development using git cherry.
-# git cherry marks commits '+' if they are NOT already in upstream (genuinely new),
-# and '-' if their diff is already present in main (phantom/squashed). We keep only '+'.
+# Step 2: Discover repo and required status check contexts dynamically
 REPO=$(gh repo view --json nameWithOwner --jq '.nameWithOwner')
-NEW_COMMITS=$(git cherry origin/main | grep '^+ ' | awk '{print $2}')
-echo "Commits to preserve: ${NEW_COMMITS:-none}"
+CHECKS_JSON=$(gh api "repos/${REPO}/branches/development/protection" \
+  --jq '[.required_status_checks.checks[].context]')
+echo "Required status checks: ${CHECKS_JSON}"
 
-# Step 3: Temporarily enable force-push on the protected branch
-gh api --method PUT "repos/${REPO}/branches/development/protection" \
-  --input - <<'JSON'
+# Step 3: Determine whether development has any REAL content diff vs main.
+#   - No diff  → all dev commits were squashed into main. Clean reset, no cherry-pick.
+#   - Has diff → someone pushed to dev after the merge. Preserve commits NOT in the PR.
+if [ -z "$(git diff origin/main..origin/development --stat)" ]; then
+  echo "Development has no content diff vs main — phantom commits only. Will reset cleanly."
+  NEW_COMMITS=""
+else
+  echo "Development has real content diff vs main. Identifying commits not in PR #${PR_NUMBER}."
+  # Chronological list of commits on dev not reachable from main
+  DEV_COMMITS=$(git log --reverse --format='%H' origin/main..origin/development)
+  # Regex of commit SHAs included in the merged PR (phantoms after squash)
+  PR_COMMITS_PATTERN=$(gh pr view "${PR_NUMBER}" --json commits \
+    --jq '[.commits[].oid] | join("|")')
+  # Keep dev commits NOT in the PR set — these are genuinely new
+  NEW_COMMITS=$(echo "${DEV_COMMITS}" | grep -vE "^(${PR_COMMITS_PATTERN})$" || true)
+  echo "Genuinely new commits to preserve:"
+  echo "${NEW_COMMITS:-<none>}"
+fi
+
+# Step 4: Temporarily enable force-push on the protected branch
+gh api --method PUT "repos/${REPO}/branches/development/protection" --input - <<JSON
 {
-  "required_status_checks": {"strict": true, "contexts": ["Test on macOS", "Test on iOS Simulator"]},
+  "required_status_checks": {"strict": true, "contexts": ${CHECKS_JSON}},
   "enforce_admins": false,
   "required_pull_request_reviews": null,
   "restrictions": null,
@@ -372,20 +391,19 @@ gh api --method PUT "repos/${REPO}/branches/development/protection" \
 }
 JSON
 
-# Step 4: Reset development to main's tip, then cherry-pick any new commits
+# Step 5: Reset development to main's tip, cherry-pick any genuinely new commits
 git reset --hard origin/main
-if [ -n "$NEW_COMMITS" ]; then
-  git cherry-pick $NEW_COMMITS
+if [ -n "${NEW_COMMITS}" ]; then
+  git cherry-pick ${NEW_COMMITS}
 fi
 
-# Step 5: Force-push the clean development branch
+# Step 6: Force-push the clean development branch
 git push origin development --force-with-lease
 
-# Step 6: Restore branch protection (disable force-push)
-gh api --method PUT "repos/${REPO}/branches/development/protection" \
-  --input - <<'JSON'
+# Step 7: Restore branch protection (disable force-push)
+gh api --method PUT "repos/${REPO}/branches/development/protection" --input - <<JSON
 {
-  "required_status_checks": {"strict": true, "contexts": ["Test on macOS", "Test on iOS Simulator"]},
+  "required_status_checks": {"strict": true, "contexts": ${CHECKS_JSON}},
   "enforce_admins": false,
   "required_pull_request_reviews": null,
   "restrictions": null,
@@ -393,16 +411,12 @@ gh api --method PUT "repos/${REPO}/branches/development/protection" \
 }
 JSON
 
-echo "Development rebased onto main. Force-push protection restored."
+echo "Development synced with main. Force-push protection restored."
 ```
 
-**Verify the result**: `git log --oneline -3` on development should show main's squash commit as the base, with only genuinely new commits on top (zero new commits is normal right after a release).
+**Verify the result**: `git diff origin/main..origin/development --stat` should be empty when no new commits were preserved, or match the expected set of post-merge changes when cherry-picks happened. `git log --oneline -3` on development should show main's squash commit as the base.
 
-**If the CI status check names differ** from `"Test on macOS"` and `"Test on iOS Simulator"`, look them up first:
-```bash
-gh api "repos/${REPO}/branches/development/protection" --jq '.required_status_checks.checks[].context'
-```
-Use those exact strings in the protection API calls above.
+**Why the HEREDOC uses unquoted `JSON`**: the heredoc needs to interpolate `${CHECKS_JSON}` and `${REPO}`. The body has no literal `$` characters that need escaping, so unquoted is safe.
 
 ### 11. Create Next Development Cycle PR
 
@@ -475,7 +489,7 @@ The library is now ready for use via Swift Package Manager and Homebrew.
 7. **Use --squash** - Keep main branch history clean with single commits per PR
 8. **Don't delete development** - It's a long-lived branch
 9. **Tag on main after merge** - The tag goes on the squash merge commit
-10. **Rebase development after release** - Use the protected-branch rebase procedure (Step 10): temporarily enable force-push via `gh api`, identify new commits with `git cherry`, reset to main, cherry-pick new commits, force-push, restore protection. Never use `git merge main` — it leaves phantom commits in the next PR.
+10. **Rebase development after release** - Use the protected-branch rebase procedure (Step 10): temporarily enable force-push via `gh api`, check `git diff origin/main..origin/development --stat` for real content changes, reset to main, cherry-pick only commits not in the merged PR (NOT via `git cherry` — patch-ids don't match a squash merge), force-push, restore protection. Never use `git merge main` — it leaves phantom commits in the next PR.
 11. **Create next cycle PR** - Always open a new development→main PR after release so the branch is ready for new work
 12. **NEVER manually build or upload release tarballs** - The `release.yml` CI workflow owns binary production. Never run `make dist` as part of releasing, never pass local file paths to `gh release create`.
 13. **NEVER manually edit the Homebrew formula** - CI dispatches a `formula-update` event to homebrew-tap after uploading the tarball. The tap updates itself. If it doesn't, investigate the CI workflow — do not patch the formula by hand.
