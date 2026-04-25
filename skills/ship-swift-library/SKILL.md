@@ -128,7 +128,7 @@ Ask the user what version this release should be, presenting the last tagged ver
 - **Minor** (x.Y.0): New features, non-breaking changes
 - **Major** (X.0.0): Breaking changes
 
-### 3. Bump Version, Update Dependencies, and Audit Documentation
+### 3. Bump Version, Update Dependencies, Audit Documentation, and Audit CI Workflows
 
 Make sure you're on the `development` branch, then update the version:
 
@@ -198,21 +198,113 @@ This will:
 - Update platform requirements (iOS/macOS/Swift/Xcode versions)
 - Verify all doc links point to existing files
 
-Commit everything together — version bump + dependency updates + lint fixes + doc updates — in a single commit:
+**Then audit CI workflows for outdated GitHub Actions.**
+
+Older action versions still pinned to Node 16 emit `Node.js 16 actions are deprecated` warnings on every CI run, and Node 16 runners have been removed entirely from some GitHub-hosted images. Audit every workflow file in `.github/workflows/` and bump each `uses:` reference to the latest published major version.
+
+1. **List every action reference across all workflows** (covers `.yml` and `.yaml`, ignores commented-out lines):
+   ```bash
+   grep -hE '^[[:space:]]*uses:[[:space:]]*[^#]' .github/workflows/*.y*ml 2>/dev/null \
+     | sed -E 's/^[[:space:]]*uses:[[:space:]]*//' \
+     | sort -u
+   ```
+
+2. **Build the floor-version table dynamically — do NOT hard-code versions.**
+
+   Hard-coded floor versions go stale the moment GitHub publishes a new major. Instead, build a per-release audit table by querying `releases/latest` for every action this repo actually uses. The output of step 1 is the input here.
+
+   **Output target (illustrative shape only — values must come from live API calls):**
+
+   | Action | Currently pinned | Latest major | Latest tag | Action required |
+   |---|---|---|---|---|
+   | `<owner>/<repo>` | `<extracted from workflow>` | `<derived from gh api>` | `<derived from gh api>` | bump / OK |
+
+   **How to populate it**, one row per unique `<owner>/<repo>` discovered in step 1:
+
+   ```bash
+   # Extract just the owner/repo (strip @ref) and dedupe
+   ACTIONS=$(grep -hE '^[[:space:]]*uses:[[:space:]]*[^#]' .github/workflows/*.y*ml 2>/dev/null \
+     | sed -E 's/^[[:space:]]*uses:[[:space:]]*//; s/@.*$//' \
+     | grep -v '^\./' \
+     | sort -u)
+
+   # For each, fetch the latest release tag and derive the major
+   for action in $ACTIONS; do
+     latest_tag=$(gh api "repos/${action}/releases/latest" --jq '.tag_name' 2>/dev/null)
+     if [ -z "$latest_tag" ]; then
+       # Fallback: some actions only publish tags (e.g. `v3`), no GitHub Releases.
+       latest_tag=$(gh api "repos/${action}/tags" --jq '[.[].name | select(test("^v[0-9]+(\\.[0-9]+){0,2}$"))][0]' 2>/dev/null)
+     fi
+     latest_major=$(printf '%s\n' "$latest_tag" | sed -E 's/^(v?[0-9]+).*/\1/')
+     printf '%-40s  latest_major=%s  latest_tag=%s\n' "$action" "$latest_major" "$latest_tag"
+   done
+   ```
+
+   **Reading the result:**
+   - `latest_major` is the value to pin to (e.g. `v4`, `v5`). Float on the major rather than the exact tag — actions follow GitHub's "v-major points at the latest patch within that major" convention, which mirrors how the user has the rest of this repo's deps pinned (`.upToNextMajor`).
+   - If the workflow is already on the latest major, mark **OK** and move on.
+   - If the workflow is on an older major, mark **bump** and proceed to step 3.
+   - If `releases/latest` returned empty AND no semver tags exist (rare — usually a custom internal action), flag it for manual review rather than guessing.
+
+   **Sanity check on the way out:** any row where `latest_major` does not match the pinned major is a mandatory bump. There are no exceptions for "stable enough" — the deprecation warnings only quiet down once every action is on its latest major.
+
+   Capture this table in your working scratch (or paste it into the PR description) so the reviewer can see, per release, which actions you bumped and to what.
+
+3. **Update each workflow file** and reconcile inputs/env vars for the new major.
+
+   Whenever an action crosses a major boundary, GitHub Actions treats it as a contract change — inputs may rename, become required, or stop being inferred. **Always read the action's release notes for the major you are jumping to** before pushing the bump. Pull them on demand:
+
+   ```bash
+   # Release notes for the latest major of <owner>/<repo>
+   gh release view --repo <owner>/<repo> "$latest_tag" --json body --jq '.body'
+
+   # Or the full changelog between the currently pinned tag and latest
+   gh api "repos/<owner>/<repo>/compare/<old_tag>...<latest_tag>" --jq '.commits[].commit.message'
+   ```
+
+   Categories of breaking change to look for in those notes (verify each against the action's actual release notes — do not assume):
+   - **Required vs. inferred inputs**: did an input that used to be optional become mandatory? Common offenders are auth tokens (`token:` / `GITHUB_TOKEN` env), cache keys, and artifact names.
+   - **Renamed or removed inputs**: `with:` blocks that compiled fine on the old major may now reference dead inputs.
+   - **Uniqueness / scoping rules**: artifact actions in particular have tightened uniqueness rules across majors (per-job, per-run, per-matrix). If the workflow has matrix jobs sharing a name, that's the place to look.
+   - **Default behaviour changes**: cross-run artifact downloads, cache key fallbacks, and shallow-clone defaults have all flipped at major boundaries.
+   - **Runtime / Node version**: the whole reason for this audit. The release notes will say which Node runtime the action now requires.
+
+   For each `with:` and `env:` block in your workflow, cross-check it against the new major's documented inputs. If you cannot find a definitive answer in the release notes, link the workflow line in the PR description and ask the reviewer to sanity-check rather than guessing.
+
+4. **Verify the workflows still parse** before committing:
+   ```bash
+   # Preferred — actionlint catches version-specific input errors
+   command -v actionlint >/dev/null && actionlint .github/workflows/*.y*ml \
+     || echo "actionlint not installed — skipping (install: brew install actionlint)"
+   ```
+   Also run a YAML sanity check:
+   ```bash
+   for f in .github/workflows/*.y*ml; do
+     python3 -c "import yaml,sys; yaml.safe_load(open('$f'))" || echo "FAIL: $f"
+   done
+   ```
+
+5. **Re-confirm the `release.yml` workflow** specifically — it owns tarball production and the Homebrew dispatch (Step 8). If its actions were stale, the next release will fire on the updated workflow, so make sure it still uploads to the correct release and dispatches `formula-update` to homebrew-tap.
+
+Commit everything together — version bump + dependency updates + lint fixes + doc updates + workflow updates — in a single commit:
 
 ```bash
-git add Package.swift Sources/<LibraryName>/<LibraryName>.swift README.md AGENTS.md CLAUDE.md GEMINI.md
-git commit -m "Bump version to X.Y.Z, update dependencies, and update documentation
+git add Package.swift Sources/<LibraryName>/<LibraryName>.swift README.md AGENTS.md CLAUDE.md GEMINI.md .github/workflows/
+git commit -m "Bump version to X.Y.Z, update dependencies, docs, and CI actions
 
 Dependencies updated to latest published versions:
 - All local path references replaced with GitHub URLs
 - All dependencies pinned to next major version boundary
 
+CI workflows updated:
+- All GitHub Actions bumped to latest major (eliminates Node 16/20 deprecation warnings)
+- Action inputs/env vars reconciled for new majors
+
 Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 git push origin development
 ```
 
-**Important**: The version bump, dependency updates, and doc changes are now part of the PR diff and will be included when the PR is merged.
+**Important**: The version bump, dependency updates, doc changes, and CI workflow updates are now part of the PR diff and will be included when the PR is merged.
 
 ### 4. Verify CI Checks Pass
 
@@ -462,8 +554,9 @@ Release vX.Y.Z Complete
   - CLAUDE.md: Claude-specific instructions only
   - GEMINI.md: Gemini-specific instructions only
 - README.md updated (user-facing documentation) ✅
+- CI workflows audited — all GitHub Actions on latest major (no Node 16 deprecation warnings) ✅
 - CI checks passed ✅
-- Pull Request #<NUMBER> merged to main (includes version bump + dependency updates + docs) ✅
+- Pull Request #<NUMBER> merged to main (includes version bump + dependency updates + docs + workflow updates) ✅
 - Tag vX.Y.Z created on main ✅
 - GitHub release published (metadata only — no manual tarball) ✅
 - CI release workflow triggered (builds tarball + updates Homebrew) ✅
@@ -485,19 +578,20 @@ The library is now ready for use via Swift Package Manager and Homebrew.
 3. **Audit and update ALL dependencies BEFORE version bump** - No library can ship with local file path references (`.path()`) in Package.swift. All dependencies MUST reference published GitHub releases and be pinned using `.upToNextMajor(from: "X.Y.Z")` to allow patch updates within the same major version. Check for local references first: `grep -n '\.path(' Package.swift` — if any exist, replace with GitHub URLs before proceeding.
 4. **Run `make lint` before committing** - Format all Swift source files with swift format
 5. **Organize docs with /organize-agent-docs** - Ensure proper separation of universal vs agent-specific documentation
-6. **Wait for CI after version bump** - Don't merge until the new CI run passes
-7. **Use --squash** - Keep main branch history clean with single commits per PR
-8. **Don't delete development** - It's a long-lived branch
-9. **Tag on main after merge** - The tag goes on the squash merge commit
-10. **Rebase development after release** - Use the protected-branch rebase procedure (Step 10): temporarily enable force-push via `gh api`, check `git diff origin/main..origin/development --stat` for real content changes, reset to main, cherry-pick only commits not in the merged PR (NOT via `git cherry` — patch-ids don't match a squash merge), force-push, restore protection. Never use `git merge main` — it leaves phantom commits in the next PR.
-11. **Create next cycle PR** - Always open a new development→main PR after release so the branch is ready for new work
-12. **NEVER manually build or upload release tarballs** - The `release.yml` CI workflow owns binary production. Never run `make dist` as part of releasing, never pass local file paths to `gh release create`.
-13. **NEVER manually edit the Homebrew formula** - CI dispatches a `formula-update` event to homebrew-tap after uploading the tarball. The tap updates itself. If it doesn't, investigate the CI workflow — do not patch the formula by hand.
+6. **Audit CI workflows for stale GitHub Actions** - Every `uses:` reference in `.github/workflows/` must be on the latest major. Older majors run on Node 16 (deprecated) and trigger `Node.js 16 actions are deprecated` warnings; some have been fully decommissioned (e.g. `actions/upload-artifact@v3`). Reconcile any input/env-var changes that come with the new major.
+7. **Wait for CI after version bump** - Don't merge until the new CI run passes
+8. **Use --squash** - Keep main branch history clean with single commits per PR
+9. **Don't delete development** - It's a long-lived branch
+10. **Tag on main after merge** - The tag goes on the squash merge commit
+11. **Rebase development after release** - Use the protected-branch rebase procedure (Step 10): temporarily enable force-push via `gh api`, check `git diff origin/main..origin/development --stat` for real content changes, reset to main, cherry-pick only commits not in the merged PR (NOT via `git cherry` — patch-ids don't match a squash merge), force-push, restore protection. Never use `git merge main` — it leaves phantom commits in the next PR.
+12. **Create next cycle PR** - Always open a new development→main PR after release so the branch is ready for new work
+13. **NEVER manually build or upload release tarballs** - The `release.yml` CI workflow owns binary production. Never run `make dist` as part of releasing, never pass local file paths to `gh release create`.
+14. **NEVER manually edit the Homebrew formula** - CI dispatches a `formula-update` event to homebrew-tap after uploading the tarball. The tap updates itself. If it doesn't, investigate the CI workflow — do not patch the formula by hand.
 
 ## Correct Flow
 
 ```
-development: [features] -> [version bump] -> [make lint] -> [/organize-agent-docs] -> (CI passes) -> PR merged
+development: [features] -> [version bump] -> [make lint] -> [/organize-agent-docs] -> [audit CI workflows] -> (CI passes) -> PR merged
 main:        -----------------------------------------------------------------> [squash commit] -> [tag vX.Y.Z] -> [release (metadata only)]
 CI:          -------------------------------------------------------------------------^-- [build tarball] -> [upload to release] -> [dispatch formula-update to homebrew-tap]
 homebrew-tap:--------------------------------------------------------------------^-- (auto-updated by formula-update event)
