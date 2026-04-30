@@ -137,37 +137,37 @@ git checkout development
 git pull origin development
 ```
 
-Edit the version file (e.g. `Sources/<LibraryName>/<LibraryName>.swift`).
+**CRITICAL: Run SPM Package Audit First**
 
-**CRITICAL: Audit and Update All Dependencies in Package.swift**
+Before any manual changes, run the spm-package-audit skill to automatically fix common package hygiene issues:
 
-Before making any other changes, check Package.swift for issues:
+```
+/spm-package-audit
+```
 
-1. **Check for local file path references** — NO local dependencies:
+This will:
+- Remove Package.resolved from git tracking (libraries should not check this in)
+- Add/update the sibling dependency pattern for intrusive-memory/* dependencies
+- Update intrusive-memory/* dependency versions to latest GitHub releases
+- Validate the sibling helper function is correct
+
+**Then edit the version file** (e.g. `Sources/<LibraryName>/<LibraryName>.swift`).
+
+**Verify All Dependencies in Package.swift**
+
+After running spm-package-audit, verify no issues remain:
+
+1. **Verify no local file path references remain** — spm-package-audit should have caught these, but double-check:
    ```bash
    grep -n '\.path(' Package.swift
    ```
-   If any `.path()` references exist, they MUST be replaced with GitHub repository URLs or removed. Local paths cannot be shipped.
+   If any `.path()` references exist for non-intrusive-memory dependencies, replace with GitHub URLs.
 
-2. **Query the latest version of each dependency** — Update all `package()` declarations to use the latest published version from GitHub releases, pinned to the next major version. For each dependency:
+2. **For non-intrusive-memory dependencies**, verify they use `.upToNextMajor()`:
    ```bash
-   gh api repos/<OWNER>/<REPO>/releases --jq '.[0].tag_name'
+   grep -A2 'package(url:' Package.swift | grep -v intrusive-memory
    ```
-
-3. **Update Package.swift** — Modify all `.package()` declarations:
-   - Replace `.path()` with GitHub URLs: `.package(url: "https://github.com/...", ...)`
-   - Replace pinned versions with `.upToNextMajor(from: "X.Y.Z")` where X is the next major version boundary
-   - **Example transformations**:
-     - Old: `from: "0.5.0"` → New: `.upToNextMajor(from: "0.5.0")` (pins to <1.0.0)
-     - Old: `from: "1.2.0"` → New: `.upToNextMajor(from: "1.2.0")` (pins to <2.0.0)
-     - Old: `from: "5.0.0"` → New: `.upToNextMajor(from: "5.7.5")` (if latest is 5.7.5, pins to <6.0.0)
-   - If a dependency has breaking changes in a new major version, keep the `.upToNextMajor()` pattern (don't pin to exact version unless necessary for compatibility)
-
-4. **Verify all dependencies reference published versions** — Run:
-   ```bash
-   swift package describe --format json | jq '.dependencies[] | {name, url, requirement}'
-   ```
-   Confirm all URLs are GitHub repositories (not local paths) and all requirements use `.upToNextMajor()` or explicit version ranges.
+   Update any that use exact versions to `.upToNextMajor(from: "X.Y.Z")`.
 
 **Run `make lint` to format all Swift source files before committing:**
 
@@ -286,15 +286,17 @@ Older action versions still pinned to Node 16 emit `Node.js 16 actions are depre
 
 5. **Re-confirm the `release.yml` workflow** specifically — it owns tarball production and the Homebrew dispatch (Step 8). If its actions were stale, the next release will fire on the updated workflow, so make sure it still uploads to the correct release and dispatches `formula-update` to homebrew-tap.
 
-Commit everything together — version bump + dependency updates + lint fixes + doc updates + workflow updates — in a single commit:
+Commit everything together — version bump + SPM audit fixes + lint fixes + doc updates + workflow updates — in a single commit:
 
 ```bash
-git add Package.swift Sources/<LibraryName>/<LibraryName>.swift README.md AGENTS.md CLAUDE.md GEMINI.md .github/workflows/
+git add Package.swift .gitignore Sources/<LibraryName>/<LibraryName>.swift README.md AGENTS.md CLAUDE.md GEMINI.md .github/workflows/
 git commit -m "Bump version to X.Y.Z, update dependencies, docs, and CI actions
 
-Dependencies updated to latest published versions:
-- All local path references replaced with GitHub URLs
-- All dependencies pinned to next major version boundary
+SPM package audit applied:
+- Package.resolved removed from git tracking (if present)
+- Sibling dependency pattern added/updated for intrusive-memory/* deps
+- All dependencies updated to latest published versions
+- Dependencies pinned to next major version boundary
 
 CI workflows updated:
 - All GitHub Actions bumped to latest major (eliminates Node 16/20 deprecation warnings)
@@ -304,7 +306,7 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 git push origin development
 ```
 
-**Important**: The version bump, dependency updates, doc changes, and CI workflow updates are now part of the PR diff and will be included when the PR is merged.
+**Important**: The version bump, SPM audit fixes, doc changes, and CI workflow updates are now part of the PR diff and will be included when the PR is merged.
 
 ### 4. Verify CI Checks Pass
 
@@ -544,9 +546,11 @@ Provide final summary:
 ```
 Release vX.Y.Z Complete
 
-- Dependencies audited and updated to latest published versions ✅
-  - No local path references in Package.swift
-  - All dependencies pinned with .upToNextMajor()
+- SPM package audit applied with /spm-package-audit ✅
+  - Package.resolved removed from git (if present)
+  - Sibling dependency pattern applied to intrusive-memory/* deps
+  - All dependencies updated to latest published versions
+  - Dependencies pinned with .upToNextMajor()
 - Version bumped to X.Y.Z on development ✅
 - Swift source formatted with make lint ✅
 - Documentation organized with /organize-agent-docs ✅
@@ -556,7 +560,7 @@ Release vX.Y.Z Complete
 - README.md updated (user-facing documentation) ✅
 - CI workflows audited — all GitHub Actions on latest major (no Node 16 deprecation warnings) ✅
 - CI checks passed ✅
-- Pull Request #<NUMBER> merged to main (includes version bump + dependency updates + docs + workflow updates) ✅
+- Pull Request #<NUMBER> merged to main (includes version bump + SPM audit + docs + workflow updates) ✅
 - Tag vX.Y.Z created on main ✅
 - GitHub release published (metadata only — no manual tarball) ✅
 - CI release workflow triggered (builds tarball + updates Homebrew) ✅
@@ -575,7 +579,7 @@ The library is now ready for use via Swift Package Manager and Homebrew.
 
 1. **Derive version from git tags, not source code** - Always run `git tag --sort=-v:refname` to find the last released version. The `version` string in source is informational and may be stale. If source version ≠ latest tag, flag it before proceeding.
 2. **Bump version BEFORE merging** - The version bump must be part of the PR
-3. **Audit and update ALL dependencies BEFORE version bump** - No library can ship with local file path references (`.path()`) in Package.swift. All dependencies MUST reference published GitHub releases and be pinned using `.upToNextMajor(from: "X.Y.Z")` to allow patch updates within the same major version. Check for local references first: `grep -n '\.path(' Package.swift` — if any exist, replace with GitHub URLs before proceeding.
+3. **Run /spm-package-audit BEFORE version bump** - This automatically fixes Package.resolved tracking, adds/updates sibling dependency pattern for intrusive-memory/* deps, and updates versions to latest. Verify no local path references remain afterward.
 4. **Run `make lint` before committing** - Format all Swift source files with swift format
 5. **Organize docs with /organize-agent-docs** - Ensure proper separation of universal vs agent-specific documentation
 6. **Audit CI workflows for stale GitHub Actions** - Every `uses:` reference in `.github/workflows/` must be on the latest major. Older majors run on Node 16 (deprecated) and trigger `Node.js 16 actions are deprecated` warnings; some have been fully decommissioned (e.g. `actions/upload-artifact@v3`). Reconcile any input/env-var changes that come with the new major.
