@@ -2,7 +2,7 @@
 name: mission-supervisor
 description: Plan and execute sorties with sergeant precision. Give each agent ONE clear, measurable goal. Pre-execution commands (breakdown, refine + 4 subcommands) create and refine an EXECUTION_PLAN.md from requirements. Refine performs 4 passes: atomicity/testability, prioritization, parallelism (up to 4 sub-agents, builds only by supervisor), and open questions. Execution commands (start, resume, status, stop, killall) orchestrate sortie agents with lean context and crystal-clear objectives. THE RITUAL (name-feature) generates humorous military operation names. Post-mission (brief) harvests lessons into a structured review before rollback. On completion, mission files are archived to docs/complete/ with operation-name-based filenames.
 argument-hint: "[breakdown|name-feature|refine|refine-atomicity|refine-priority|refine-parallelism|refine-questions|start|resume|status|stop|killall|brief] [path] [--max-turns=N]"
-disable-model-invocation: true
+disable-model-invocation: false
 allowed-tools: Read, Glob, Grep, Bash, Task, Write, Edit, TaskOutput, KillShell
 ---
 
@@ -222,3 +222,4 @@ Store the resolved project root as `$PROJECT_ROOT` for use throughout this sessi
 - Use state names not defined in the State Machine section (no ad-hoc states like "paused", "waiting", "in_progress")
 - Escalate deferred sorties to FATAL just because the external condition isn't met yet
 - **Load agents with unnecessary context** (only include files directly relevant to the sortie's goal)
+- **Specify concrete version numbers in execution plans or supervisor state** — Always use relative version language: "our next patch release version", "our next minor release version", "our next major release version". Version numbers are determined at release time by finding the numerically highest semver tag (sorted by major.minor.patch, not by creation date) and incrementing appropriately based on release type.
