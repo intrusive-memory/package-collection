@@ -327,68 +327,9 @@ All <N> sorties executed across <count> work units.
 Detailed analysis available in: $PROJECT_ROOT/COMPLETE_<PROJECT_NAME>.md
 ```
 
-## 7. Archive Mission Files to docs/complete/
+## 7. Trigger Post-Mission Brief
 
-After outputting the completion summary, archive the mission's plan and completion files into the project's `docs/complete/` directory, renamed with the operation name for long-term reference.
-
-### Step 1: Derive the Operation Name Slug
-
-Read the `feature_name` from EXECUTION_PLAN.md frontmatter. Convert to a filesystem-safe slug:
-- Lowercase
-- Replace spaces with hyphens
-- Drop the "operation-" prefix
-
-Example: `OPERATION STEAMROLLER ORIGAMI` → `steamroller-origami`
-
-### Step 2: Create the Archive Directory
-
-```bash
-mkdir -p $PROJECT_ROOT/docs/complete
-```
-
-### Step 3: Move and Rename Files
-
-Move each mission file into `docs/complete/`, prefixing with the operation name slug and iteration number:
-
-| Source File | Destination |
-|-------------|-------------|
-| `EXECUTION_PLAN.md` | `docs/complete/<slug>-<NN>-execution-plan.md` |
-| `COMPLETE_<PROJECT_NAME>.md` | `docs/complete/<slug>-<NN>-completion-log.md` |
-| `SUPERVISOR_STATE.md` | `docs/complete/<slug>-<NN>-supervisor-state.md` |
-| `<OPERATION_NAME>_<NN>_BRIEF.md` | `docs/complete/<slug>-<NN>-brief.md` (if brief exists — may be generated later) |
-
-Where `<NN>` is the two-digit iteration number from EXECUTION_PLAN.md frontmatter.
-
-Example for `OPERATION STEAMROLLER ORIGAMI`, iteration 1:
-```
-docs/complete/steamroller-origami-01-execution-plan.md
-docs/complete/steamroller-origami-01-completion-log.md
-docs/complete/steamroller-origami-01-supervisor-state.md
-```
-
-### Step 4: Git Commit the Archive
-
-```bash
-git add docs/complete/
-git commit -m "Archive mission files for <OPERATION NAME> iteration <NN>"
-```
-
-### Step 5: Report to User
-
-```
-Mission files archived to docs/complete/:
-- <slug>-<NN>-execution-plan.md
-- <slug>-<NN>-completion-log.md
-- <slug>-<NN>-supervisor-state.md
-```
-
-**Note**: If the brief has not been generated yet (it runs after this step), the brief command will move its output file to `docs/complete/<slug>-<NN>-brief.md` after generation. See `commands/brief.md` § Archive Brief File.
-
----
-
-## 8. Trigger Post-Mission Brief
-
-After archiving mission files and outputting the completion summary, prompt the user:
+After outputting the completion summary, prompt the user:
 
 ```
 Mission complete. Ready to run the post-mission brief?
@@ -398,6 +339,8 @@ The brief will:
 - Assess sortie accuracy
 - Identify open decisions for the next iteration (if any)
 - Record iteration metadata (starting point, branch, rollback target)
+- Then auto-invoke `clean` to archive every mission artifact in the
+  project root into `docs/<complete|incomplete>/<mission name>/`
 
 Run now? /mission-supervisor brief
 ```
@@ -405,3 +348,13 @@ Run now? /mission-supervisor brief
 If the user confirms, invoke the `brief` command (see `commands/brief.md`).
 
 The brief is **mandatory for iterative missions** (Rodillo Liso process). For one-shot missions where no rollback is planned, the brief is recommended but optional.
+
+---
+
+## File Movement and Cleanup
+
+`completion.md` does **not** move, rename, archive, or delete any files. The completion log writes to `$PROJECT_ROOT/COMPLETE_<PROJECT_NAME>.md` in place and leaves it there.
+
+All mission artifact archival — including EXECUTION_PLAN.md, SUPERVISOR_STATE.md, COMPLETE_*.md, *_BRIEF.md, and sortie deliverables — is the exclusive responsibility of the `clean` command (see `commands/clean.md`), which runs only after `brief`. This is intentional: the brief is the authoritative post-mission record, and the workspace must not be cleaned until the brief has captured everything that needs capturing.
+
+If you find file-move logic anywhere in the supervisor outside of `commands/clean.md`, delete it.

@@ -209,15 +209,36 @@ This section records the git state needed to:
 
 ---
 
+## Trigger `clean` Automatically
+
+Immediately after the brief file is written, the `brief` command **must** invoke the `clean` command (see `commands/clean.md`). This is mandatory and not user-prompted — the brief is the authoritative post-mission record, and the workspace must return to a pre-mission state before any rollback ritual or next-iteration work begins.
+
+Procedure:
+
+1. Verify the brief file exists at `$PROJECT_ROOT/<OPERATION_NAME>_<NN>_BRIEF.md`.
+2. Invoke `clean` against the same `$PROJECT_ROOT`. `clean` will:
+   - Determine outcome (`complete` vs `incomplete`) from SUPERVISOR_STATE.md.
+   - Move the brief, EXECUTION_PLAN.md, SUPERVISOR_STATE.md, COMPLETE_*.md, and all sortie deliverables into `docs/<outcome>/<slug>-<NN>/`.
+   - Report what was moved.
+3. After `clean` reports success, the brief now lives at:
+   ```
+   docs/<outcome>/<slug>-<NN>/<OPERATION_NAME>_<NN>_BRIEF.md
+   ```
+   Use this path for any subsequent step (rollback ritual, references in user output).
+
+Do **not** duplicate `clean`'s logic here. If `clean` fails, surface the error and stop — do not proceed to the rollback ritual with a half-archived workspace.
+
+---
+
 ## The Rollback Ritual
 
-After the brief is written, if the verdict is "discard and iterate":
+After `clean` completes, if the verdict in the brief is "discard and iterate":
 
-1. **Verify the brief file exists and is complete.**
+1. **Verify the brief file exists at its archived path** (`docs/<outcome>/<slug>-<NN>/<OPERATION_NAME>_<NN>_BRIEF.md`).
 2. **Verify the mission branch has all commits.**
 3. **Confirm with the user:**
    ```
-   Brief written: <OPERATION_NAME>_<NN>_BRIEF.md
+   Brief written and archived: docs/<outcome>/<slug>-<NN>/<OPERATION_NAME>_<NN>_BRIEF.md
    Mission branch preserved: <branch_name>
 
    Ready to roll back to starting point commit <hash>?
@@ -231,11 +252,11 @@ After the brief is written, if the verdict is "discard and iterate":
      ```bash
      git checkout -b mission/<slug>/<NN+1> <starting_point_commit>
      ```
-   - Copy the brief file to the new branch:
+   - Carry the brief forward by checking it out from the mission branch at its archived path:
      ```bash
-     git checkout <mission_branch> -- <BRIEF_FILE>
-     git add <BRIEF_FILE>
-     git commit -m "Add iteration <NN> brief for reference"
+     git checkout <mission_branch> -- docs/<outcome>/<slug>-<NN>/<OPERATION_NAME>_<NN>_BRIEF.md
+     git add docs/<outcome>/<slug>-<NN>/<OPERATION_NAME>_<NN>_BRIEF.md
+     git commit -m "Carry iteration <NN> brief forward for reference"
      ```
    - Report:
      ```
@@ -243,7 +264,7 @@ After the brief is written, if the verdict is "discard and iterate":
      Now on branch: mission/<slug>/<NN+1>
      Starting point: <hash>
      Previous iteration preserved on: <old_branch>
-     Brief carried forward: <BRIEF_FILE>
+     Brief carried forward: docs/<outcome>/<slug>-<NN>/<OPERATION_NAME>_<NN>_BRIEF.md
 
      Resolve the open decisions in the brief before starting the next iteration.
      ```
@@ -322,46 +343,11 @@ When `resume` starts, check for existing brief files:
 
 ---
 
-## Archive Brief File and Clean Up Work Files
+## Archive
 
-After the brief file is written, archive it and clean up all temporary mission work files:
+Archival is handled by the `clean` command, not by `brief`. See `commands/clean.md`.
 
-### Step 1: Archive the Brief
-
-1. Derive the slug from `feature_name` (lowercase, hyphens, drop "operation-" prefix).
-2. Move the brief:
-   ```bash
-   mkdir -p $PROJECT_ROOT/Docs/complete
-   mv $PROJECT_ROOT/<OPERATION_NAME>_<NN>_BRIEF.md $PROJECT_ROOT/Docs/complete/<slug>-<NN>-brief.md
-   ```
-
-### Step 2: Clean Up Work Files
-
-The brief consolidates all key findings. Detailed sortie deliverables are preserved on the mission branch via git history, but should be removed from the active workspace:
-
-```bash
-# Remove mission state
-rm -f $PROJECT_ROOT/SUPERVISOR_STATE.md
-
-# Remove sortie deliverables from Docs/complete/
-rm -f $PROJECT_ROOT/Docs/complete/sortie-*.md
-rm -f $PROJECT_ROOT/Docs/complete/sortie-*.txt
-rm -f $PROJECT_ROOT/Docs/complete/sortie-*.fcpxml
-rm -f $PROJECT_ROOT/Docs/complete/SORTIE-*.md
-
-# Keep only the brief in Docs/complete/
-```
-
-### Step 3: Report
-
-```
-Brief archived to: Docs/complete/<slug>-<NN>-brief.md
-Work files cleaned up. Only brief remains in Docs/complete/.
-```
-
-**Rationale**: The brief is the authoritative post-mission record. Sortie deliverables served their purpose during execution and are preserved in git history on the mission branch. Keeping them in the workspace creates clutter and confusion about what's "source of truth."
-
-This ensures all mission artifacts end up in `Docs/complete/` with consistent naming, and the workspace stays clean.
+`brief` invokes `clean` automatically as its final step (see "Trigger `clean` Automatically" above). The brief and all other mission artifacts end up at `docs/<complete|incomplete>/<slug>-<NN>/`.
 
 ---
 

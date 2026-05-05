@@ -1,7 +1,7 @@
 ---
 name: mission-supervisor
-description: Plan and execute sorties with sergeant precision. Give each agent ONE clear, measurable goal. Pre-execution commands (breakdown, refine + 4 subcommands) create and refine an EXECUTION_PLAN.md from requirements. Refine performs 4 passes: atomicity/testability, prioritization, parallelism (up to 4 sub-agents, builds only by supervisor), and open questions. Execution commands (start, resume, status, stop, killall) orchestrate sortie agents with lean context and crystal-clear objectives. THE RITUAL (name-feature) generates humorous military operation names. Post-mission (brief) harvests lessons into a structured review before rollback. On completion, mission files are archived to docs/complete/ with operation-name-based filenames.
-argument-hint: "[breakdown|name-feature|refine|refine-atomicity|refine-priority|refine-parallelism|refine-questions|start|resume|status|stop|killall|brief] [path] [--max-turns=N]"
+description: Plan and execute sorties with sergeant precision. Give each agent ONE clear, measurable goal. Pre-execution commands (breakdown, refine + 4 subcommands) create and refine an EXECUTION_PLAN.md from requirements. Refine performs 4 passes: atomicity/testability, prioritization, parallelism (up to 4 sub-agents, builds only by supervisor), and open questions. Execution commands (start, resume, status, stop, killall) orchestrate sortie agents with lean context and crystal-clear objectives. THE RITUAL (name-feature) generates humorous military operation names. Post-mission (brief) harvests lessons into a structured review before rollback, then auto-triggers (clean) to move every mission artifact in the project root into docs/<complete|incomplete>/<mission name>/.
+argument-hint: "[breakdown|name-feature|refine|refine-atomicity|refine-priority|refine-parallelism|refine-questions|start|resume|status|stop|killall|brief|clean] [path] [--max-turns=N]"
 disable-model-invocation: false
 allowed-tools: Read, Glob, Grep, Bash, Task, Write, Edit, TaskOutput, KillShell
 ---
@@ -119,7 +119,7 @@ Parse `$ARGUMENTS` as follows:
 | **Pre-execution** | `breakdown`, `refine` (+ subcommands) | Create and refine EXECUTION_PLAN.md from requirements |
 | **The Ritual** | `name-feature` | Generate humorous military operation name (happens at `start`, or manual regeneration) |
 | **Execution** | `start`, `resume`, `status`, `stop`, `killall` | Orchestrate sortie agents against an existing plan |
-| **Post-mission** | `brief` | Harvest lessons into a structured review before rollback |
+| **Post-mission** | `brief`, `clean` | Harvest lessons (`brief`); archive every root-level mission artifact into `docs/<complete\|incomplete>/<mission name>/` (`clean`, auto-triggered by `brief`) |
 
 ### Command Routing
 
@@ -139,10 +139,11 @@ Each command is documented in its own file. Read the referenced file for full in
 | `status` | `commands/status.md` | Report progress (read-only, no dispatching) |
 | `stop` | `commands/stop.md` | Graceful shutdown with 3-phase escalation |
 | `killall` | `commands/killall.md` | Emergency stop — terminate all agents immediately |
-| `brief` | `commands/brief.md` | Post-mission review — harvest lessons, assess sortie accuracy, prepare for rollback |
+| `brief` | `commands/brief.md` | Post-mission review — harvest lessons, assess sortie accuracy, prepare for rollback. Auto-triggers `clean` as its final step. |
+| `clean` | `commands/clean.md` | Move every mission artifact in the project root (EXECUTION_PLAN.md, SUPERVISOR_STATE.md, COMPLETE_*.md, *_BRIEF.md, sortie deliverables) into `docs/<complete\|incomplete>/<mission name>/`. Idempotent. |
 
 **Supporting documents** (referenced by execution commands):
-- `commands/completion.md` — COMPLETE_*.md management (audit trail + final verification + archive to docs/complete/)
+- `commands/completion.md` — COMPLETE_*.md management (audit trail + final verification + trigger brief). Does **not** move or delete files; archival is exclusively handled by `clean`, which runs only after `brief`.
 - `PERSONALITY_GUIDELINES.md` — Voice, tone, key phrases
 - `OPERATION_NAME_EXAMPLES.md` — Pattern examples for name generation
 
@@ -164,9 +165,10 @@ Each command is documented in its own file. Read the referenced file for full in
 - **`start [path/to/EXECUTION_PLAN.md]`**: Optional explicit path. Records current HEAD as the starting point commit, creates a mission branch (`mission/<slug>/<NN>`), stores both in frontmatter and SUPERVISOR_STATE.md.
 - **`resume`**, **`status`**, **`stop`**, **`killall`**: No path argument (uses existing state).
 
-### Post-Mission Command Signature
+### Post-Mission Command Signatures
 
-- **`brief [path/to/EXECUTION_PLAN.md]`**: Generates `<OPERATION_NAME>_<NN>_BRIEF.md` with structured review. Optionally initiates the rollback ritual for iterative missions. See `commands/brief.md`.
+- **`brief [path/to/EXECUTION_PLAN.md]`**: Generates `<OPERATION_NAME>_<NN>_BRIEF.md` with structured review, then auto-invokes `clean` to archive the brief and all other root-level mission artifacts. Optionally initiates the rollback ritual for iterative missions. See `commands/brief.md`.
+- **`clean [path/to/EXECUTION_PLAN.md]`**: Determines outcome (`complete` if every work unit in SUPERVISOR_STATE.md is `COMPLETED`, otherwise `incomplete`), then moves every mission artifact at the project-root top level into `docs/<outcome>/<slug>-<NN>/` while preserving original filenames. Uses `git mv` for tracked files; does **not** commit. Idempotent — running with no artifacts present is a no-op. See `commands/clean.md`.
 
 ### Default Command
 
