@@ -23,7 +23,28 @@ This will:
 - Update intrusive-memory/* dependency versions to latest GitHub releases
 - Validate the sibling helper function is correct
 
-## 2. Edit the Version File and Strip Any `-dev` Suffix
+## 2. Flip Package.swift to Remote-Only Mode
+
+Development branches use the `sibling(...)` helper that prefers a `../<name>` checkout when present. That convenience must NOT ship in a tagged release — a fresh-clone CI build would still resolve correctly (the helper has a remote fallback), but the released `Package.swift` would carry developmental scaffolding that has no business in a published library.
+
+Run the toggle:
+
+```
+/toggle-sibling-libraries --to remote
+```
+
+What this does:
+- Resolves the latest published GitHub release of every `intrusive-memory/*` dep and pins each one with `.upToNextMajor(from: "<latest>")` — explicitly, the dev-branch `from:` value is NOT carried forward; ship time pins to whatever is actually released.
+- Strips the `useLocalSiblings` constant, both `sibling(...)` helper functions, and `import Foundation` (if no longer referenced).
+- If any dep was on the `branch:` variant of `sibling`, converts it to the same `.upToNextMajor(from: "<latest>")` form AND emits a loud warning. **If you see that warning, stop and verify the upstream has actually released the changes the branch was tracking** — otherwise tests that passed in dev may not exercise the same code at release.
+
+Verify the result still resolves cleanly before continuing:
+
+```bash
+swift package resolve 2>&1 | tail -10
+```
+
+## 3. Edit the Version File and Strip Any `-dev` Suffix
 
 Edit `Sources/<LibraryName>/<LibraryName>.swift` (or wherever the canonical version constant lives).
 
@@ -39,23 +60,34 @@ grep -rln --exclude-dir=.git --exclude-dir=.build -- "-dev" . || echo "No -dev m
 
 Common locations: `Sources/<LibraryName>/<LibraryName>.swift`, `README.md`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`. Do NOT touch dependency version constraints in `Package.swift` — those are unrelated.
 
-## 3. Verify All Dependencies in Package.swift
+## 4. Verify Package.swift Is Release-Shaped
 
-After running spm-package-audit, verify no issues remain:
+The toggle in step 2 should have produced a remote-only `Package.swift`. Sanity-check before continuing:
 
-1. **Verify no local file path references remain** — spm-package-audit should have caught these, but double-check:
+1. **No `sibling(...)` calls remain** (these are dev-only):
    ```bash
-   grep -n '\.path(' Package.swift
+   grep -n 'sibling(' Package.swift && echo "FAIL: toggle did not strip sibling() calls" || echo "OK"
    ```
-   If any `.path()` references exist for non-intrusive-memory dependencies, replace with GitHub URLs.
 
-2. **For non-intrusive-memory dependencies**, verify they use `.upToNextMajor()`:
+2. **No `.path()` references for any dep**:
+   ```bash
+   grep -n '\.path(' Package.swift && echo "FAIL: local-path dep present" || echo "OK"
+   ```
+
+3. **No `useLocalSiblings` or `func sibling(`**:
+   ```bash
+   grep -nE 'useLocalSiblings|func sibling\(' Package.swift && echo "FAIL: helper scaffolding still present" || echo "OK"
+   ```
+
+4. **Non-intrusive-memory deps use `.upToNextMajor()`** (these are NEVER touched by the toggle):
    ```bash
    grep -A2 'package(url:' Package.swift | grep -v intrusive-memory
    ```
    Update any that use exact versions to `.upToNextMajor(from: "X.Y.Z")`.
 
-## 4. Run `make lint` to Format Swift Sources
+If any of the first three checks fail, abort and re-run `/toggle-sibling-libraries --to remote` — do not patch by hand, the toggle is the source of truth.
+
+## 5. Run `make lint` to Format Swift Sources
 
 ```bash
 make lint
@@ -63,7 +95,7 @@ make lint
 
 This runs `swift format -i -r .` across the entire project. Any formatting changes will be included in the commit.
 
-## 5. Organize and Update Project Documentation
+## 6. Organize and Update Project Documentation
 
 Use the organize-agent-docs skill:
 
@@ -86,11 +118,11 @@ This will:
 - Update platform requirements (iOS/macOS/Swift/Xcode versions)
 - Verify all doc links point to existing files
 
-## 6. Audit CI Workflows for Outdated GitHub Actions
+## 7. Audit CI Workflows for Outdated GitHub Actions
 
 Older action versions still pinned to Node 16 emit `Node.js 16 actions are deprecated` warnings on every CI run, and Node 16 runners have been removed entirely from some GitHub-hosted images. Audit every workflow file in `.github/workflows/` and bump each `uses:` reference to the latest published major version.
 
-### 6.1. List every action reference across all workflows
+### 7.1. List every action reference across all workflows
 
 Covers `.yml` and `.yaml`, ignores commented-out lines:
 
@@ -100,7 +132,7 @@ grep -hE '^[[:space:]]*uses:[[:space:]]*[^#]' .github/workflows/*.y*ml 2>/dev/nu
   | sort -u
 ```
 
-### 6.2. Build the floor-version table dynamically — do NOT hard-code versions
+### 7.2. Build the floor-version table dynamically — do NOT hard-code versions
 
 Hard-coded floor versions go stale the moment GitHub publishes a new major. Instead, build a per-release audit table by querying `releases/latest` for every action this repo actually uses. The output of step 6.1 is the input here.
 
@@ -134,14 +166,14 @@ done
 **Reading the result:**
 - `latest_major` is the value to pin to (e.g. `v4`, `v5`). Float on the major rather than the exact tag — actions follow GitHub's "v-major points at the latest patch within that major" convention, which mirrors how the user has the rest of this repo's deps pinned (`.upToNextMajor`).
 - If the workflow is already on the latest major, mark **OK** and move on.
-- If the workflow is on an older major, mark **bump** and proceed to step 6.3.
+- If the workflow is on an older major, mark **bump** and proceed to step 7.3.
 - If `releases/latest` returned empty AND no semver tags exist (rare — usually a custom internal action), flag it for manual review rather than guessing.
 
 **Sanity check on the way out:** any row where `latest_major` does not match the pinned major is a mandatory bump. There are no exceptions for "stable enough" — the deprecation warnings only quiet down once every action is on its latest major.
 
 Capture this table in your working scratch (or paste it into the PR description) so the reviewer can see, per release, which actions you bumped and to what.
 
-### 6.3. Update each workflow file and reconcile inputs/env vars for the new major
+### 7.3. Update each workflow file and reconcile inputs/env vars for the new major
 
 Whenever an action crosses a major boundary, GitHub Actions treats it as a contract change — inputs may rename, become required, or stop being inferred. **Always read the action's release notes for the major you are jumping to** before pushing the bump. Pull them on demand:
 
@@ -162,7 +194,7 @@ Categories of breaking change to look for in those notes (verify each against th
 
 For each `with:` and `env:` block in your workflow, cross-check it against the new major's documented inputs. If you cannot find a definitive answer in the release notes, link the workflow line in the PR description and ask the reviewer to sanity-check rather than guessing.
 
-### 6.4. Verify the workflows still parse before committing
+### 7.4. Verify the workflows still parse before committing
 
 ```bash
 # Preferred — actionlint catches version-specific input errors
@@ -178,23 +210,26 @@ for f in .github/workflows/*.y*ml; do
 done
 ```
 
-### 6.5. Re-confirm the `release.yml` workflow specifically
+### 7.5. Re-confirm the `release.yml` workflow specifically
 
 It owns tarball production and the Homebrew dispatch (Step 8 of the main flow). If its actions were stale, the next release will fire on the updated workflow, so make sure it still uploads to the correct release and dispatches `formula-update` to homebrew-tap.
 
-## 7. Single Commit and Push
+## 8. Single Commit and Push
 
-Commit everything together — version bump + SPM audit fixes + lint fixes + doc updates + workflow updates — in a single commit:
+Commit everything together — version bump + SPM audit fixes + sibling-to-remote toggle + lint fixes + doc updates + workflow updates — in a single commit:
 
 ```bash
 git add Package.swift .gitignore Sources/<LibraryName>/<LibraryName>.swift README.md AGENTS.md CLAUDE.md GEMINI.md .github/workflows/
-git commit -m "Bump version to X.Y.Z, update dependencies, docs, and CI actions
+git commit -m "Bump version to X.Y.Z, flip deps to remote, update docs and CI actions
 
 SPM package audit applied:
 - Package.resolved removed from git tracking (if present)
-- Sibling dependency pattern added/updated for intrusive-memory/* deps
-- All dependencies updated to latest published versions
-- Dependencies pinned to next major version boundary
+- intrusive-memory/* deps updated to latest published versions
+
+Package.swift flipped to remote-only release shape:
+- sibling(...) helpers and useLocalSiblings constant stripped
+- intrusive-memory/* deps pinned to .upToNextMajor(from: \"<latest>\")
+- import Foundation removed (no longer referenced)
 
 CI workflows updated:
 - All GitHub Actions bumped to latest major (eliminates Node 16/20 deprecation warnings)
@@ -202,4 +237,4 @@ CI workflows updated:
 git push origin development
 ```
 
-**Important**: The version bump, SPM audit fixes, doc changes, and CI workflow updates are now part of the PR diff and will be included when the PR is merged.
+**Important**: The version bump, SPM audit fixes, sibling-to-remote toggle, doc changes, and CI workflow updates are now part of the PR diff and will be included when the PR is merged. The post-release `-dev` step (Step 11 of the main flow) flips Package.swift back to sibling mode for the next development cycle.
