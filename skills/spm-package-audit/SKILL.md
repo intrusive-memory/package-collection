@@ -1,282 +1,139 @@
 ---
 name: spm-package-audit
-description: Audits and automatically fixes Swift Package Manager library packages for Package.resolved git tracking and intrusive-memory dependency patterns. Explicitly invoked only - does not auto-trigger.
+description: Audits and automatically fixes Swift Package Manager library packages. Removes Package.resolved from git tracking, ensures the sibling dependency pattern is in place via /toggle-sibling-libraries, and bumps every intrusive-memory/* dep to its latest published release. Explicitly invoked only — does not auto-trigger.
+allowed-tools: Bash, Read, Edit, Skill
 ---
 
 # SPM Package Audit
 
-Audits Swift Package Manager (SPM) library packages for common configuration issues and automatically applies fixes:
+Run on a Swift Package Manager library on the **development** branch when you want to refresh package hygiene before continued work or before invoking `/ship-swift-library`. Two responsibilities:
 
-1. **Package.resolved tracking**: Removes from git and adds to .gitignore (libraries should not check this in)
-2. **intrusive-memory/* dependency pattern**: Ensures the sibling dependency pattern is used for local development with CI fallback
-3. **Version currency**: Updates dependency versions to latest GitHub releases
-4. **Helper function validation**: Verifies the sibling pattern helper is correct
+1. **Package.resolved tracking** — libraries should not check this in. If it is tracked, remove it and add to `.gitignore`.
+2. **intrusive-memory/* version currency** — bump every `intrusive-memory/*` dep currently in the sibling pattern to its latest published GitHub release.
 
-This skill is designed for **SPM libraries only** (not GUI apps). It uses a multi-agent approach where each audit runs as a separate pass, then fixes are applied iteratively.
+The **state of the sibling pattern itself** (helper functions, `useLocalSiblings`, sibling vs. direct `.package(url:)` calls) is delegated to `/toggle-sibling-libraries`. This skill no longer rewrites that scaffolding directly — keeping a single source of truth for the toggle prevents the two skills from drifting.
 
----
+## When to use
 
-## When to Use
+- Tidy up a development branch before `/ship-swift-library`.
+- Pull in newly-released intrusive-memory deps without going through a full ship cycle.
+- Restore `Package.swift` to the canonical sibling shape after manual edits.
 
-Invoke this skill explicitly (by name) when you want to:
-- Audit a Swift package for intrusive-memory dependency best practices
-- Set up the local/CI sibling dependency pattern
-- Clean up Package.resolved from git history
-- Update intrusive-memory/* dependencies to latest versions
+**Do not use for**: Xcode app projects, non-Swift packages, or packages with no `intrusive-memory/*` dependencies.
 
-**Do not use for**: Xcode app projects, non-Swift packages, or packages without intrusive-memory dependencies.
+## Procedure
 
----
+Run these in order. Each is idempotent.
 
-## Multi-Agent Workflow
+### 1. Confirm we're in an SPM library
 
-Use the Agent tool to spawn separate passes for each audit type. Do NOT perform audits inline - delegate each to a dedicated agent:
-
-1. **Agent 1**: Package.resolved audit
-2. **Agent 2**: Sibling dependency pattern audit
-3. **Apply fixes iteratively** based on findings
-
-Each agent should report findings in structured JSON format for easy parsing.
-
----
-
-## Agent 1: Package.resolved Audit
-
-**Objective**: Determine if Package.resolved is tracked in git and remove it.
-
-**Steps**:
-1. Check if Package.resolved exists: `test -f Package.resolved`
-2. Check if it's tracked in git: `git ls-files Package.resolved`
-3. If tracked, remove it and update .gitignore
-
-**Agent prompt template**:
-```
-Audit Package.resolved tracking in this SPM package:
-
-1. Check if Package.resolved exists and is tracked in git
-2. If tracked, perform:
-   - git rm Package.resolved
-   - Add "Package.resolved" to .gitignore (create if missing)
-   - Commit with message: "chore: Remove Package.resolved from git tracking"
-
-Report findings as JSON:
-{
-  "package_resolved_tracked": true/false,
-  "action_taken": "removed" | "already_clean" | "not_present",
-  "gitignore_updated": true/false
-}
-
-Working directory: <path>
+```bash
+test -f Package.swift || { echo "ABORT: not in an SPM package directory"; exit 1; }
 ```
 
----
+If `Package.swift` declares only `.executable` products and no `.library`, this skill does not apply (executables ship Package.resolved on purpose). Surface that and ask the user before continuing.
 
-## Agent 2: Sibling Dependency Pattern Audit
+### 2. Package.resolved audit
 
-**Objective**: Ensure intrusive-memory/* dependencies use the sibling pattern with correct versions and helper function.
-
-### Detection Phase
-
-**Steps**:
-1. Read Package.swift
-2. Identify all intrusive-memory/* dependencies
-3. Check if each uses `sibling()` function or direct `.package(url:...)`
-4. Validate helper function exists and matches reference implementation
-5. For each dependency, fetch latest release from GitHub
-
-**Agent prompt template**:
-```
-Audit intrusive-memory dependency patterns in Package.swift:
-
-1. Read Package.swift
-2. Find all dependencies from github.com/intrusive-memory/*
-3. For each dependency:
-   - Check if it uses sibling() function or direct .package() call
-   - Note current version
-   - Fetch latest release: gh api repos/intrusive-memory/<name>/releases/latest -q .tag_name
-4. Check if sibling() helper function exists and matches this reference:
-
-```swift
-// Reference implementation
-import Foundation
-import PackageDescription
-
-let useLocalSiblings = ProcessInfo.processInfo.environment["CI"] != "true"
-
-func sibling(_ name: String, remote: String, from version: Version) -> Package.Dependency {
-  let localPath = "../\(name)"
-  if useLocalSiblings && FileManager.default.fileExists(atPath: localPath) {
-    return .package(path: localPath)
-  }
-  return .package(url: remote, .upToNextMajor(from: version))
-}
+```bash
+if [ -f Package.resolved ] && git ls-files --error-unmatch Package.resolved >/dev/null 2>&1; then
+  git rm --cached Package.resolved
+  grep -qxF 'Package.resolved' .gitignore 2>/dev/null \
+    || printf '\nPackage.resolved\n' >> .gitignore
+  echo "Removed Package.resolved from git tracking, added to .gitignore."
+else
+  echo "Package.resolved not tracked — nothing to do."
+fi
 ```
 
-Report findings as JSON:
-{
-  "helper_function_present": true/false,
-  "helper_function_correct": true/false,
-  "dependencies": [
-    {
-      "name": "SwiftBruja",
-      "current_pattern": "sibling" | "direct",
-      "current_version": "1.6.0",
-      "latest_version": "1.7.0",
-      "needs_update": true
-    }
-  ]
-}
+The Package.resolved file is still useful locally (SPM keeps writing it); we just don't want it under version control for libraries because consumers should resolve their own pins.
 
-Working directory: <path>
+### 3. Ensure Package.swift is in sibling mode
+
+Hand off to the dedicated toggle skill — it owns the helper-function + scaffolding rewrite and is byte-stable / idempotent:
+
+```
+/toggle-sibling-libraries --to sibling
 ```
 
-### Fix Phase
+What this guarantees on return:
+- `import Foundation` and `import PackageDescription` present in the canonical order.
+- The `useLocalSiblings` constant and both `sibling(...)` helper functions present in their canonical form.
+- Every `.package(url: "https://github.com/intrusive-memory/<repo>.git", .upToNextMajor(from: "X.Y.Z"))` rewritten to `sibling("<repo>", remote: "...", from: "X.Y.Z")`.
+- Non-intrusive-memory deps untouched.
 
-Based on Agent 2's findings, apply fixes in this order:
+If `Package.swift` was already in sibling state, the toggle reports a no-op and returns success.
 
-#### 1. Add/Fix Helper Function
+### 4. Bump intrusive-memory/* versions to latest
 
-If `helper_function_present: false` or `helper_function_correct: false`:
+For each `sibling("<Repo>", remote: "https://github.com/intrusive-memory/<Repo>.git", from: "X.Y.Z")` call in `Package.swift`, look up the latest released tag and edit `from:` if it differs:
 
-1. Check if `import Foundation` is present in Package.swift (needed for ProcessInfo and FileManager)
-2. Add it after `// swift-tools-version:` if missing
-3. Add or replace the helper function and `useLocalSiblings` variable before the `let package = Package(` declaration
+```bash
+# Extract the repo names that are currently in sibling form
+REPOS=$(grep -oE 'sibling\("[A-Za-z0-9_-]+",' Package.swift | sed -E 's/sibling\("([^"]+)",/\1/' | sort -u)
 
-**Example edit**:
-```swift
-// swift-tools-version: 6.2
-
-import Foundation
-import PackageDescription
-
-// In CI we always pin to released remotes. Locally, prefer a sibling checkout
-// at ../<name> if present so in-flight changes can be exercised end-to-end
-// without publishing a release. Falls back to the remote pin if the sibling
-// directory is missing, so fresh clones still build.
-let useLocalSiblings = ProcessInfo.processInfo.environment["CI"] != "true"
-
-func sibling(_ name: String, remote: String, from version: Version) -> Package.Dependency {
-  let localPath = "../\(name)"
-  if useLocalSiblings && FileManager.default.fileExists(atPath: localPath) {
-    return .package(path: localPath)
-  }
-  return .package(url: remote, .upToNextMajor(from: version))
-}
-
-let package = Package(
-  // ... rest of package definition
+for repo in $REPOS; do
+  latest=$(gh api "repos/intrusive-memory/${repo}/releases/latest" --jq '.tag_name' 2>/dev/null | sed 's/^v//')
+  if [ -z "$latest" ]; then
+    # Fall back to most recent vX.Y.Z tag
+    latest=$(gh api "repos/intrusive-memory/${repo}/tags" \
+      --jq '[.[].name | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))][0]' 2>/dev/null | sed 's/^v//')
+  fi
+  if [ -z "$latest" ] || [ "$latest" = "null" ]; then
+    echo "WARNING: no published release for intrusive-memory/${repo} — leaving version as-is"
+    continue
+  fi
+  echo "intrusive-memory/${repo} -> ${latest}"
+done
 ```
 
-#### 2. Convert Dependencies to Sibling Pattern
+For each repo whose latest version differs from what `Package.swift` currently has, use the `Edit` tool to change just that `from:` line. Pattern (the `sibling(` block spans multiple lines):
 
-For each dependency with `current_pattern: "direct"`, convert from:
-```swift
-.package(
-  url: "https://github.com/intrusive-memory/SwiftBruja.git", 
-  .upToNextMajor(from: "1.6.0")
-)
 ```
-
-To:
-```swift
 sibling(
-  "SwiftBruja",
-  remote: "https://github.com/intrusive-memory/SwiftBruja.git",
-  from: "1.6.0"
-)
+  "<Repo>",
+  remote: "https://github.com/intrusive-memory/<Repo>.git",
+  from: "<old>")
 ```
 
-#### 3. Update Version Numbers
+→ change `<old>` to `<latest>`. Don't rewrite the surrounding lines or whitespace; the toggle in step 3 already produced canonical formatting.
 
-For each dependency with `needs_update: true`, update the version number to `latest_version`.
+### 5. Verify and report
 
-**Example**:
-```swift
-sibling(
-  "SwiftBruja",
-  remote: "https://github.com/intrusive-memory/SwiftBruja.git",
-  from: "1.7.0"  // was "1.6.0"
-)
+```bash
+swift package resolve 2>&1 | tail -5
 ```
 
----
+If resolve fails, surface the error. Otherwise emit a short summary:
 
-## Applying Fixes
-
-After both agents complete:
-
-1. **Read both JSON reports** to understand what needs fixing
-2. **Apply Package.resolved fixes first** (if any)
-3. **Apply Package.swift fixes** in order:
-   - Add/fix helper function
-   - Convert direct dependencies to sibling pattern
-   - Update version numbers
-4. **Commit changes**:
-   ```bash
-   git add Package.swift .gitignore
-   git commit -m "chore: Apply SPM package audit fixes
-   
-   - Add sibling dependency pattern for intrusive-memory/* deps
-   - Update dependencies to latest versions
-   - Remove Package.resolved from git tracking (if applicable)
-   
-   Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
-   ```
-
----
-
-## Summary Report
-
-After completing all fixes, provide a summary:
-
-```markdown
+```
 ## SPM Package Audit Complete
 
 ### Package.resolved
-- Status: [removed from git | already clean | not present]
-- .gitignore: [updated | already present]
+- Status: [removed | already clean | not present]
 
-### Sibling Dependency Pattern
-- Helper function: [added | fixed | already correct]
-- Dependencies audited: X
-- Dependencies converted: Y
-- Versions updated: Z
+### Package.swift sibling pattern
+- Status: [restored | already in sibling mode]
 
-### Changed Dependencies
-| Dependency | Old Version | New Version | Pattern |
-|------------|-------------|-------------|---------|
-| SwiftBruja | 1.6.0 | 1.7.0 | sibling |
-| SwiftAcervo | 0.8.2 | 0.8.3 | sibling |
+### Versions bumped
+| Dependency  | Old    | New    |
+|-------------|--------|--------|
+| SwiftBruja  | 1.6.1  | 1.7.0  |
+| SwiftAcervo | 0.11.0 | 0.11.1 |
 
-### Next Steps
-- Review the changes in Package.swift
-- Run `xcodebuild build` to verify package resolves correctly
-- Push changes to development branch
+(or "All intrusive-memory/* deps already at latest published versions.")
 ```
 
----
+Do **not** commit on the user's behalf — the audit's output usually rolls into a larger commit (either a routine dev-branch tidy or as part of `/ship-swift-library` Step 3). The user controls when to commit.
 
-## Error Handling
+## Error handling
 
-**If not in an SPM package**:
-- Check for Package.swift in current directory
-- If missing, report: "Not in an SPM package directory. Please navigate to a Swift package and try again."
-
-**If not a library package**:
-- Check Package.swift for `.executable` or app-related products
-- If detected, warn: "This appears to be an executable/app package. This skill is designed for library packages only. Continue anyway? [Y/n]"
-
-**If no intrusive-memory/* dependencies**:
-- Report: "No intrusive-memory dependencies found. Only Package.resolved audit applied."
-
-**If GitHub API fails**:
-- Fall back to current version, report: "Could not fetch latest version for <name>, keeping current version."
-
----
+- **No `intrusive-memory/*` deps**: skip steps 3 and 4, run only the Package.resolved audit, and note that nothing else applied.
+- **`gh` not authenticated or offline**: report and skip step 4 (the version bump). Do NOT skip step 3 — the toggle's `--to sibling` direction does not need network access (it doesn't resolve versions, just preserves the existing `from:` values).
+- **`gh api` returns no releases for a repo**: leave that dep at its current version and warn. The user may need to publish a release for that upstream first.
 
 ## Notes
 
-- The sibling pattern allows local development with `../SwiftBruja`, `../SwiftAcervo`, etc. while CI always uses pinned GitHub releases
-- Package.resolved should NOT be checked in for libraries (but should be for executable packages)
-- Version numbers use semantic versioning - the skill updates to latest releases automatically
-- The helper function is idempotent - running the audit multiple times won't cause issues
+- The sibling pattern lets local `../SwiftBruja`, `../SwiftAcervo`, etc. checkouts override the remote pin during development; CI always uses the pin because `useLocalSiblings` is `false` when `CI=true`.
+- The toggle skill (`/toggle-sibling-libraries`) is the single source of truth for the helper-function shape — if the canonical form ever changes, update that skill rather than this one.
+- Steps in this skill are deliberately **not** parallelized into subagents; the work is small and sequential dependencies (toggle must run before version bumps so the regex in step 4 finds the `sibling(` blocks) make subagent orchestration overkill.

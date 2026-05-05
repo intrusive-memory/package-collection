@@ -37,6 +37,23 @@ Use the `Edit` tool to change each occurrence from `X.Y.Z` to `X.Y.Z-dev`. Typic
 - The CHANGELOG, release notes, or anything that records the historical release as `X.Y.Z`
 - Any reference to other libraries' versions
 
+## Flip Package.swift back to the sibling pattern
+
+`development` shipped with a remote-only `Package.swift` (Step 2 of the version-bump flow stripped the `sibling(...)` helpers before commit). Now that we're back in dev mode, restore the sibling pattern so cross-library development against `../<name>` checkouts works again:
+
+```
+/toggle-sibling-libraries --to sibling
+```
+
+What this does:
+- Detects every `.package(url: "https://github.com/intrusive-memory/<repo>.git", .upToNextMajor(from: "X.Y.Z"))` and rewrites it to `sibling("<repo>", remote: "...", from: "X.Y.Z")`.
+- Re-introduces `import Foundation`, the `useLocalSiblings` constant, and both `sibling(...)` helper functions in the canonical positions.
+- Leaves every non-intrusive-memory dep untouched.
+
+The `from:` values are preserved verbatim from the just-shipped release. The next ship cycle's `--to remote` flip will resolve them to whatever is then-current.
+
+If you flipped to a `branch:` variant manually during the previous dev cycle (because you needed an unreleased upstream change), this skill won't reconstruct that — you'll need to hand-edit the relevant `sibling(... from:)` to `sibling(... branch: "...")` after the toggle. That's intentional: branch deps are an explicit choice the developer makes, not a default state.
+
 ## Verify, then commit and push
 
 ```bash
@@ -45,11 +62,19 @@ grep -rln --exclude-dir=.git --exclude-dir=.build "${RELEASED//./\\.}" . | \
   xargs grep -L "${DEV_MARKER}" 2>/dev/null \
   || echo "All occurrences updated to ${DEV_MARKER}."
 
+# Confirm Package.swift is back in sibling mode
+grep -q 'func sibling(' Package.swift \
+  && echo "Package.swift restored to sibling mode." \
+  || echo "WARNING: Package.swift does NOT have sibling helpers — toggle may have failed."
+
 git add -A
 git diff --cached --stat
-git commit -m "Mark development as ${DEV_MARKER}
+git commit -m "Mark development as ${DEV_MARKER}, restore sibling pattern
 
 Post-release dev marker. The -dev suffix will be stripped at the
-next ship cycle."
+next ship cycle.
+
+Package.swift flipped back to sibling mode so coordinated cross-library
+development against ../<name> checkouts works again."
 git push origin development
 ```

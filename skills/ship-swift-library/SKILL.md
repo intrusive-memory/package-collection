@@ -64,18 +64,19 @@ Ask the user for the new version, presenting the last tagged version as baseline
 
 **The new version MUST NOT contain `-dev`.** Tag and release are always clean semver.
 
-### 3. Bump Version, Update Dependencies, Audit Documentation, and Audit CI Workflows **[ref]**
+### 3. Bump Version, Update Dependencies, Flip Package.swift to Remote-Only, Audit Documentation, and Audit CI Workflows **[ref]**
 
-This is the heaviest step — four coupled sub-tasks that all land in a **single commit on `development`**:
+This is the heaviest step — five coupled sub-tasks that all land in a **single commit on `development`**:
 
 1. Run `/spm-package-audit` to fix Package.resolved tracking and update intrusive-memory/* deps.
-2. Edit version files, **stripping any `-dev` suffix**. The new version is clean semver.
-3. Run `make lint` to format Swift sources.
-4. Run `/organize-agent-docs` and update README.md.
-5. Audit `.github/workflows/` and bump every action `uses:` reference to its latest major.
-6. Commit everything together and push to `development`.
+2. Run `/toggle-sibling-libraries --to remote` to strip the `sibling(...)` helpers and pin every intrusive-memory/* dep to its latest published `.upToNextMajor(from: ...)` release. The shipped `Package.swift` must NOT carry the dev-only sibling scaffolding.
+3. Edit version files, **stripping any `-dev` suffix**. The new version is clean semver.
+4. Run `make lint` to format Swift sources.
+5. Run `/organize-agent-docs` and update README.md.
+6. Audit `.github/workflows/` and bump every action `uses:` reference to its latest major.
+7. Commit everything together and push to `development`.
 
-**Read `references/version-bump.md` for the full procedure** — including the `-dev` strip recipe, dependency verification, the dynamic CI-action audit table, and the canonical commit message.
+**Read `references/version-bump.md` for the full procedure** — including the toggle invocation and verification, the `-dev` strip recipe, dependency verification, the dynamic CI-action audit table, and the canonical commit message.
 
 ### 4. Verify CI Checks Pass
 
@@ -202,13 +203,16 @@ The fix: temporarily unlock force-push, reset development to main's tip, cherry-
 
 **Read `references/rebase-development.md` for the full procedure** — including the protection toggle, why `git cherry` fails on squash merges, and the verification step.
 
-### 11. Mark Development Branch with `-dev` Version **[ref]**
+### 11. Mark Development Branch with `-dev` Version and Restore Sibling Pattern **[ref]**
 
-After the rebase, development is bit-identical to main. Stamp it with `X.Y.Z-dev` (where `X.Y.Z` is what you just released) so:
-1. `gh pr create` for the next-cycle PR has a non-empty diff and works reliably.
-2. "Release vs. dev snapshot?" is answerable from source.
+After the rebase, development is bit-identical to main and carries a remote-only `Package.swift` (because Step 3 flipped it for shipping). Two things happen here:
 
-**Read `references/dev-marker.md` for the full procedure** — including which files to touch and which NOT to touch.
+1. Stamp source with `X.Y.Z-dev` (where `X.Y.Z` is what you just released) so:
+   - `gh pr create` for the next-cycle PR has a non-empty diff and works reliably.
+   - "Release vs. dev snapshot?" is answerable from source.
+2. Run `/toggle-sibling-libraries --to sibling` to restore the `sibling(...)` helpers and route intrusive-memory/* deps back through `../<name>` checkouts when present. Without this, coordinated cross-library development on the new dev cycle is impossible.
+
+**Read `references/dev-marker.md` for the full procedure** — including which files to touch, which NOT to touch, and how the toggle and `-dev` stamp combine into a single commit.
 
 ### 12. Create Next Development Cycle PR (Draft)
 
@@ -247,19 +251,20 @@ Include the release URL and the next-cycle PR URL.
 1. **Derive version from git tags, not source code** — Run `git tag --sort=-v:refname` to find the last released version. The `version` string in source is informational and may be stale.
 2. **Bump version BEFORE merging** — The version bump must be part of the PR.
 3. **Run /spm-package-audit BEFORE version bump** — Auto-fixes Package.resolved tracking, sibling-dep pattern for intrusive-memory/*, and updates versions to latest. Verify no local `.path()` references remain.
-4. **Run `make lint` before committing** — Format Swift sources with swift format.
-5. **Organize docs with /organize-agent-docs** — Separate universal vs agent-specific documentation.
-6. **Audit CI workflows for stale GitHub Actions** — Every `uses:` in `.github/workflows/` must be on the latest major. Older majors run on Node 16 (deprecated) and trigger warnings; some are decommissioned (e.g. `actions/upload-artifact@v3`).
-7. **Wait for CI after version bump** — Don't merge until the new CI run passes.
-8. **Use --squash** — Single commit per PR on main.
-9. **Don't delete development** — It's a long-lived branch.
-10. **Tag on main after merge** — Tag goes on the squash merge commit.
-11. **Rebase development after release using the protected-branch procedure** — See `references/rebase-development.md`. Never `git merge main` (leaves phantom commits).
-12. **Mark development as `-dev` after release** — See `references/dev-marker.md`. Never leave development bit-identical to main.
-13. **NEVER tag, release, or publish a `-dev` version** — Steps 7 and 8 carry hard `case` guards. Do not bypass them.
-14. **Create next cycle PR in DRAFT mode** — `gh pr create --draft`.
-15. **NEVER manually build or upload release tarballs** — `release.yml` owns binary production. Never run `make dist`, never pass local file paths to `gh release create`.
-16. **NEVER manually edit the Homebrew formula** — CI dispatches `formula-update` to homebrew-tap. If it doesn't, investigate the workflow.
+4. **Run /toggle-sibling-libraries --to remote BEFORE the version edit** — The shipped `Package.swift` must be plain `.package(url:..., .upToNextMajor(from: ...))` calls only. The `sibling(...)` helper and `useLocalSiblings` constant are developmental scaffolding that has no business in a tagged release. Symmetric: at Step 11, run `--to sibling` to restore them for the new dev cycle.
+5. **Run `make lint` before committing** — Format Swift sources with swift format.
+6. **Organize docs with /organize-agent-docs** — Separate universal vs agent-specific documentation.
+7. **Audit CI workflows for stale GitHub Actions** — Every `uses:` in `.github/workflows/` must be on the latest major. Older majors run on Node 16 (deprecated) and trigger warnings; some are decommissioned (e.g. `actions/upload-artifact@v3`).
+8. **Wait for CI after version bump** — Don't merge until the new CI run passes.
+9. **Use --squash** — Single commit per PR on main.
+10. **Don't delete development** — It's a long-lived branch.
+11. **Tag on main after merge** — Tag goes on the squash merge commit.
+12. **Rebase development after release using the protected-branch procedure** — See `references/rebase-development.md`. Never `git merge main` (leaves phantom commits).
+13. **Mark development as `-dev` after release AND restore the sibling pattern** — See `references/dev-marker.md`. Never leave development bit-identical to main, and never leave Package.swift in remote-only mode after release (cross-library dev workflows depend on the sibling helpers).
+14. **NEVER tag, release, or publish a `-dev` version** — Steps 7 and 8 carry hard `case` guards. Do not bypass them.
+15. **Create next cycle PR in DRAFT mode** — `gh pr create --draft`.
+16. **NEVER manually build or upload release tarballs** — `release.yml` owns binary production. Never run `make dist`, never pass local file paths to `gh release create`.
+17. **NEVER manually edit the Homebrew formula** — CI dispatches `formula-update` to homebrew-tap. If it doesn't, investigate the workflow.
 
 ## Correct Flow
 
