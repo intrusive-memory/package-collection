@@ -31,7 +31,7 @@ For the full repo naming-convention table — which repos this skill applies to 
 
 ## Process Overview
 
-13 steps in order. Steps marked **[ref]** load a reference file before executing.
+14 steps in order. Steps marked **[ref]** load a reference file before executing.
 
 ### 1. Check for Open Pull Request
 
@@ -52,7 +52,7 @@ git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -5
 
 The first result is the last released version. If no tags exist, treat as `v0.0.0`.
 
-Source files between releases carry an `X.Y.Z-dev` marker (set by step 11 of the previous cycle). Strip the `-dev` suffix before comparing:
+Source files between releases carry an `X.Y.Z-dev` marker (set by step 12 of the previous cycle). Strip the `-dev` suffix before comparing:
 - Source `1.4.2-dev` + tag `v1.4.2` → equivalent, in post-1.4.2 dev cycle.
 - Source `1.4.2-dev` + tag `v1.4.1` → discrepancy, investigate.
 - Source has no `-dev` suffix → flag it.
@@ -88,7 +88,55 @@ gh pr checks <PR_NUMBER> --watch
 
 If checks fail, stop and surface the failure.
 
-### 5. Merge Pull Request
+### 5. Update Pull Request Title and Description
+
+The squash merge inherits the PR title as the commit message on `main`, so the title becomes permanent git history. Update title and body to reflect what's actually shipping — the body also seeds the GitHub release notes in step 9.
+
+Synthesize a summary from the commits and diff in this PR:
+
+```bash
+LAST_TAG=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
+git log "${LAST_TAG}..HEAD" --pretty=format:'- %s'
+git diff "${LAST_TAG}...HEAD" --stat
+```
+
+Group commits into **New Features / Bug Fixes / Testing / Documentation** by reading commit subjects. Draft a title in the format `Release vX.Y.Z: <one-line summary>` — this is what lands on `main`'s history forever.
+
+Apply the update:
+
+```bash
+gh pr edit <PR_NUMBER> \
+  --title "Release vX.Y.Z: <one-line summary>" \
+  --body "$(cat <<'EOF'
+# Release vX.Y.Z
+
+## Summary
+<2-3 sentence description of what this release delivers>
+
+### New Features
+- ...
+
+### Bug Fixes
+- ...
+
+### Testing
+- ...
+
+### Documentation
+- ...
+EOF
+)"
+```
+
+Verify:
+
+```bash
+gh pr view <PR_NUMBER> --json title,body
+```
+
+**Save the body text** — Step 9 reuses it as the GitHub release notes (prefixed with the library name and suffixed with the Full Changelog link).
+
+### 6. Merge Pull Request
 
 ```bash
 gh pr merge <PR_NUMBER> --squash --delete-branch=false
@@ -96,7 +144,7 @@ gh pr merge <PR_NUMBER> --squash --delete-branch=false
 
 Use `--squash` (clean single commit on main). Do NOT delete the `development` branch (it's long-lived).
 
-### 6. Pull Merge Commit to Local Main
+### 7. Pull Merge Commit to Local Main
 
 ```bash
 git checkout main
@@ -104,7 +152,7 @@ git pull origin main
 git log --oneline -1   # Verify you're on the squash merge commit
 ```
 
-### 7. Create Annotated Tag on Main
+### 8. Create Annotated Tag on Main
 
 **Hard guard — refuse to tag a `-dev` version.** A `-dev` suffix means "developmental build, not a release." Run before tagging:
 
@@ -132,7 +180,7 @@ git tag -a "v${VERSION}" -m "Release v${VERSION}: <Short description>
 git push origin "v${VERSION}"
 ```
 
-### 8. Create GitHub Release (metadata only — NO tarball upload)
+### 9. Create GitHub Release (metadata only — NO tarball upload)
 
 The `release.yml` CI workflow fires on `release: published` and builds + uploads the canonical tarball, then dispatches the Homebrew formula update. **Do NOT upload any tarball or binary assets** and **never run `make dist`** as part of releasing.
 
@@ -175,7 +223,7 @@ EOF
 
 **CRITICAL**: Never pass a local file path to `gh release create`. Never run `make dist` as part of the release process. CI owns binary production.
 
-### 9. Verify Release and Wait for CI
+### 10. Verify Release and Wait for CI
 
 ```bash
 gh release view vX.Y.Z --json tagName,targetCommitish,url
@@ -195,7 +243,7 @@ cd <path-to-homebrew-tap> && git fetch origin && git log --oneline origin/main -
 
 Look for `Update <formula> to vX.Y.Z`. **Never manually edit the formula** — if CI didn't dispatch, investigate the workflow.
 
-### 10. Rebase Development onto Main **[ref]**
+### 11. Rebase Development onto Main **[ref]**
 
 After a squash merge, development carries phantom commits whose patch-ids no longer match the squash on main. A naive `git merge main` leaves those phantoms visible in the next PR (huge commit list, zero diff).
 
@@ -203,7 +251,7 @@ The fix: temporarily unlock force-push, reset development to main's tip, cherry-
 
 **Read `references/rebase-development.md` for the full procedure** — including the protection toggle, why `git cherry` fails on squash merges, and the verification step.
 
-### 11. Mark Development Branch with `-dev` Version and Restore Sibling Pattern **[ref]**
+### 12. Mark Development Branch with `-dev` Version and Restore Sibling Pattern **[ref]**
 
 After the rebase, development is bit-identical to main and carries a remote-only `Package.swift` (because Step 3 flipped it for shipping). Two things happen here:
 
@@ -214,9 +262,9 @@ After the rebase, development is bit-identical to main and carries a remote-only
 
 **Read `references/dev-marker.md` for the full procedure** — including which files to touch, which NOT to touch, and how the toggle and `-dev` stamp combine into a single commit.
 
-### 12. Create Next Development Cycle PR (Draft)
+### 13. Create Next Development Cycle PR (Draft)
 
-The `-dev` bump in step 11 guarantees a non-empty diff, so PR creation will succeed reliably. Draft mode signals the PR is a landing target for future work, not ready for review or merge:
+The `-dev` bump in step 12 guarantees a non-empty diff, so PR creation will succeed reliably. Draft mode signals the PR is a landing target for future work, not ready for review or merge:
 
 ```bash
 gh pr create \
@@ -240,9 +288,9 @@ Confirm it's draft:
 gh pr list --base main --head development --json number,isDraft,title
 ```
 
-### 13. Summary Report
+### 14. Summary Report
 
-Provide a final summary covering: SPM audit applied, version bumped, lint, docs organized, README updated, CI workflows audited, CI passed, PR merged, tag created, GitHub release published, CI release workflow triggered, Homebrew formula updated, local branches updated, development synced and stamped `-dev`, draft next-cycle PR opened.
+Provide a final summary covering: SPM audit applied, version bumped, lint, docs organized, README updated, CI workflows audited, CI passed, PR title/description updated, PR merged, tag created, GitHub release published, CI release workflow triggered, Homebrew formula updated, local branches updated, development synced and stamped `-dev`, draft next-cycle PR opened.
 
 Include the release URL and the next-cycle PR URL.
 
@@ -251,25 +299,26 @@ Include the release URL and the next-cycle PR URL.
 1. **Derive version from git tags, not source code** — Run `git tag --sort=-v:refname` to find the last released version. The `version` string in source is informational and may be stale.
 2. **Bump version BEFORE merging** — The version bump must be part of the PR.
 3. **Run /spm-package-audit BEFORE version bump** — Auto-fixes Package.resolved tracking, sibling-dep pattern for intrusive-memory/*, and updates versions to latest. Verify no local `.path()` references remain.
-4. **Run /toggle-sibling-libraries --to remote BEFORE the version edit** — The shipped `Package.swift` must be plain `.package(url:..., .upToNextMajor(from: ...))` calls only. The `sibling(...)` helper and `useLocalSiblings` constant are developmental scaffolding that has no business in a tagged release. Symmetric: at Step 11, run `--to sibling` to restore them for the new dev cycle.
+4. **Run /toggle-sibling-libraries --to remote BEFORE the version edit** — The shipped `Package.swift` must be plain `.package(url:..., .upToNextMajor(from: ...))` calls only. The `sibling(...)` helper and `useLocalSiblings` constant are developmental scaffolding that has no business in a tagged release. Symmetric: at Step 12, run `--to sibling` to restore them for the new dev cycle.
 5. **Run `make lint` before committing** — Format Swift sources with swift format.
 6. **Organize docs with /organize-agent-docs** — Separate universal vs agent-specific documentation.
 7. **Audit CI workflows for stale GitHub Actions** — Every `uses:` in `.github/workflows/` must be on the latest major. Older majors run on Node 16 (deprecated) and trigger warnings; some are decommissioned (e.g. `actions/upload-artifact@v3`).
 8. **Wait for CI after version bump** — Don't merge until the new CI run passes.
-9. **Use --squash** — Single commit per PR on main.
-10. **Don't delete development** — It's a long-lived branch.
-11. **Tag on main after merge** — Tag goes on the squash merge commit.
-12. **Rebase development after release using the protected-branch procedure** — See `references/rebase-development.md`. Never `git merge main` (leaves phantom commits).
-13. **Mark development as `-dev` after release AND restore the sibling pattern** — See `references/dev-marker.md`. Never leave development bit-identical to main, and never leave Package.swift in remote-only mode after release (cross-library dev workflows depend on the sibling helpers).
-14. **NEVER tag, release, or publish a `-dev` version** — Steps 7 and 8 carry hard `case` guards. Do not bypass them.
-15. **Create next cycle PR in DRAFT mode** — `gh pr create --draft`.
-16. **NEVER manually build or upload release tarballs** — `release.yml` owns binary production. Never run `make dist`, never pass local file paths to `gh release create`.
-17. **NEVER manually edit the Homebrew formula** — CI dispatches `formula-update` to homebrew-tap. If it doesn't, investigate the workflow.
+9. **Update the PR title and description before merge** — The squash merge inherits the PR title as the commit message on `main`, so it becomes permanent git history. Draft `Release vX.Y.Z: <summary>` and a categorized body from `git log "${LAST_TAG}..HEAD"` and reuse the body for the GitHub release notes.
+10. **Use --squash** — Single commit per PR on main.
+11. **Don't delete development** — It's a long-lived branch.
+12. **Tag on main after merge** — Tag goes on the squash merge commit.
+13. **Rebase development after release using the protected-branch procedure** — See `references/rebase-development.md`. Never `git merge main` (leaves phantom commits).
+14. **Mark development as `-dev` after release AND restore the sibling pattern** — See `references/dev-marker.md`. Never leave development bit-identical to main, and never leave Package.swift in remote-only mode after release (cross-library dev workflows depend on the sibling helpers).
+15. **NEVER tag, release, or publish a `-dev` version** — Steps 8 and 9 carry hard `case` guards. Do not bypass them.
+16. **Create next cycle PR in DRAFT mode** — `gh pr create --draft`.
+17. **NEVER manually build or upload release tarballs** — `release.yml` owns binary production. Never run `make dist`, never pass local file paths to `gh release create`.
+18. **NEVER manually edit the Homebrew formula** — CI dispatches `formula-update` to homebrew-tap. If it doesn't, investigate the workflow.
 
 ## Correct Flow
 
 ```
-development: [features on X.Y.Z-dev] -> [strip -dev, bump to A.B.C] -> [make lint] -> [/organize-agent-docs] -> [audit CI workflows] -> (CI passes) -> PR merged
+development: [features on X.Y.Z-dev] -> [strip -dev, bump to A.B.C] -> [make lint] -> [/organize-agent-docs] -> [audit CI workflows] -> (CI passes) -> [update PR title/body] -> PR merged
 main:        -----------------------------------------------------------------------------> [squash commit] -> [tag vA.B.C] -> [release (metadata only)]
 CI:          -------------------------------------------------------------------------------------^-- [build tarball] -> [upload to release] -> [dispatch formula-update to homebrew-tap]
 homebrew-tap:--------------------------------------------------------------------------------^-- (auto-updated by formula-update event)

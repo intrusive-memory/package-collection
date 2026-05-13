@@ -196,15 +196,22 @@ ln -s "$(pwd)/skills/<skill-name>" .claude/skills/<skill-name>
 | Skill | Invocation | Description |
 |-------|-----------|-------------|
 | **fix-code-signing** | `/fix-code-signing` | Diagnoses and fixes code signing configuration issues for XCTest bundles in hardened runtime macOS apps |
+| **generate-episode-audio** | `/generate-episode-audio` | Generate podcast episode audio from Fountain or Highland screenplays using Produciesta CLI, wrap with intro/outro, and open in QuickTime |
 | **macos-say** | `/macos-say` | Use macOS text-to-speech via the `say` command for voice feedback, audio narration, and spoken output |
+| **mission-supervisor** | `/mission-supervisor` | Plan and execute missions — `breakdown` generates a plan from requirements, `refine` performs 4 passes (atomicity, priority, parallelism, open questions), then restart context and `start/resume/status/stop/killall` orchestrate sortie agents |
+| **mission-supervisor-report** | `/mission-supervisor-report` | Generate a voiced mission debrief video composition for a podcast episode — scripts "The General" character narrating mission status, builds Motion title templates and compositions for Final Cut Pro |
+| **organize-agent-docs** | `/organize-agent-docs` | Gold-standard markdown organization — sorts every markdown file into FOUNDATIONAL (root), MISSION (`docs/<complete\|incomplete>/<mission>/`), or EXTRANEOUS (`docs/`), maintains links, stamps `updated:` dates |
+| **package-iterator** | `/package-iterator` | Fan out a skill across every library (or a subset) in a JSON package collection in dependency order; same-level siblings run in parallel, failures auto-escalate to a diagnostic agent before flagging for follow-up |
+| **podcast-audio-plan** | `/podcast-audio-plan` | Generate audio and transcripts for podcast episodes from Fountain screenplays using Produciesta CLI — analyzes characters, assigns voices, writes PROJECT.md cast list, prepares transcripts for web deployment |
+| **podcast-validate** | `/podcast-validate` | Validate podcast CDN links and site integrity for intrusive-memory.productions — use after CDN upload, before deploy, or to debug broken links |
 | **release** | `/release` | Release a merged PR by tagging and creating a GitHub release |
-| **ship-ios-app** | `/ship-ios-app` | Ships new versions of iOS/macOS apps via App Store Connect |
 | **ship-swift-library** | `/ship-swift-library` | Ship and release Swift library versions — merge PR, bump version, tag, create GitHub release |
 | **shortcuts-helper** | `/shortcuts-helper` | Create, run, and understand macOS Shortcuts workflows with CLI, URL schemes, and App Intents |
-| **mission-supervisor** | `/mission-supervisor` | Plan and execute missions — `breakdown` generates a plan from requirements, `refine` performs 4 passes (atomicity, priority, parallelism, open questions), then restart context and `start/resume/status/stop/killall` orchestrate sortie agents |
-| **package-iterator** | `/package-iterator` | Fan out a skill across every library (or a subset) in a JSON package collection in dependency order; same-level siblings run in parallel, failures auto-escalate to a diagnostic agent before flagging for follow-up |
+| **spm-package-audit** | `/spm-package-audit` | Audit and auto-fix Swift Package Manager library packages — untracks `Package.resolved`, ensures sibling-dependency pattern via `/toggle-sibling-libraries`, bumps every `intrusive-memory/*` dep to latest release |
+| **toggle-sibling-libraries** | `/toggle-sibling-libraries` | Toggle `Package.swift` between the local-sibling-checkout development pattern and a clean remote-only release pattern; only `intrusive-memory/*` dependencies participate |
 | **ui-ux-pro-max** | `/ui-ux-pro-max` | UI/UX design intelligence — 50 styles, 21 palettes, 50 font pairings, 20 charts, 8 framework stacks |
 | **update-package-library** | `/update-package-library` | Refresh `collection.json` with the latest published GitHub releases — sub-commands: `update`, `update-deps`, `list`, `diff`, `verify`, `add-package`, `remove-package` |
+| **xcode-fix-arches** | `/xcode-fix-arches` | Force arm64 — replaces `$(ARCHS_STANDARD)` in Xcode project files and ensures xcconfig files enforce arm64-only builds. Use when Xcode/Xcode Cloud builds are compiling for x86_64 |
 
 ### Skill Structure
 
