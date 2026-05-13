@@ -327,27 +327,52 @@ All <N> sorties executed across <count> work units.
 Detailed analysis available in: $PROJECT_ROOT/COMPLETE_<PROJECT_NAME>.md
 ```
 
-## 7. Trigger Post-Mission Brief
+## 7. Trigger Test Cleanup (Automatic, Mandatory)
 
-After outputting the completion summary, prompt the user:
+Before the brief, run the test-cleanup pass. CI is the primary build mechanism for these projects, so any test added during the mission that cannot reliably run in CI is dead weight and must be removed (or surfaced for review) before the mission's verdict is rendered.
+
+This is **not** user-prompted. It runs automatically as the next step after final verification.
+
+Procedure:
+
+1. Output to user:
+   ```
+   Final verification complete. Running automatic test-cleanup pass...
+   This prunes tests added during the mission that cannot run reliably in CI.
+   ```
+2. Invoke the `test-cleanup` command (see `commands/test-cleanup.md`).
+3. Wait for it to return. Test-cleanup is responsible for:
+   - Diffing the mission branch against `starting_point_commit`
+   - Dispatching a cleanup sortie that deletes high-confidence CI-failure patterns
+   - Writing `TEST_CLEANUP_REPORT.md` for borderline cases
+   - Appending its own entry to `COMPLETE_<PROJECT_NAME>.md`
+4. After test-cleanup returns (success, partial, or failure), proceed to Step 8.
+
+Test-cleanup failure does **not** block the brief. A failed cleanup becomes an input to the brief's verdict, not a hard stop. The brief reads `TEST_CLEANUP_REPORT.md` (or notes its absence) when forming the rollback verdict.
+
+## 8. Trigger Post-Mission Brief (Automatic, Mandatory)
+
+After test-cleanup returns, immediately invoke the `brief` command. The brief is **mandatory** — there is no user prompt and no opt-out, because the brief is the authoritative post-mission record and the gate for any rollback decision.
+
+Output to user:
 
 ```
-Mission complete. Ready to run the post-mission brief?
+Test cleanup complete. Running post-mission brief...
 
 The brief will:
+- Read TEST_CLEANUP_REPORT.md to inform the rollback verdict
 - Harvest hard discoveries and process lessons
 - Assess sortie accuracy
+- Issue an explicit verdict: ROLLBACK | KEEP | PARTIAL_SALVAGE
 - Identify open decisions for the next iteration (if any)
 - Record iteration metadata (starting point, branch, rollback target)
-- Then auto-invoke `clean` to archive every mission artifact in the
-  project root into `docs/<complete|incomplete>/<mission name>/`
-
-Run now? /mission-supervisor brief
+- Auto-invoke `clean` → `/organize-agent-docs organize` to archive every
+  mission artifact in the project root into `docs/<complete|incomplete>/<mission name>/`
 ```
 
-If the user confirms, invoke the `brief` command (see `commands/brief.md`).
+Then invoke `/mission-supervisor brief` (see `commands/brief.md`).
 
-The brief is **mandatory for iterative missions** (Rodillo Liso process). For one-shot missions where no rollback is planned, the brief is recommended but optional.
+The brief's `clean` step (auto-triggered as the brief's final action) is the single owner of post-mission archival; it delegates the actual file moves to the `organize-agent-docs` skill.
 
 ---
 

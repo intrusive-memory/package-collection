@@ -34,6 +34,7 @@ The brief requires:
 2. `SUPERVISOR_STATE.md` — the execution state (must exist, even if incomplete)
 3. `COMPLETE_*.md` — the completion log (may not exist if mission was abandoned early)
 4. Git history on the mission branch (for sortie accuracy analysis)
+5. `TEST_CLEANUP_REPORT.md` — output from the test-cleanup pass (see `commands/test-cleanup.md`). May be absent if test-cleanup was skipped (no test files in mission diff) or failed; the brief must note the absence and factor it into the verdict.
 
 If `SUPERVISOR_STATE.md` does not exist, STOP:
 ```
@@ -79,8 +80,12 @@ Example filenames:
 **Sorties Failed/Blocked:** <count>
 **Duration:** <wall clock or relative cost from COMPLETE_*.md>
 **Outcome:** Complete | Incomplete | Abandoned
-**Verdict:** <one sentence — keep the code, discard and iterate, or partial salvage>
+**Verdict:** `KEEP` | `ROLLBACK` | `PARTIAL_SALVAGE` — <one-sentence justification>
+**Tests pruned:** <N from TEST_CLEANUP_REPORT.md, or "report missing">
+**Tests flagged for review:** <N from TEST_CLEANUP_REPORT.md, or "report missing">
 ```
+
+The `Verdict:` field is **mandatory** and **machine-readable** — it must be exactly one of the three tokens (`KEEP`, `ROLLBACK`, `PARTIAL_SALVAGE`) followed by a justification. Section 8 below requires the same token in a dedicated section. They must agree.
 
 ### Section 1: Hard Discoveries
 
@@ -104,6 +109,7 @@ Hard discoveries are **not opinions**. They are facts. "The DTD requires r-prefi
 2. Search SUPERVISOR_STATE.md Decisions Log for BACKOFF and FATAL entries.
 3. Search COMPLETE_*.md for sorties with attempts > 1.
 4. Read agent output for sorties that failed — the failure messages reveal the constraint.
+5. Read `TEST_CLEANUP_REPORT.md`. Patterns the cleanup pass had to remove (unmocked network, hardcoded paths, time races) often point to a hard discovery about the test environment or CI that was never written down — capture it here so the next iteration's plan accounts for it.
 
 ### Section 2: Process Discoveries
 
@@ -174,6 +180,8 @@ A table assessing each sortie's accuracy. Not every sortie needs detailed notes 
 
 One paragraph. What do you now know that you didn't know before? What is the single most important thing that changes about the next iteration?
 
+If `TEST_CLEANUP_REPORT.md` exists, summarize it in one or two sentences here: how many tests were pruned, how many flagged, and whether the pattern of failures suggests systemic issues (e.g., "agents repeatedly wrote sleep-based timing tests" → planning lesson about prompt instructions).
+
 ### Section 6: Files
 
 Two tables:
@@ -207,32 +215,66 @@ This section records the git state needed to:
 - Roll back to the starting point
 - Create the next iteration's branch
 
+### Section 8: Rollback Verdict
+
+This section is **mandatory** and **load-bearing**. It is the single decision the brief must render. Everything above is evidence; this is the call.
+
+```markdown
+## Rollback Verdict
+
+**Verdict:** `KEEP` | `ROLLBACK` | `PARTIAL_SALVAGE`
+
+**Reasoning:** <2-4 sentences. Tie back to specific evidence in Sections 1–6.>
+
+**Recommended action:**
+- If `KEEP`: Merge the mission branch. List any follow-up tickets needed for flagged tests or open decisions.
+- If `ROLLBACK`: Run the rollback ritual (see "The Rollback Ritual" below). State the top 1-3 things the next iteration must do differently. These become inputs to the next `breakdown` or `refine` pass.
+- If `PARTIAL_SALVAGE`: List the specific commits, files, or sorties to cherry-pick onto a fresh branch from the starting point. Everything not on the cherry-pick list is discarded.
+```
+
+**How to render the verdict:**
+
+| Signal | Lean toward |
+|--------|-------------|
+| All work units COMPLETED, low retry rate, ≤1 hard discovery, test cleanup removed <10% of mission tests | `KEEP` |
+| Multiple BLOCKED or FATAL sorties, fundamental misunderstanding of the spec discovered mid-mission, test cleanup removed >30% of mission tests, planner-wrong outweighs agents-right | `ROLLBACK` |
+| Foundation work is sound but later sorties went sideways, or one work unit succeeded while another failed irrecoverably | `PARTIAL_SALVAGE` |
+
+**Honest defaults:** When in doubt between `KEEP` and `ROLLBACK`, err toward `ROLLBACK` for early iterations (1–2) where the cost of accumulating bad foundation is high, and toward `KEEP` for late iterations (3+) where the team has already spent meaningfully and incremental fixes are cheaper than another full pass.
+
+The verdict token in this section MUST match the `Verdict:` field in the header. If they disagree, the brief is malformed — fix it before continuing.
+
 ---
 
 ## Trigger `clean` Automatically
 
-Immediately after the brief file is written, the `brief` command **must** invoke the `clean` command (see `commands/clean.md`). This is mandatory and not user-prompted — the brief is the authoritative post-mission record, and the workspace must return to a pre-mission state before any rollback ritual or next-iteration work begins.
+Immediately after the brief file is written, the `brief` command **must** invoke `clean` (see `commands/clean.md`). This is mandatory and not user-prompted — the brief is the authoritative post-mission record, and the workspace must return to a pre-mission state before any rollback ritual or next-iteration work begins.
+
+`clean` is now a thin stub that delegates archival to the [organize-agent-docs](../../organize-agent-docs/) skill. The single piece of state-transition logic that lives in mission-supervisor is: deciding the final `state:` value (`completed` vs `incomplete`) and writing it to each root-level mission file's frontmatter. After that, organize-agent-docs performs the actual moves, link updates in foundational files (AGENTS.md, CLAUDE.md, etc.), and date stamping.
 
 Procedure:
 
 1. Verify the brief file exists at `$PROJECT_ROOT/<OPERATION_NAME>_<NN>_BRIEF.md`.
 2. Invoke `clean` against the same `$PROJECT_ROOT`. `clean` will:
-   - Determine outcome (`complete` vs `incomplete`) from SUPERVISOR_STATE.md.
-   - Move the brief, EXECUTION_PLAN.md, SUPERVISOR_STATE.md, COMPLETE_*.md, and all sortie deliverables into `docs/<outcome>/<slug>-<NN>/`.
+   - Read SUPERVISOR_STATE.md.
+   - Set `state: completed` on every root-level mission file if all work units are COMPLETED; otherwise `state: incomplete`.
+   - Invoke `/organize-agent-docs organize $PROJECT_ROOT`, which moves files to `docs/complete/<slug>-<NN>/` or `docs/incomplete/<slug>-<NN>/` according to the `state:` field, rewrites links in foundational files, and stamps `updated:` dates on any foundational file it edited.
    - Report what was moved.
-3. After `clean` reports success, the brief now lives at:
+3. After the organizer reports success, the brief now lives at:
    ```
    docs/<outcome>/<slug>-<NN>/<OPERATION_NAME>_<NN>_BRIEF.md
    ```
    Use this path for any subsequent step (rollback ritual, references in user output).
 
-Do **not** duplicate `clean`'s logic here. If `clean` fails, surface the error and stop — do not proceed to the rollback ritual with a half-archived workspace.
+Do **not** reintroduce archival logic into `brief.md` or `clean.md`. If the organizer fails, surface the error and stop — do not proceed to the rollback ritual with a half-archived workspace.
 
 ---
 
 ## The Rollback Ritual
 
-After `clean` completes, if the verdict in the brief is "discard and iterate":
+Run only if the brief's Section 8 verdict is `ROLLBACK` (or `PARTIAL_SALVAGE` with cherry-pick instructions). For `KEEP`, skip this section entirely and report success.
+
+After `clean` completes, for `ROLLBACK`:
 
 1. **Verify the brief file exists at its archived path** (`docs/<outcome>/<slug>-<NN>/<OPERATION_NAME>_<NN>_BRIEF.md`).
 2. **Verify the mission branch has all commits.**
@@ -345,9 +387,9 @@ When `resume` starts, check for existing brief files:
 
 ## Archive
 
-Archival is handled by the `clean` command, not by `brief`. See `commands/clean.md`.
+Archival is handled by the [organize-agent-docs](../../organize-agent-docs/) skill, invoked through the `clean` stub. See `commands/clean.md` for the delegation contract.
 
-`brief` invokes `clean` automatically as its final step (see "Trigger `clean` Automatically" above). The brief and all other mission artifacts end up at `docs/<complete|incomplete>/<slug>-<NN>/`.
+`brief` invokes `clean` automatically as its final step (see "Trigger `clean` Automatically" above). The brief and all other mission artifacts end up at `docs/<complete|incomplete>/<slug>-<NN>/`. Links in `AGENTS.md`, `CLAUDE.md`, and other foundational files that reference the moved files are rewritten automatically; the foundational files get an `updated:` frontmatter stamp.
 
 ---
 
