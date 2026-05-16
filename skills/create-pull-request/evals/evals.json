@@ -1,0 +1,79 @@
+{
+  "skill_name": "create-pull-request",
+  "evals": [
+    {
+      "id": 0,
+      "name": "finalize-existing-pr-on-development",
+      "prompt": "go ahead and PR this",
+      "expected_output": "Skill should detect existing draft PR #99 (base=main), regenerate title to 'Development → Main', regenerate body from the 3 commits, and run `gh pr ready 99`. No `gh pr create`. No `--base` edit (base already correct). No push (local in sync).",
+      "files": [],
+      "simulated_state": {
+        "current_branch": "development",
+        "default_branch": "main",
+        "working_tree_clean": true,
+        "local_in_sync_with_remote": true,
+        "commits_ahead_of_base": [
+          "Update Package.swift mlx-audio-swift pin rationale",
+          "Bump SwiftHablare to 6.1.2",
+          "Fix flaky DigaTests on macOS 26"
+        ],
+        "existing_prs": [
+          {
+            "number": 99,
+            "title": "Update Package.swift",
+            "isDraft": true,
+            "baseRefName": "main",
+            "headRefName": "development",
+            "url": "https://github.com/intrusive-memory/SwiftVoxAlta/pull/99"
+          }
+        ]
+      }
+    },
+    {
+      "id": 1,
+      "name": "fix-wrong-base-on-mission-branch",
+      "prompt": "mark this ready for review",
+      "expected_output": "Skill should detect existing draft PR #100 with base=main (WRONG for a mission branch), run `gh pr edit 100 --base development` to fix it, push the local-ahead commit first, regenerate title from latest commit subject, regenerate body, and run `gh pr ready 100`.",
+      "files": [],
+      "simulated_state": {
+        "current_branch": "mission/foo-bar/1",
+        "default_branch": "main",
+        "working_tree_clean": true,
+        "local_in_sync_with_remote": false,
+        "local_ahead_by": 1,
+        "commits_ahead_of_base": [
+          "Add new feature X",
+          "Test for X"
+        ],
+        "existing_prs": [
+          {
+            "number": 100,
+            "title": "WIP: feature X",
+            "isDraft": true,
+            "baseRefName": "main",
+            "headRefName": "mission/foo-bar/1",
+            "url": "https://github.com/intrusive-memory/SwiftVoxAlta/pull/100"
+          }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "name": "create-new-pr-fallback-on-fix-branch",
+      "prompt": "open a PR for this",
+      "expected_output": "No existing PR — skill should fall through to create path: push -u origin fix/some-bug, then `gh pr create --draft --base development --head fix/some-bug --title 'Fix off-by-one in chunker' --body '<Summary+Test plan>'`, then `gh pr ready <new>`. Must route to `development`, not `main`.",
+      "files": [],
+      "simulated_state": {
+        "current_branch": "fix/some-bug",
+        "default_branch": "main",
+        "working_tree_clean": true,
+        "local_in_sync_with_remote": false,
+        "remote_branch_exists": false,
+        "commits_ahead_of_base": [
+          "Fix off-by-one in chunker"
+        ],
+        "existing_prs": []
+      }
+    }
+  ]
+}
