@@ -1,7 +1,7 @@
 ---
 name: mission-supervisor
-description: Plan and execute sorties with sergeant precision. Give each agent ONE clear, measurable goal. Pre-execution commands (breakdown, refine + 4 subcommands) create and refine an EXECUTION_PLAN.md from requirements. Refine performs 4 passes: atomicity/testability, prioritization, parallelism (up to 4 sub-agents, builds only by supervisor), and open questions. Execution commands (start, resume, status, stop, killall) orchestrate sortie agents with lean context and crystal-clear objectives. THE RITUAL (name-feature) generates humorous military operation names. Post-mission flow runs automatically after the last sortie completes: (test-cleanup) prunes tests added during the mission that cannot run reliably in CI, then (brief) harvests lessons and renders an explicit ROLLBACK | KEEP | PARTIAL_SALVAGE verdict, then auto-triggers (clean) → /organize-agent-docs to archive every mission artifact in the project root into docs/<complete|incomplete>/<mission name>/.
-argument-hint: "[breakdown|name-feature|refine|refine-atomicity|refine-priority|refine-parallelism|refine-questions|start|resume|status|stop|killall|test-cleanup|brief|clean] [path] [--max-turns=N]"
+description: Plan and execute sorties with sergeant precision. Give each agent ONE clear, measurable goal. Pre-execution commands (breakdown, refine + 5 subcommands) create and refine an EXECUTION_PLAN.md from requirements. Refine performs 5 passes: blocking open questions (hard stop for user decisions), atomicity/testability, prioritization, parallelism (up to 4 sub-agents, builds only by supervisor), and a final vague-criteria/lingering-questions pass. Execution commands (start, resume, status, stop, killall) orchestrate sortie agents with lean context and crystal-clear objectives. THE RITUAL (name-feature) generates humorous military operation names. Post-mission flow runs automatically after the last sortie completes: (test-cleanup) prunes tests added during the mission that cannot run reliably in CI, then (brief) harvests lessons and renders an explicit ROLLBACK | KEEP | PARTIAL_SALVAGE verdict, then auto-triggers (clean) → /organize-agent-docs to archive every mission artifact in the project root into docs/<complete|incomplete>/<mission name>/.
+argument-hint: "[breakdown|name-feature|refine|refine-blockers|refine-atomicity|refine-priority|refine-parallelism|refine-questions|start|resume|status|stop|killall|test-cleanup|brief|clean] [path] [--max-turns=N]"
 disable-model-invocation: false
 allowed-tools: Read, Glob, Grep, Bash, Task, Write, Edit, TaskOutput, KillShell
 ---
@@ -116,7 +116,7 @@ Parse `$ARGUMENTS` as follows:
 
 | Category | Commands | Purpose |
 |----------|----------|---------|
-| **Pre-execution** | `breakdown`, `refine` (+ subcommands) | Create and refine EXECUTION_PLAN.md from requirements |
+| **Pre-execution** | `breakdown`, `refine` (+ 5 subcommands) | Create and refine EXECUTION_PLAN.md from requirements |
 | **The Ritual** | `name-feature` | Generate humorous military operation name (happens at `start`, or manual regeneration) |
 | **Execution** | `start`, `resume`, `status`, `stop`, `killall` | Orchestrate sortie agents against an existing plan |
 | **Post-mission** | `test-cleanup`, `brief`, `clean` | Auto-chain after the last sortie completes. `test-cleanup` prunes tests added during the mission that cannot run reliably in CI (CI is the primary build mechanism); `brief` harvests lessons and renders an explicit `ROLLBACK | KEEP | PARTIAL_SALVAGE` verdict; `clean` (auto-triggered by `brief`) sets final `state:` on each root mission file then delegates to `/organize-agent-docs` for archival. All file moves and link updates live in the [organize-agent-docs](../organize-agent-docs/) skill. |
@@ -128,11 +128,12 @@ Each command is documented in its own file. Read the referenced file for full in
 | Command | File | Summary |
 |---------|------|---------|
 | `breakdown` | `commands/breakdown.md` | Parse requirements → generate EXECUTION_PLAN.md |
-| `refine` | `commands/refine.md` | Run all 4 refinement passes sequentially |
-| `refine-atomicity` | `commands/refine.md` § Pass 1 | Check sortie size, testability, context fitness |
-| `refine-priority` | `commands/refine.md` § Pass 2 | Score and reorder sorties by priority |
-| `refine-parallelism` | `commands/refine.md` § Pass 3 | Identify parallel execution opportunities |
-| `refine-questions` | `commands/refine.md` § Pass 4 | Find vague criteria and open questions |
+| `refine` | `commands/refine.md` | Run all 5 refinement passes sequentially (Pass 1 is a hard-stop gate) |
+| `refine-blockers` | `commands/refine.md` § Pass 1 | Surface blocking open questions with recommendations; full stop for user decisions |
+| `refine-atomicity` | `commands/refine.md` § Pass 2 | Check sortie size, testability, context fitness |
+| `refine-priority` | `commands/refine.md` § Pass 3 | Score and reorder sorties by priority |
+| `refine-parallelism` | `commands/refine.md` § Pass 4 | Identify parallel execution opportunities |
+| `refine-questions` | `commands/refine.md` § Pass 5 | Find vague criteria and lingering questions (final cleanup) |
 | `name-feature` | `sub-skills/name-feature.md` | Generate humorous military operation name (THE RITUAL) |
 | `start` | `commands/execution.md` | Initialize state, run THE RITUAL, dispatch first sorties |
 | `resume` | `commands/execution.md` | Pick up from SUPERVISOR_STATE.md, continue dispatching |
@@ -151,11 +152,12 @@ Each command is documented in its own file. Read the referenced file for full in
 ### Pre-execution Command Signatures
 
 - **`breakdown [path/to/requirements.md]`**: Path to a requirements document. If omitted, search the current directory for common filenames: `REQUIREMENTS.md`, `PRD.md`, `SPEC.md`, `README.md` (in that order). If none found, STOP with an error.
-- **`refine [path/to/EXECUTION_PLAN.md] [--max-turns=N]`**: Runs all 4 refinement passes sequentially on an existing execution plan. Optional path (uses standard resolution logic). Optional `--max-turns` flag (default 50) for context budget. After all passes, declares the plan ready for execution and summarizes to user.
-- **`refine-atomicity [path/to/EXECUTION_PLAN.md] [--max-turns=N]`**: Pass 1 only.
-- **`refine-priority [path/to/EXECUTION_PLAN.md]`**: Pass 2 only.
-- **`refine-parallelism [path/to/EXECUTION_PLAN.md]`**: Pass 3 only.
-- **`refine-questions [path/to/EXECUTION_PLAN.md]`**: Pass 4 only.
+- **`refine [path/to/EXECUTION_PLAN.md] [--max-turns=N]`**: Runs all 5 refinement passes sequentially on an existing execution plan. Optional path (uses standard resolution logic). Optional `--max-turns` flag (default 50) for context budget. **Pass 1 is a hard-stop gate**: if blockers are found, refinement halts and waits for user decisions before continuing. After all passes succeed, declares the plan ready for execution and summarizes to user.
+- **`refine-blockers [path/to/EXECUTION_PLAN.md]`**: Pass 1 only — surface blocking open questions left over from `breakdown`, attach a concrete recommendation to each, and full stop for user resolution.
+- **`refine-atomicity [path/to/EXECUTION_PLAN.md] [--max-turns=N]`**: Pass 2 only.
+- **`refine-priority [path/to/EXECUTION_PLAN.md]`**: Pass 3 only.
+- **`refine-parallelism [path/to/EXECUTION_PLAN.md]`**: Pass 4 only.
+- **`refine-questions [path/to/EXECUTION_PLAN.md]`**: Pass 5 only — final cleanup pass for vague criteria and any lingering questions from earlier passes.
 
 ### The Ritual Command Signature
 

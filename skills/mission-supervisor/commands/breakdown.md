@@ -81,7 +81,39 @@ Organize atomic tasks into sorties within each work unit. **Apply sergeant princ
 - **Logical cohesion**: Group tasks that operate on the same files or subsystem.
 - **Foundation first**: Types, interfaces, and shared utilities go in Sortie 1. Implementations that depend on them follow.
 
-## 6. Generate EXECUTION_PLAN.md
+## 6. Capture Open Questions
+
+While decomposing tasks (Steps 3–5), watch for **blocking open questions** — anything that prevents a sortie agent from starting work. Collect each one explicitly; do not silently make the decision on the user's behalf.
+
+**What counts as a blocking open question**:
+- Requirements doc presents multiple options without choosing ("Redis vs in-memory cache", "REST vs gRPC")
+- A required external system, library, API, or schema is referenced but not specified
+- Scope boundaries are undecided ("include feature X? TBD", "migration covers which tables?")
+- Authentication, persistence, deployment target, or other foundational choices are missing
+- Requirements doc contains literal TBD / TODO / "decide later" / "clarify" markers
+- A sortie cannot write machine-verifiable exit criteria without a missing answer
+
+**What does NOT count** (these are handled by later refine passes, not here):
+- Vague verification language ("works correctly", "tests pass") — Pass 5 / `refine-questions`
+- Sortie sizing or splitting concerns — Pass 2 / `refine-atomicity`
+- Ordering or priority concerns — Pass 3 / `refine-priority`
+
+For every blocking question, record:
+- **Which sortie(s) it affects**, so `refine-blockers` can present it in context.
+- **A concrete recommendation** — a specific choice, not a meta-statement. Bad: "Pick a caching strategy." Good: "Use in-memory LRU cache via `swift-collections` — repo already depends on it, expected dataset fits in RAM, no Redis infrastructure available."
+- **The rationale** — one or two sentences citing the signal used (existing dependencies, project conventions, CLAUDE.md/AGENTS.md guidance, requirements doc context, similar code elsewhere in the repo).
+
+**Drawing recommendations** — use only information available at breakdown time:
+- The requirements document
+- The repo's existing code, dependencies (`Package.swift`, `package.json`, `Cargo.toml`, etc.), and conventions
+- Project-level CLAUDE.md / AGENTS.md guidance
+- Adjacent sortie context within the same plan
+
+If genuinely no signal exists, state so explicitly in the recommendation field: e.g., `"No signal in repo or requirements. Recommend deferring this sortie until <X> is decided externally."` — this is still a valid recommendation; it makes the absence of signal explicit so the user knows to supply it.
+
+If no blockers exist, write the Open Questions section with a single line: `_No blocking open questions identified during breakdown._` — its presence is the signal to `refine-blockers` that breakdown actually looked.
+
+## 7. Generate EXECUTION_PLAN.md
 
 Write `$PROJECT_ROOT/EXECUTION_PLAN.md` in a format compatible with the existing parser (see `commands/execution.md` § Parse the Execution Plan). The generated plan MUST include:
 
@@ -130,6 +162,32 @@ Write `$PROJECT_ROOT/EXECUTION_PLAN.md` in a format compatible with the existing
 - [ ] <Machine-verifiable criterion>
 ```
 
+### Open Questions section (consumed by `refine-blockers`)
+
+Emit this section **always**, even when there are zero blockers — the section's presence tells `refine-blockers` that breakdown checked. Place it immediately after the last Sortie definition and before the Summary table.
+
+```markdown
+## Open Questions
+
+<!-- Consumed by Pass 1 of refine (`refine-blockers`). Each entry MUST be resolved before refinement can proceed past Pass 1. -->
+
+### OQ-<N>: <short title>
+**Affects**: Sortie <N> (and Sortie <M>, Sortie <K> if shared)
+**Question**: <one or two sentences stating the decision that must be made>
+**Source**: <requirements doc heading + line range, or "implied by Sortie N tasks">
+**Why blocking**: <one sentence — what can't be written/verified without an answer>
+**Recommendation**: <specific choice drawn from repo/requirements/conventions>
+**Rationale**: <one or two sentences citing the signal used>
+```
+
+If no blockers exist, emit:
+
+```markdown
+## Open Questions
+
+_No blocking open questions identified during breakdown._
+```
+
 ### Summary table
 ```markdown
 ## Summary
@@ -138,14 +196,15 @@ Write `$PROJECT_ROOT/EXECUTION_PLAN.md` in a format compatible with the existing
 |--------|-------|
 | Work units | <N> |
 | Total sorties | <N> |
+| Open questions | <N> |
 | Dependency structure | <layers \| sequential \| parallel> |
 ```
 
-## 7. Do NOT Prioritize
+## 8. Do NOT Prioritize
 
 The `breakdown` command arranges sorties in natural dependency order only. It does NOT analyze risk, complexity, or strategic priority. That is the job of the `refine` command.
 
-## 8. Output Summary
+## 9. Output Summary
 
 After writing EXECUTION_PLAN.md, output:
 
@@ -161,6 +220,12 @@ Output: $PROJECT_ROOT/EXECUTION_PLAN.md
 | Atomic tasks | <N> |
 | Work units | <N> |
 | Sorties | <N> |
+| Open questions | <N> |
 
+<If open questions > 0>:
+Next step: /mission-supervisor refine
+  (Pass 1 will surface each open question with a recommendation and stop for your decisions before continuing.)
+
+<If open questions == 0>:
 Next step: /mission-supervisor refine
 ```
