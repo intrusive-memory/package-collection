@@ -1,6 +1,6 @@
 ---
 name: ship-swift-library
-description: Ship and release Swift library versions by bumping the version on development, merging the PR once CI passes, then tagging and creating a GitHub release from main
+description: Ship and release Swift library versions by bumping the version on development, merging the PR once CI passes, then tagging and creating a GitHub release from main. Accepts an optional version-bump argument (`patch`/`minor`/`major`) or explicit semver (`1.2.3`) to run unattended.
 allowed-tools: Bash, Read, Grep, Glob, Edit, Skill
 dependencies:
   - organize-agent-docs
@@ -11,6 +11,53 @@ dependencies:
 This skill handles the complete release process for Swift libraries.
 
 **CRITICAL RULE**: Bump the version on `development` BEFORE merging the PR. The version bump ships as part of the PR merge to `main`. NEVER merge development directly to main when a PR exists.
+
+## Invocation Modes
+
+The skill runs in one of two modes, decided by whether an argument was supplied:
+
+| Argument | Mode | Behavior |
+|---|---|---|
+| *(none)* | **Interactive** | Ask the user for the new version (Step 2) and whether to create the PR if one is missing (Step 1). |
+| `patch` / `minor` / `major` | **Unattended** | Derive the new version from the last git tag + the requested bump component. Auto-create the PR if missing. Never prompt. |
+| `X.Y.Z` (explicit semver) | **Unattended** | Use the literal version. Must be clean semver (no `-dev`, no leading `v`) and strictly greater than the last tag. Auto-create the PR if missing. Never prompt. |
+
+**Unattended mode contract:**
+- Never ask the user a question. If a decision can't be made automatically (ambiguous repo state, dirty tree, divergent branches, CI failure, missing `development` branch, audit-step abort), stop immediately and surface the blocker — do **not** fall through to interactive prompts.
+- The hard guards in Steps 8 and 9 (`-dev` refusal, semver shape) still apply. Argument validation does not bypass them.
+- Set `UNATTENDED=1` for downstream steps to branch on.
+
+### Argument parsing (run first, before the Applicability Gate)
+
+```bash
+ARG="${1:-}"   # the raw argument string passed to /ship-swift-library
+UNATTENDED=0
+BUMP_KIND=""
+EXPLICIT_VERSION=""
+
+case "$ARG" in
+  "")
+    UNATTENDED=0
+    ;;
+  patch|minor|major)
+    UNATTENDED=1
+    BUMP_KIND="$ARG"
+    ;;
+  [0-9]*.[0-9]*.[0-9]*)
+    case "$ARG" in
+      *-dev*|v*) echo "ABORT: explicit version must be clean semver (no '-dev', no leading 'v'). Got: $ARG"; exit 1 ;;
+    esac
+    UNATTENDED=1
+    EXPLICIT_VERSION="$ARG"
+    ;;
+  *)
+    echo "ABORT: unrecognized argument '$ARG'. Expected one of: (none), patch, minor, major, X.Y.Z"
+    exit 1
+    ;;
+esac
+```
+
+In unattended mode, also verify the working tree is clean and the local `development` is up-to-date with origin before doing anything destructive — bail loudly otherwise.
 
 ## Applicability Gate
 
@@ -36,10 +83,30 @@ For the full repo naming-convention table — which repos this skill applies to 
 ### 1. Check for Open Pull Request
 
 ```bash
-gh pr list --base main --head development
+gh pr list --base main --head development --json number,title,isDraft
 ```
 
-If a PR exists, proceed. If not, ask the user whether to create one.
+If a PR exists, proceed.
+
+**Interactive mode**: if none exists, ask the user whether to create one.
+
+**Unattended mode**: if none exists, auto-create a draft PR with a placeholder title — Step 5 will rewrite the title and body once the new version is known and the diff has settled:
+
+```bash
+gh pr create \
+  --draft \
+  --base main \
+  --head development \
+  --title "Release (auto-created by /ship-swift-library)" \
+  --body "Auto-created by /ship-swift-library in unattended mode. Title and body will be rewritten in Step 5 once the version bump lands."
+```
+
+Then re-read the PR number for use in subsequent steps:
+
+```bash
+PR_NUMBER=$(gh pr list --base main --head development --json number --jq '.[0].number')
+test -n "$PR_NUMBER" || { echo "ABORT: PR creation succeeded but no PR is listed"; exit 1; }
+```
 
 ### 2. Determine Version Number
 
@@ -47,22 +114,64 @@ If a PR exists, proceed. If not, ask the user whether to create one.
 
 ```bash
 git fetch --tags
-git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -5
+LAST_TAG=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
+LAST_VERSION="${LAST_TAG#v}"
+LAST_VERSION="${LAST_VERSION:-0.0.0}"
+echo "Last released version: ${LAST_VERSION}"
 ```
 
-The first result is the last released version. If no tags exist, treat as `v0.0.0`.
+If no tags exist, treat as `0.0.0`.
 
 Source files between releases carry an `X.Y.Z-dev` marker (set by step 12 of the previous cycle). Strip the `-dev` suffix before comparing:
 - Source `1.4.2-dev` + tag `v1.4.2` → equivalent, in post-1.4.2 dev cycle.
 - Source `1.4.2-dev` + tag `v1.4.1` → discrepancy, investigate.
 - Source has no `-dev` suffix → flag it.
 
-Ask the user for the new version, presenting the last tagged version as baseline:
+**Bump semantics:**
 - **Patch** (x.y.Z): Bug fixes, small improvements
 - **Minor** (x.Y.0): New features, non-breaking changes
 - **Major** (X.0.0): Breaking changes
 
-**The new version MUST NOT contain `-dev`.** Tag and release are always clean semver.
+#### Interactive mode
+
+Ask the user for the new version, presenting `LAST_VERSION` as baseline.
+
+#### Unattended mode
+
+Compute the new version automatically from `$LAST_VERSION` and `$BUMP_KIND` / `$EXPLICIT_VERSION`:
+
+```bash
+IFS=. read -r MAJ MIN PAT <<< "$LAST_VERSION"
+
+if [ -n "$EXPLICIT_VERSION" ]; then
+  NEW_VERSION="$EXPLICIT_VERSION"
+else
+  case "$BUMP_KIND" in
+    patch) NEW_VERSION="${MAJ}.${MIN}.$((PAT + 1))" ;;
+    minor) NEW_VERSION="${MAJ}.$((MIN + 1)).0" ;;
+    major) NEW_VERSION="$((MAJ + 1)).0.0" ;;
+    *) echo "ABORT: BUMP_KIND='$BUMP_KIND' is invalid in unattended mode"; exit 1 ;;
+  esac
+fi
+
+# Sanity guards
+case "$NEW_VERSION" in
+  *-dev*) echo "ABORT: computed version '$NEW_VERSION' contains '-dev'"; exit 1 ;;
+  [0-9]*.[0-9]*.[0-9]*) ;;
+  *) echo "ABORT: computed version '$NEW_VERSION' is not clean semver"; exit 1 ;;
+esac
+
+# Strict monotonic check against the last tag
+if [ "$(printf '%s\n%s\n' "$LAST_VERSION" "$NEW_VERSION" | sort -V | tail -1)" != "$NEW_VERSION" ] \
+   || [ "$NEW_VERSION" = "$LAST_VERSION" ]; then
+  echo "ABORT: new version '$NEW_VERSION' must be strictly greater than last tag '$LAST_VERSION'"
+  exit 1
+fi
+
+echo "Unattended: bumping ${LAST_VERSION} → ${NEW_VERSION} (${BUMP_KIND:-explicit})"
+```
+
+**The new version MUST NOT contain `-dev`.** Tag and release are always clean semver. The hard guards in Steps 8 and 9 will refuse a `-dev` version regardless of mode.
 
 ### 3. Bump Version, Update Dependencies, Flip Package.swift to Remote-Only, Audit Documentation, and Audit CI Workflows **[ref]**
 
@@ -332,6 +441,8 @@ If any step fails:
 2. Explain what failed and why
 3. Provide fix guidance
 4. Do not proceed
+
+In **unattended mode** (`UNATTENDED=1`), failures must exit non-zero so callers like `/package-iterator` can detect them. Do not degrade to interactive prompts on failure — surface the blocker and stop. The caller decides whether to retry, skip, or escalate.
 
 ## Notes
 
