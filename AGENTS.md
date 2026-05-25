@@ -195,10 +195,11 @@ ln -s "$(pwd)/skills/<skill-name>" .claude/skills/<skill-name>
 
 | Skill | Invocation | Description |
 |-------|-----------|-------------|
+| **dependency-purge** | `/dependency-purge` | Full nuclear clean for Xcode/SPM build issues — removes DerivedData, clears the global SPM cache, deletes `Package.resolved`, then bumps every `intrusive-memory/*` floor in `Package.swift` to the latest published release **before** resolution; optional `--rebuild` flag |
 | **fix-code-signing** | `/fix-code-signing` | Diagnoses and fixes code signing configuration issues for XCTest bundles in hardened runtime macOS apps |
 | **generate-episode-audio** | `/generate-episode-audio` | Generate podcast episode audio from Fountain or Highland screenplays using Produciesta CLI, wrap with intro/outro, and open in QuickTime |
 | **macos-say** | `/macos-say` | Use macOS text-to-speech via the `say` command for voice feedback, audio narration, and spoken output |
-| **mission-supervisor** | `/mission-supervisor` | Plan and execute missions — `breakdown` generates a plan from requirements, `refine` performs 4 passes (atomicity, priority, parallelism, open questions), then restart context and `start/resume/status/stop/killall` orchestrate sortie agents |
+| **mission-supervisor** | `/mission-supervisor` | Plan and execute missions — `breakdown` generates a plan from requirements, `refine` performs 5 passes (blocking questions, atomicity, priority, parallelism, vague-criteria cleanup), then `start/resume/status/stop/killall` orchestrate sortie agents. On `start` (Swift/Xcode projects only), runs `/dependency-purge` once before any sortie dispatch so every build-gate verification resolves against a clean dep tree |
 | **mission-supervisor-report** | `/mission-supervisor-report` | Generate a voiced mission debrief video composition for a podcast episode — scripts "The General" character narrating mission status, builds Motion title templates and compositions for Final Cut Pro |
 | **organize-agent-docs** | `/organize-agent-docs` | Gold-standard markdown organization — sorts every markdown file into FOUNDATIONAL (root), MISSION (`docs/<complete\|incomplete>/<mission>/`), or EXTRANEOUS (`docs/`), maintains links, stamps `updated:` dates |
 | **package-iterator** | `/package-iterator` | Fan out a skill across every library (or a subset) in a JSON package collection in dependency order; same-level siblings run in parallel, failures auto-escalate to a diagnostic agent before flagging for follow-up |

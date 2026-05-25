@@ -117,8 +117,55 @@ Progress files and git state are ground truth. If SUPERVISOR_STATE.md disagrees 
   4. **Create Mission Branch**: Derive slug from operation name (lowercase, hyphens, drop "operation-" prefix). Create and switch to branch: `git checkout -b mission/<slug>/<NN>`. If the branch already exists (resuming from a previous partial start), switch to it without creating.
   5. **Update Frontmatter**: Add/update EXECUTION_PLAN.md frontmatter with `starting_point_commit`, `mission_branch`, and `iteration` fields.
   6. **Initialize State**: Create SUPERVISOR_STATE.md with Mission Metadata section including starting point commit, mission branch, and iteration number.
-  7. **Dispatch**: Dispatch Sortie 1 for each work unit that has no unsatisfied dependencies.
-- **`resume`**: Pick up where the last supervisor left off. Read state, determine what sorties need dispatching, continue.
+  7. **Pre-Build Dependency Purge** (Swift/Xcode projects only): Run [/dependency-purge](../../dependency-purge/skill.md) once, without `--rebuild`, before any sortie is dispatched. This guarantees every build-gate verification in this mission (see §3e, `code` task type) runs against a freshly resolved dep tree with `intrusive-memory/*` floors bumped to latest releases. See *Pre-Build Dependency Purge* below for details, scoping rules, and the resume exception.
+  8. **Dispatch**: Dispatch Sortie 1 for each work unit that has no unsatisfied dependencies.
+- **`resume`**: Pick up where the last supervisor left off. Read state, determine what sorties need dispatching, continue. **Do not re-run the pre-build dependency purge on resume** — see *Pre-Build Dependency Purge* below.
+
+---
+
+## 1a. Pre-Build Dependency Purge
+
+The supervisor runs **one** [/dependency-purge](../../dependency-purge/skill.md) at mission start, before any sortie dispatch, so that every build-gate verification (§3e, `code` task type) and every cross-work-unit build check (§5) in this mission resolves against a clean dep tree with `intrusive-memory/*` floors bumped to their latest published releases.
+
+### When it runs
+
+- **`start` only.** Never on `resume`. Resuming means earlier sorties already committed against a particular resolved graph; purging mid-mission would invalidate that graph and force every remaining build-gate sortie to re-resolve from scratch.
+- **Swift/Xcode projects only.** Detect by presence of `Package.swift` or any `*.xcodeproj` at the work-unit directory (or `$PROJECT_ROOT` for single-unit missions). For multi-work-unit missions where some units are Swift and some aren't, purge once per Swift work-unit directory.
+- **Skip silently** if neither marker is present. Do not error, do not log noise. Most non-Swift missions should see zero overhead from this step.
+
+### What it does
+
+Invokes `/dependency-purge` (without `--rebuild` — the sorties themselves will trigger builds via their exit criteria):
+
+1. Removes DerivedData for the project.
+2. Clears the global SPM cache.
+3. Deletes `Package.resolved` (root and Xcode locations).
+4. Bumps every `intrusive-memory/*` dependency's floor in `Package.swift` to the latest published GitHub release **before** SPM ever resolves. See [/dependency-purge skill.md](../../dependency-purge/skill.md) Step 5 for supported patterns.
+
+### Cost and trade-offs
+
+- **Adds 1–5 minutes** to mission start (network-bound: fresh dep download).
+- **Affects other Swift projects on this machine** — the SPM cache is global, so any other project will re-download its deps the next time it builds. This is a real cost; tell the user if they're cost-sensitive.
+- **Mid-mission `Package.swift` changes are NOT re-purged.** If a sortie adds or removes an `intrusive-memory/*` dep, that new dep's floor is not auto-bumped. The build gate will still pass against the floor declared in the source — but if the resolver picks an older release than the user expected, the failure-recovery purge in §7 catches it.
+
+### Failure handling
+
+- If `/dependency-purge` itself fails (e.g., `gh` is not authenticated and at least one `intrusive-memory/*` dep needs a release lookup), log the failure to `SUPERVISOR_STATE.md` Decisions Log, **proceed with mission dispatch anyway**, and warn the user. A failed preflight purge is not fatal — the build-gate sorties may still pass against whatever floors are already declared. Treat it as a downgrade in confidence, not a stop.
+- If the purge succeeds but rewrites `Package.swift`, leave the changes uncommitted. The first build-gate sortie that touches the dep tree will either commit them as part of its own change set, or `clean` at end of mission will surface them in the brief.
+
+### Recording in state
+
+Add to `SUPERVISOR_STATE.md` Mission Metadata at the end of initialization:
+
+```markdown
+- Pre-build dependency purge: <run|skipped (non-Swift)|failed>
+- Purge ran at: <ISO-8601 timestamp>
+- intrusive-memory floors bumped: <N of M> (if purge ran)
+```
+
+### Relationship to failure-recovery purge
+
+This preflight purge is **additive** to the failure-recovery purge described in [/dependency-purge skill.md](../../dependency-purge/skill.md) § "Integration with Mission Supervisor". If a sortie fails mid-mission with a known cache-fixable pattern, the failure-recovery purge still runs as before. The preflight reduces how often that recovery path fires; it does not replace it.
 
 ---
 
