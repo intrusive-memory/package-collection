@@ -4,6 +4,7 @@ description: Ship and release Swift library versions by bumping the version on d
 allowed-tools: Bash, Read, Grep, Glob, Edit, Skill
 dependencies:
   - organize-agent-docs
+  - codemap
 ---
 
 # Ship Swift Library Skill
@@ -181,9 +182,11 @@ This is the heaviest step — five coupled sub-tasks that all land in a **single
 2. Run `/toggle-sibling-libraries --to remote` to strip the `sibling(...)` helpers and pin every intrusive-memory/* dep to its latest published `.upToNextMajor(from: ...)` release. The shipped `Package.swift` must NOT carry the dev-only sibling scaffolding.
 3. Edit version files, **stripping any `-dev` suffix**. The new version is clean semver.
 4. Run `make lint` to format Swift sources.
-5. Run `/organize-agent-docs` and update README.md.
+5. Run `/organize-agent-docs`, update README.md, then run `/codemap` to refresh the
+   checked-in graphify codemap (regenerates `graphify-out/`, ensures AGENTS.md
+   references it, and commits the portable map as its own `chore(codemap)` commit).
 6. Audit `.github/workflows/` and bump every action `uses:` reference to its latest major.
-7. Commit everything together and push to `development`.
+7. Commit the rest together and push to `development` (the push also carries the codemap commit).
 
 **Read `references/version-bump.md` for the full procedure** — including the toggle invocation and verification, the `-dev` strip recipe, dependency verification, the dynamic CI-action audit table, and the canonical commit message.
 
@@ -399,7 +402,7 @@ gh pr list --base main --head development --json number,isDraft,title
 
 ### 14. Summary Report
 
-Provide a final summary covering: SPM audit applied, version bumped, lint, docs organized, README updated, CI workflows audited, CI passed, PR title/description updated, PR merged, tag created, GitHub release published, CI release workflow triggered, Homebrew formula updated, local branches updated, development synced and stamped `-dev`, draft next-cycle PR opened.
+Provide a final summary covering: SPM audit applied, version bumped, lint, docs organized, README updated, codemap refreshed and committed, CI workflows audited, CI passed, PR title/description updated, PR merged, tag created, GitHub release published, CI release workflow triggered, Homebrew formula updated, local branches updated, development synced and stamped `-dev`, draft next-cycle PR opened.
 
 Include the release URL and the next-cycle PR URL.
 
@@ -427,7 +430,7 @@ Include the release URL and the next-cycle PR URL.
 ## Correct Flow
 
 ```
-development: [features on X.Y.Z-dev] -> [strip -dev, bump to A.B.C] -> [make lint] -> [/organize-agent-docs] -> [audit CI workflows] -> (CI passes) -> [update PR title/body] -> PR merged
+development: [features on X.Y.Z-dev] -> [strip -dev, bump to A.B.C] -> [make lint] -> [/organize-agent-docs] -> [/codemap] -> [audit CI workflows] -> (CI passes) -> [update PR title/body] -> PR merged
 main:        -----------------------------------------------------------------------------> [squash commit] -> [tag vA.B.C] -> [release (metadata only)]
 CI:          -------------------------------------------------------------------------------------^-- [build tarball] -> [upload to release] -> [dispatch formula-update to homebrew-tap]
 homebrew-tap:--------------------------------------------------------------------------------^-- (auto-updated by formula-update event)

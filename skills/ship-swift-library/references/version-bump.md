@@ -118,6 +118,33 @@ This will:
 - Update platform requirements (iOS/macOS/Swift/Xcode versions)
 - Verify all doc links point to existing files
 
+### 6.1. Refresh the queryable codemap
+
+Update the checked-in graphify codemap so the shipped release carries a graph that
+reflects this version's actual source — new types, changed APIs, and new features all
+flow into `graphify-out/`. Run the skill:
+
+```
+/codemap
+```
+
+`/codemap` regenerates the graph incrementally (only files changed since the last
+build are re-extracted), enforces the gitignore split so machine-specific scratch and
+the absolute-path manifest never ship, **ensures AGENTS.md references the codemap**,
+and lands the portable map as its own `chore(codemap)` commit on `development`. That
+commit rides along in the release PR next to the version-bump commit.
+
+To eyeball what this release changed before regenerating (optional — graphify detects
+changed files itself):
+
+```bash
+git diff main...development --stat -- 'Sources/**' 'Package.swift'
+```
+
+Use that to sanity-check that new/changed public API actually shows up in the
+regenerated `graphify-out/GRAPH_REPORT.md`. Do **not** pass `push` to `/codemap` here
+— the section 8 push carries the codemap commit up along with the version-bump commit.
+
 ## 7. Audit CI Workflows for Outdated GitHub Actions
 
 Older action versions still pinned to Node 16 emit `Node.js 16 actions are deprecated` warnings on every CI run, and Node 16 runners have been removed entirely from some GitHub-hosted images. Audit every workflow file in `.github/workflows/` and bump each `uses:` reference to the latest published major version.
