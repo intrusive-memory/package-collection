@@ -1,5 +1,6 @@
 ---
 name: mission-supervisor
+type: skill
 description: Plan and execute sorties with sergeant precision. Give each agent ONE clear, measurable goal. Pre-execution commands (breakdown, refine + 5 subcommands) create and refine an EXECUTION_PLAN.md from requirements. Refine performs 5 passes: blocking open questions (hard stop for user decisions), atomicity/testability, prioritization, parallelism (up to 4 sub-agents, builds only by supervisor), and a final vague-criteria/lingering-questions pass. Execution commands (start, resume, status, stop, killall) orchestrate sortie agents with lean context and crystal-clear objectives. On `start` (Swift/Xcode projects only), the supervisor runs a pre-build /dependency-purge so every build-gate sortie resolves against a clean dep tree with intrusive-memory/* floors bumped to latest releases; `resume` skips this. THE RITUAL (name-feature) generates humorous military operation names. Post-mission flow runs automatically after the last sortie completes: (test-cleanup) prunes tests added during the mission that cannot run reliably in CI, then (brief) harvests lessons and renders an explicit ROLLBACK | KEEP | PARTIAL_SALVAGE verdict, then auto-triggers (clean) → /organize-agent-docs to archive every mission artifact in the project root into docs/<complete|incomplete>/<mission name>/.
 argument-hint: "[breakdown|name-feature|refine|refine-blockers|refine-atomicity|refine-priority|refine-parallelism|refine-questions|start|resume|status|stop|killall|test-cleanup|brief|clean] [path] [--max-turns=N]"
 disable-model-invocation: false
@@ -27,6 +28,24 @@ A **work unit** is whatever the execution plan defines as a discrete deliverable
 We deliberately avoid agile/waterfall terminology (sprint, iteration, phase) because those map to **time**. Missions and sorties map to **agentic work cycles**, which have no inherent time dimension.
 
 **Mandatory terminology inclusion**: When generating any document (EXECUTION_PLAN.md, COMPLETE_*.md, SUPERVISOR_STATE.md), always include a terminology section near the top so readers understand the language — specifically the distinction between missions (scope of work) and sorties (atomic agent tasks). See `commands/breakdown.md` § Mandatory Terminology Section for the standard block.
+
+---
+
+## Mission Documents & OKF Types
+
+The Mission Supervisor reads and writes a small set of canonical documents. Each carries an **OKF `type`** value in its YAML frontmatter so downstream tooling (knowledge-graph indexing, `/graphify`, `/organize-agent-docs`) can classify the document without parsing its body. The three primary mission documents and their definitions:
+
+| Document | Filename pattern | OKF `type` | Authored / edited by | Definition |
+|----------|------------------|-----------|----------------------|------------|
+| **Requirements** | `REQUIREMENTS.md` (also accepts `PRD.md`, `SPEC.md`, `README.md`) | `requirements` | Upstream (human). Read by `breakdown`; only its `type` key is stamped, never its body. | The upstream source of truth describing *what* the mission must accomplish — functional/non-functional requirements, user stories, acceptance criteria, constraints. This is the input the mission decomposes. |
+| **Execution Plan** | `EXECUTION_PLAN.md` | `execution-plan` | Created by `breakdown`; edited by `refine` and `start`. | The mission plan derived from the requirements: work units, sortie definitions with machine-verifiable entry/exit criteria, open questions, and dependency layers. The operational source of truth for *how* the mission executes. |
+| **Mission Brief** | `<OPERATION_NAME>_<NN>_BRIEF.md` | `mission-brief` | Created by `brief` (one per iteration). | The post-mission review that harvests hard discoveries and process lessons, assesses sortie accuracy, and renders the explicit `ROLLBACK \| KEEP \| PARTIAL_SALVAGE` verdict. The retrospective source of truth for *what was learned*. |
+
+**OKF frontmatter rule** — applies to every command in this skill:
+
+1. Whenever you **create** one of these documents, its YAML frontmatter MUST include the matching `type:` value from the table above.
+2. Whenever you **edit** one of these documents (adding mission fields like `feature_name`, `starting_point_commit`, `state:`, etc.), the existing `type:` key MUST be preserved — never drop or overwrite it.
+3. For the **Requirements** document specifically: Mission Supervisor never rewrites the body. If the requirements doc lacks a `type:` key, `breakdown` adds `type: requirements` to its frontmatter (creating a frontmatter block if none exists) and changes nothing else.
 
 ---
 

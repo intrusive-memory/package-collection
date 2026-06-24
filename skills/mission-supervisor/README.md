@@ -1,3 +1,7 @@
+---
+type: docs
+---
+
 # Mission Supervisor
 
 Orchestrate multi-agent sortie execution with automatic verification, retry logic, and state management.

@@ -1,3 +1,7 @@
+---
+type: docs
+---
+
 # Breakdown Command — breakdown
 
 > **Terminology reminder**: A *mission* is the definable scope of work. A *sortie* is an atomic agent task within that mission.
@@ -11,6 +15,8 @@ The `breakdown` command reads a requirements document and generates `EXECUTION_P
 ## 1. Read the Requirements Document
 
 Read the file resolved by the argument parser (see skill.md § Locate Requirements Document). Accept any markdown format — PRDs, specs, READMEs, design docs, bullet lists, prose, or mixed formats.
+
+**Stamp the OKF type** (see skill.md § Mission Documents & OKF Types): if the requirements document's YAML frontmatter lacks a top-level `type:` key, add `type: requirements` to it — creating a `---` frontmatter block at the top of the file if none exists. Do **not** modify any other part of the requirements document; its body is the human's source of truth.
 
 ## 2. Heuristic Requirement Detection
 
@@ -116,6 +122,16 @@ If no blockers exist, write the Open Questions section with a single line: `_No 
 ## 7. Generate EXECUTION_PLAN.md
 
 Write `$PROJECT_ROOT/EXECUTION_PLAN.md` in a format compatible with the existing parser (see `commands/execution.md` § Parse the Execution Plan). The generated plan MUST include:
+
+### Frontmatter (OKF type)
+
+The file MUST begin with a YAML frontmatter block declaring the OKF `type`. Execution commands (`start`) later add `feature_name`, `starting_point_commit`, `mission_branch`, and `iteration` to this same block — those additions must preserve `type: execution-plan` (see skill.md § Mission Documents & OKF Types).
+
+```yaml
+---
+type: execution-plan
+---
+```
 
 ### Mandatory Terminology Section
 

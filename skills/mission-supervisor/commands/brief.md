@@ -1,3 +1,7 @@
+---
+type: docs
+---
+
 # Mission Brief — Post-Mission Review
 
 > **Terminology reminder**: A *mission* is the definable scope of work. A *sortie* is an atomic agent task within that mission. A *brief* is the post-mission review that harvests lessons before the next iteration.
@@ -69,7 +73,13 @@ Example filenames:
 
 ### Header
 
+The brief file MUST begin with YAML frontmatter declaring its OKF `type` (see skill.md § Mission Documents & OKF Types), followed by the markdown header:
+
 ```markdown
+---
+type: mission-brief
+---
+
 # Iteration <NN> Brief — <Operation Name>
 
 **Mission:** <one sentence from EXECUTION_PLAN.md summary>
@@ -323,9 +333,10 @@ When the `start` command initializes a mission, it must:
 2. Create a mission branch if not already on one.
 3. Store both in EXECUTION_PLAN.md frontmatter and SUPERVISOR_STATE.md.
 
-**Frontmatter additions:**
+**Frontmatter additions** (preserve the existing `type: execution-plan` key from `breakdown`):
 ```yaml
 ---
+type: execution-plan
 feature_name: OPERATION STEAMROLLER ORIGAMI
 starting_point_commit: abc1234
 mission_branch: mission/steamroller-origami/01

@@ -1,3 +1,7 @@
+---
+type: skill
+---
+
 # Name Feature Sub-Skill
 
 Part of the Mission Supervisor skill. Generates humorous military operation names for execution plans.
@@ -136,12 +140,13 @@ If generated name fails validation, retry once with stronger guidance.
 Read current `EXECUTION_PLAN.md` content.
 
 Check if frontmatter already exists:
-- If yes: update `feature_name` field
-- If no: insert frontmatter at top
+- If yes: update the `feature_name` field and **preserve the OKF `type: execution-plan` key** (see skill.md § Mission Documents & OKF Types) — never drop it. If `type:` is somehow absent, add `type: execution-plan`.
+- If no: insert frontmatter at top, including the OKF type.
 
 **Frontmatter format**:
 ```yaml
 ---
+type: execution-plan
 feature_name: OPERATION [GENERATED NAME]
 ---
 ```

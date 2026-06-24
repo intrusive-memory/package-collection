@@ -1,3 +1,7 @@
+---
+type: docs
+---
+
 # Test Cleanup — Prune Non-CI-Safe Tests Before Brief
 
 > **Terminology reminder**: A *mission* is the definable scope of work. A *sortie* is an atomic agent task within that mission. **Test cleanup** is an automated post-mission pass that removes tests added during the mission which cannot reliably run in CI.

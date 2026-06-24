@@ -1,3 +1,7 @@
+---
+type: docs
+---
+
 # Execution Engine — start / resume
 
 > **Terminology reminder**: A *mission* is the definable scope of work. A *sortie* is an atomic agent task within that mission.
@@ -115,7 +119,7 @@ Progress files and git state are ground truth. If SUPERVISOR_STATE.md disagrees 
   2. **Detect Iteration Number**: Glob for `*_BRIEF.md` files in `$PROJECT_ROOT`. If found, extract the highest iteration number `NN` and set current iteration to `NN + 1`. Otherwise, iteration is `1`.
   3. **THE RITUAL**: Check for `feature_name` frontmatter in EXECUTION_PLAN.md. If missing, call `name-feature` to generate operation name and display ceremonial announcement.
   4. **Create Mission Branch**: Derive slug from operation name (lowercase, hyphens, drop "operation-" prefix). Create and switch to branch: `git checkout -b mission/<slug>/<NN>`. If the branch already exists (resuming from a previous partial start), switch to it without creating.
-  5. **Update Frontmatter**: Add/update EXECUTION_PLAN.md frontmatter with `starting_point_commit`, `mission_branch`, and `iteration` fields.
+  5. **Update Frontmatter**: Add/update EXECUTION_PLAN.md frontmatter with `starting_point_commit`, `mission_branch`, and `iteration` fields. **Preserve the OKF `type: execution-plan` key** already present from `breakdown` (see skill.md § Mission Documents & OKF Types) — these additions must not drop it. If for any reason `type:` is absent, add `type: execution-plan`.
   6. **Initialize State**: Create SUPERVISOR_STATE.md with Mission Metadata section including starting point commit, mission branch, and iteration number.
   7. **Pre-Build Dependency Purge** (Swift/Xcode projects only): Run [/dependency-purge](../../dependency-purge/skill.md) once, without `--rebuild`, before any sortie is dispatched. This guarantees every build-gate verification in this mission (see §3e, `code` task type) runs against a freshly resolved dep tree with `intrusive-memory/*` floors bumped to latest releases. See *Pre-Build Dependency Purge* below for details, scoping rules, and the resume exception.
   8. **Dispatch**: Dispatch Sortie 1 for each work unit that has no unsatisfied dependencies.

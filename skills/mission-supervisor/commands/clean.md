@@ -1,3 +1,7 @@
+---
+type: docs
+---
+
 # clean — Delegated to /organize-agent-docs
 
 > **This command is a thin stub.** All cleanup logic now lives in the [organize-agent-docs](../../organize-agent-docs/) skill, which is the single owner of repo-level markdown organization. `clean` is preserved here as a compatibility entry point so existing flows (`brief` → `clean`) keep working.
@@ -43,6 +47,7 @@ Resolution is unchanged: derive `$PROJECT_ROOT` from the location of `EXECUTION_
    - If every work unit in `SUPERVISOR_STATE.md` is `COMPLETED` → for every root-level MISSION file with `state: current` or no state, set `state: completed`.
    - Otherwise → set `state: incomplete`.
    - If `SUPERVISOR_STATE.md` does not exist → set `state: incomplete`.
+   - **Preserve the OKF `type:` key** on every file you touch (`type: execution-plan` on `EXECUTION_PLAN.md`, `type: mission-brief` on `*_BRIEF.md`). Setting `state:` must add/update only that key — never drop `type:` (see skill.md § Mission Documents & OKF Types).
 4. Invoke `/organize-agent-docs organize $PROJECT_ROOT`. That skill performs the moves, link updates, and date stamping based on the `state:` values you just set.
 
 ---

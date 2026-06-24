@@ -1,3 +1,7 @@
+---
+type: docs
+---
+
 # Completion Log Management — COMPLETE_*.md
 
 > **Terminology reminder**: A *mission* is the definable scope of work. A *sortie* is an atomic agent task within that mission.

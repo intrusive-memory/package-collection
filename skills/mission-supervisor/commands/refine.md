@@ -1,6 +1,12 @@
+---
+type: docs
+---
+
 # Refine Command — refine / refine-blockers / refine-atomicity / refine-priority / refine-parallelism / refine-questions
 
 > **Terminology reminder**: A *mission* is the definable scope of work. A *sortie* is an atomic agent task within that mission.
+
+> **OKF type reminder**: Every "Rewrite plan" step below edits `EXECUTION_PLAN.md` in place. Preserve its `type: execution-plan` frontmatter key (and any `feature_name`/`starting_point_commit`/etc. already present) — rewriting sortie content must never drop the frontmatter. See skill.md § Mission Documents & OKF Types.
 
 The `refine` command performs 5 refinement passes over an existing EXECUTION_PLAN.md to ensure it's ready for execution. Each pass can be run independently as a subcommand, or all passes run sequentially via the main `refine` command.
 

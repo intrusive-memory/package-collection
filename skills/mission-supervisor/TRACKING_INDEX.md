@@ -1,3 +1,7 @@
+---
+type: docs
+---
+
 # Tracking Index System
 
 ## Overview

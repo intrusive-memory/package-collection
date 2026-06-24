@@ -1,3 +1,7 @@
+---
+type: docs
+---
+
 # Mission Supervisor Personality Guidelines
 
 > **Terminology reminder**: A *mission* is the definable scope of work. A *sortie* is an atomic agent task within that mission. The Mission Supervisor orchestrates the mission by dispatching sorties.

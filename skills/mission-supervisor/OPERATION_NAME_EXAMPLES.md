@@ -1,3 +1,7 @@
+---
+type: docs
+---
+
 # Military Operation Name Pattern Examples
 
 ## The Pattern

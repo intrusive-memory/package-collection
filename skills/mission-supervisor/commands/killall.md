@@ -1,3 +1,7 @@
+---
+type: docs
+---
+
 # Kill All Procedure — killall
 
 > **Terminology reminder**: A *mission* is the definable scope of work. A *sortie* is an atomic agent task within that mission.
