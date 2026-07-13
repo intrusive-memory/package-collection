@@ -1,4 +1,5 @@
 ---
+type: skill
 name: ship-swift-library
 description: Ship and release Swift library versions by bumping the version on development, merging the PR once CI passes, then tagging and creating a GitHub release from main. Accepts an optional version-bump argument (`patch`/`minor`/`major`) or explicit semver (`1.2.3`) to run unattended.
 allowed-tools: Bash, Read, Grep, Glob, Edit, Skill
@@ -79,7 +80,7 @@ For the full repo naming-convention table — which repos this skill applies to 
 
 ## Process Overview
 
-14 steps in order. Steps marked **[ref]** load a reference file before executing.
+15 steps in order. Steps marked **[ref]** load a reference file before executing.
 
 ### 1. Check for Open Pull Request
 
@@ -400,9 +401,56 @@ Confirm it's draft:
 gh pr list --base main --head development --json number,isDraft,title
 ```
 
-### 14. Summary Report
+### 14. Verify the Released Version Is Installed via Homebrew
 
-Provide a final summary covering: SPM audit applied, version bumped, lint, docs organized, README updated, codemap refreshed and committed, CI workflows audited, CI passed, PR title/description updated, PR merged, tag created, GitHub release published, CI release workflow triggered, Homebrew formula updated, local branches updated, development synced and stamped `-dev`, draft next-cycle PR opened.
+Once Step 10 has confirmed the homebrew-tap formula was bumped to `vX.Y.Z`, pull it onto this machine and confirm the installed CLI binary reports the version you just shipped. This is the end-to-end proof that a user running `brew upgrade` today gets this release.
+
+**Applicability:** this step only makes sense if the package ships an **executable product** installed by the formula (a CLI binary). A pure library with no executable has nothing to run — skip the binary check, note "N/A (no executable product)" in the summary, and move on.
+
+**Resolve the binary name per library — do NOT hardcode it.** Different libraries ship differently-named binaries, so derive the executable name from *this* package's manifest. Prefer the declared executable product; fall back to what the formula installs:
+
+```bash
+# Primary: read the executable product name straight from Package.swift.
+BINARY="$(swift package dump-package 2>/dev/null \
+  | jq -r '.products[] | select(.type | has("executable")) | .name' \
+  | head -1)"
+
+# Fallback: whatever the tap formula installs via `bin.install`.
+if [ -z "$BINARY" ] || [ "$BINARY" = "null" ]; then
+  BINARY="$(git -C <path-to-homebrew-tap> grep -hoE 'bin\.install .*"([^"]+)"' -- '*.rb' 2>/dev/null \
+    | grep -oE '"[^"]+"' | tr -d '"' | tail -1)"
+fi
+
+# No executable anywhere → pure library, nothing to run.
+if [ -z "$BINARY" ] || [ "$BINARY" = "null" ]; then
+  echo "No executable product — pure library. Skipping brew binary verification (mark N/A in summary)."
+else
+  echo "Resolved binary for this library: ${BINARY}"
+fi
+```
+
+If a binary was resolved, update Homebrew and query it:
+
+```bash
+brew update && brew upgrade
+
+INSTALLED_VERSION="$("$BINARY" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+echo "Installed: ${INSTALLED_VERSION:-<none>} — expected: ${NEW_VERSION}"
+
+if [ "$INSTALLED_VERSION" = "$NEW_VERSION" ]; then
+  echo "✅ Homebrew is serving v${NEW_VERSION} — release verified end-to-end."
+else
+  echo "⚠️ Installed version '${INSTALLED_VERSION:-<none>}' does not match released 'v${NEW_VERSION}'."
+  echo "   Homebrew bottle/tap propagation can lag a few minutes behind the formula-update commit."
+  echo "   Re-run 'brew update && brew upgrade' shortly, or inspect the tap if it persists."
+fi
+```
+
+A mismatch is **not** fatal — the release itself already succeeded at Step 9, and bottle builds / tap propagation legitimately lag a few minutes behind the `formula-update` commit that Step 10 confirmed. In unattended mode, surface a mismatch as a warning in the summary rather than aborting.
+
+### 15. Summary Report
+
+Provide a final summary covering: SPM audit applied, version bumped, lint, docs organized, README updated, codemap refreshed and committed, CI workflows audited, CI passed, PR title/description updated, PR merged, tag created, GitHub release published, CI release workflow triggered, Homebrew formula updated, installed version verified via `brew upgrade` (or N/A for pure libraries), local branches updated, development synced and stamped `-dev`, draft next-cycle PR opened.
 
 Include the release URL and the next-cycle PR URL.
 
@@ -426,6 +474,7 @@ Include the release URL and the next-cycle PR URL.
 16. **Create next cycle PR in DRAFT mode** — `gh pr create --draft`.
 17. **NEVER manually build or upload release tarballs** — `release.yml` owns binary production. Never run `make dist`, never pass local file paths to `gh release create`.
 18. **NEVER manually edit the Homebrew formula** — CI dispatches `formula-update` to homebrew-tap. If it doesn't, investigate the workflow.
+19. **Verify the installed version after the formula updates** — Once Step 10 confirms the tap bump, run `brew update && brew upgrade` and `<binary> --version` to prove `brew` now serves the released version. Skip for pure libraries with no executable product. A version mismatch is a warning (propagation lag), not an abort — the release already succeeded at Step 9.
 
 ## Correct Flow
 
@@ -434,6 +483,7 @@ development: [features on X.Y.Z-dev] -> [strip -dev, bump to A.B.C] -> [make lin
 main:        -----------------------------------------------------------------------------> [squash commit] -> [tag vA.B.C] -> [release (metadata only)]
 CI:          -------------------------------------------------------------------------------------^-- [build tarball] -> [upload to release] -> [dispatch formula-update to homebrew-tap]
 homebrew-tap:--------------------------------------------------------------------------------^-- (auto-updated by formula-update event)
+local brew:  ------------------------------------------------------------------------------------------^-- [brew update && brew upgrade] -> [<binary> --version == vA.B.C]
 development: [rebase onto main] -> [force-push] -> [stamp A.B.C-dev, commit, push] -> [draft PR to main]
 ```
 
