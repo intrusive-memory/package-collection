@@ -18,6 +18,7 @@ Targeted changes to `skills/mission-supervisor/` from comparing it to the hub-an
 
 ## Follow-ups (not in this change)
 
-- [ ] **Spike: run the execution loop as a Workflow script.** The event loop is a deterministic state machine that an LLM currently simulates by hand. A Workflow script would run it for real and keep the hub's context clear. Trade-offs: the conversational "sergeant" leaves the loop, and each run needs explicit opt-in. Evaluate before investing further in the prose engine.
+- [x] **Spike: run the execution loop as a Workflow script.** Done: prototype at `skills/mission-supervisor/workflows/execute-mission.js`, write-up in [MISSION_SUPERVISOR_WORKFLOW_SPIKE.md](MISSION_SUPERVISOR_WORKFLOW_SPIKE.md). Verdict: adopt as a hybrid (skill owns startup and human-in-the-loop steps, workflow owns the dispatch/verify/retry loop).
+- [ ] **Wire the workflow engine into `start`/`resume`** per the spike recommendation: pin the parsed plan to `MISSION_PLAN.json`, rebuild `completedSorties` from state and `[unit sortie id]` commit prefixes, and exercise the untested paths (BACKOFF→FATAL, verifier FAIL, parallel sibling units, a real Swift build) before switching the default.
 - [ ] **Simplify model selection.** The 1x/10x/30x cost ratios look stale, and the 5-dimension scoring rubric is arithmetic an LLM does inconsistently. Candidate rule: sonnet by default, opus for foundation work or retry ≥ 2, haiku for `command`/`background`.
 - [ ] **Sync the installed copy after merge.** `~/.claude/skills/mission-supervisor/` is a copied directory, not a symlink, so it won't pick up these changes automatically.
