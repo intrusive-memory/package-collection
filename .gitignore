@@ -1,3 +1,7 @@
+# Local sibling checkouts of the package libraries (each is its own git repo).
+# Package libraries live here going forward; they are not tracked by this repo.
+pkg/
+
 # macOS
 .DS_Store
 .AppleDouble
