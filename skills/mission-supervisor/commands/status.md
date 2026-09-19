@@ -16,18 +16,18 @@ After each iteration of the event loop, output a status update to the user using
 
 ```
 ## Supervisor Status — <timestamp>
-| Work Unit | Deps | State | Sortie | Sortie State | Type | Model | Attempt | Running Since |
-|-----------|------|-------|--------|-------------|------|-------|---------|---------------|
-| <name> | <deps or —> | RUNNING | 3/7 | DISPATCHED | code | sonnet | 1/3 | <Dispatched At> |
-| <name> | <deps or —> | RUNNING | 2/4 | VERIFYING | code | sonnet | 1/3 | <Dispatched At> |
-| <name> | <deps or —> | NOT_STARTED | 0/5 | — | — | — | — | — |
+| Work Unit | Deps | State | Sortie | Sortie State | Type | Model | Attempt | Running Since | Watchdog |
+|-----------|------|-------|--------|-------------|------|-------|---------|---------------|----------|
+| <name> | <deps or —> | RUNNING | 3/7 | DISPATCHED | code | sonnet | 1/3 | <Dispatched At> | 0/3 |
+| <name> | <deps or —> | RUNNING | 2/4 | VERIFYING | code | sonnet | 1/3 | <Dispatched At> | 1/3 |
+| <name> | <deps or —> | NOT_STARTED | 0/5 | — | — | — | — | — | — |
 
 Active agents: N (implementers: N, verifiers: N)
 Blocked work units: 0
 Next event: waiting for completion notifications
 ```
 
-`Running Since` lets the user spot an agent that has been working unusually long. The supervisor does not decide an agent is stuck; the user does, and uses `stop` or `killall`.
+`Watchdog` is the agent's consecutive no-progress strikes. At 3/3 the watchdog kills it (see `commands/execution.md` § 7 *Stuck Agent Watchdog*). `Running Since` alone never triggers a kill; a long-running agent that keeps making progress stays at 0/3. Also show `Next watchdog check: <arm time + 20 min>`.
 
 When invoked as the standalone `status` command, read SUPERVISOR_STATE.md and report. Do not poll agents to refresh it.
 

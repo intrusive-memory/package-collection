@@ -18,7 +18,7 @@ Read SUPERVISOR_STATE.md and collect every entry from the `## Active Agents` tab
 
 ## Step 2: Terminate Every Agent
 
-For each active agent — implementers **and** verifiers — use the **TaskStop** tool with the task ID to terminate it immediately (**KillShell** on older harnesses). Also stop any background deferred-wait shell. Do this for ALL agents — do not skip any.
+For each active agent — implementers **and** verifiers — use the **TaskStop** tool with the task ID to terminate it immediately (**KillShell** on older harnesses). Also stop any background deferred-wait shell and the watchdog timer. Do this for ALL agents — do not skip any.
 
 ```
 For each agent in Active Agents table:

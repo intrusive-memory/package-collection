@@ -623,7 +623,7 @@ All recovery follows the state machine — no ad-hoc fixes:
 | Plan defect | RUNNING → REPLAN | Check evidence, BLOCK work unit, surface proposed plan change to user (no attempt increment) |
 | Max retries hit | BACKOFF → FATAL | Work unit → BLOCKED, report to user |
 | Context exhaustion | RUNNING → PARTIAL or BACKOFF | Verify progress, dispatch continuation or retry |
-| Agent runs long | (no automatic action) | `status` shows how long it's been running; user decides on `stop` / `killall` |
+| Agent stuck | 3 consecutive no-progress watchdog checks (20 min apart) → BACKOFF | TaskStop the agent, increment attempt, retry fresh (verifier: counts as a FAIL round) |
 | Deferred wait | (background wait command exits) → COMPLETED | Do not increment attempt (waiting ≠ failure) |
 
 ---
@@ -683,12 +683,14 @@ Configured in `SUPERVISOR_STATE.md`:
 ## Configuration
 - max_retries: 3
 - max_verifier_rounds: 2
+- watchdog_interval_minutes: 20
+- watchdog_max_strikes: 3
 ```
 
 ### Waiting for Agents
 
 - No polling. The supervisor ends its turn after dispatching and is re-invoked by completion notifications.
-- No automatic "unresponsive" kill. `status` shows how long each agent has been running; the user decides.
+- **Stuck-agent watchdog** for unattended runs. A background 20-minute timer fires a check on every active agent. An agent whose output and repo state haven't changed gets a strike, and any progress resets it to zero. The third consecutive strike kills the agent and retries the sortie, so a hung agent is gone about an hour after it stopped working. A long build that's still producing output is never killed.
 - Deferred waits run as one background shell command (up to 20 checks) whose exit is the event.
 
 ---

@@ -231,9 +231,13 @@ The loop is **driven by completion notifications, not polling.** Background agen
 Repeat until all work units are `COMPLETED` or all active work units are `BLOCKED`/`STOPPED`:
 
 ```
-1. WAIT: End the turn. The next event arrives as a completion notification for
-   one agent (a sortie agent or a verifier agent). Never poll to find out.
-2. IDENTIFY: Match the notification's agent ID to a row in the Active Agents table.
+1. WAIT: End the turn. The next event is one of:
+   - a completion notification for one agent (a sortie agent or a verifier agent), or
+   - the watchdog timer firing (WATCHDOG_TICK, every 20 minutes — §7 *Stuck Agent Watchdog*).
+   Never poll between events to find out.
+2. IDENTIFY: If the event is WATCHDOG_TICK, run the watchdog check (§7), then go to step 4
+   (a kill puts a sortie in BACKOFF, which step 4 re-dispatches). Otherwise match the
+   notification's agent ID to a row in the Active Agents table.
 3. PROCESS the completed agent — exactly one of these outcomes:
    a. SUCCESS: Mechanical verification (§3a–3e) confirms sortie done.
       → If the sortie has [judgment] criteria: set sortie state to VERIFYING and
@@ -283,7 +287,7 @@ Repeat until all work units are `COMPLETED` or all active work units are `BLOCKE
 - **Process one event at a time.** Don't batch decisions. Complete one agent's result processing before moving to the next. If several notifications arrive together, process them one after another.
 - **State transitions drive dispatch.** The supervisor never "decides" to dispatch — it reacts to state changes. A sortie enters PENDING → it gets dispatched. A work unit enters RUNNING → its first sortie enters PENDING.
 - **Write state before dispatching.** Always update SUPERVISOR_STATE.md with the result of processing BEFORE dispatching the next agent. This ensures crash-safety.
-- **Silence is not a signal.** An agent that has not notified is still working. The supervisor does not guess otherwise; stuck agents are the user's call via `status`, `stop`, or `killall`.
+- **Silence alone is not a signal; stalled progress is.** An agent that has not notified is assumed to be working — builds and test suites legitimately run long. The watchdog (§7) kills an agent only after three consecutive 20-minute checks show *no progress at all*, not merely because it is still running.
 
 ---
 
@@ -562,16 +566,21 @@ When a background agent is dispatched, the tool returns its agent ID (and, on so
 
 ```markdown
 ## Active Agents
-| Work Unit | Sortie | Role | Sortie State | Attempt | Verifier Round | Model | Complexity Score | Agent ID / Name | Sortie Start Commit | Output File | Dispatched At |
-|-----------|--------|------|-------------|---------|----------------|-------|-----------------|-----------------|---------------------|-------------|---------------|
-| <name> | <N> | implementer | DISPATCHED | 1/3 | 0/2 | sonnet | 8 | <id> / <work_unit>-s<N> | <sha> | <path or —> | <timestamp> |
-| <name> | <N> | verifier | VERIFYING | 1/3 | 1/2 | sonnet | — | <id> | <sha> | <path or —> | <timestamp> |
+| Work Unit | Sortie | Role | Sortie State | Attempt | Verifier Round | Model | Complexity Score | Agent ID / Name | Sortie Start Commit | Output File | Dispatched At | Watchdog Strikes | Last Snapshot |
+|-----------|--------|------|-------------|---------|----------------|-------|-----------------|-----------------|---------------------|-------------|---------------|------------------|---------------|
+| <name> | <N> | implementer | DISPATCHED | 1/3 | 0/2 | sonnet | 8 | <id> / <work_unit>-s<N> | <sha> | <path or —> | <timestamp> | 0/3 | <output size, HEAD, status hash> |
+| <name> | <N> | verifier | VERIFYING | 1/3 | 1/2 | sonnet | — | <id> | <sha> | <path or —> | <timestamp> | 0/3 | <…> |
+
+## Watchdog
+- Timer task ID: <id or "disarmed">
+- Armed at: <timestamp>
 ```
 
 - **Role**: `implementer` (the sortie agent) or `verifier` (§3f).
 - **Sortie State**: Must be one of `DISPATCHED`, `RUNNING`, `VERIFYING`, `BACKOFF`, `PARTIAL`. Use the formal sortie states defined in the State Machine section of skill.md.
 - **Agent ID / Name**: Needed to match completion notifications to rows and to continue the agent with SendMessage (§4g).
 - **Sortie Start Commit**: `git rev-parse HEAD` at the sortie's *first* dispatch. Fixed for the life of the sortie; the verifier diffs against it.
+- **Watchdog Strikes / Last Snapshot**: consecutive no-progress checks and the progress snapshot from the last check (§7 *Stuck Agent Watchdog*).
 - **Attempt**: `<current>/<max_retries>`. Increments each time a sortie is re-dispatched due to failure.
 - **Model**: The Claude model used for this sortie (`haiku`, `sonnet`, or `opus`).
 - **Complexity Score**: The computed score from model selection for auditability.
@@ -582,7 +591,9 @@ When a completion notification arrives, run verification (Section 3) to confirm 
 
 - After dispatching, write SUPERVISOR_STATE.md, output a status update, and **end the turn**. The harness re-invokes the supervisor when an agent completes.
 - Do not call `TaskOutput` to check whether an agent is done. Use it only to fetch a finished agent's result if the notification did not carry it.
-- The one legitimate wait is a `deferred` sortie's external condition, which the harness cannot see. That wait runs as a single background shell command, not a supervisor loop (§7 *Deferred Sortie Handling*).
+- Two legitimate timed waits exist, and both run as single background shell commands whose exit is the event — never as a supervisor loop:
+  - a `deferred` sortie's external condition, which the harness cannot see (§7 *Deferred Sortie Handling*);
+  - the stuck-agent watchdog timer, every 20 minutes (§7 *Stuck Agent Watchdog*).
 - On harnesses that do not deliver completion notifications (older Claude Code), fall back to a blocking `TaskOutput(block: true)` on one agent at a time. Still never spin on `block: false`.
 
 ### 4g. Continuing a PARTIAL Sortie in the Same Agent
@@ -752,10 +763,38 @@ When a sortie agent files a REPLAN report (§4d Part 4):
 
 On `resume`, a REPLAN sortie is reset to PENDING and re-dispatched fresh against the amended plan.
 
-### Background Agent Runs Long
-There is no automatic "unresponsive" detection. Without polling, the supervisor has no clock to measure silence against, and an agent that has not notified is assumed to be working (builds and test suites legitimately run for a long time).
-- `status` reports each active agent's `Dispatched At`, so the user can see anything that has been running unusually long.
-- If the user judges an agent stuck, `stop` or `killall` terminates it (TaskStop; KillShell on older harnesses). Its sortie goes to BACKOFF with the attempt counter incremented.
+### Stuck Agent Watchdog
+Missions run unattended (overnight), so a hung agent must not wait for a human. The watchdog checks every active agent every **20 minutes** and kills an agent on its **third consecutive check with no progress**. Worst case, a hung agent is killed about 60 minutes after it stopped doing anything.
+
+**The timer.** Completion notifications give the supervisor no clock, so the watchdog makes one: a single background shell command whose exit is the event.
+```bash
+# Bash tool, run_in_background: true
+sleep 1200; echo WATCHDOG_TICK
+```
+- **Arm** it when the first agent is dispatched and no timer is armed. Record the timer's task ID and arm time in SUPERVISOR_STATE.md (`## Watchdog`).
+- **Re-arm** it after each tick if any agent is still active. Never run more than one timer.
+- **Disarm** it (TaskStop the timer) when no agents are active, and in `stop` Phase 3 and `killall`.
+- `deferred` wait shells are not agents and are not watched; they have their own 20-check budget.
+
+**The check** (on each WATCHDOG_TICK, for every row in Active Agents — implementers and verifiers):
+1. Take a progress snapshot:
+   - **Agent output**: size and mtime of the agent's `Output File`. If the harness gave no output file, one `TaskOutput(block: false)` call per agent per tick is allowed; compare the output length.
+   - **Repo activity** in the work unit's directory: `git rev-parse HEAD` and a hash of `git status --porcelain -- <work_unit_dir>`.
+2. Compare with the snapshot stored from the previous tick.
+   - **Anything changed** → progress. Set the agent's `Watchdog Strikes` to 0.
+   - **Nothing changed** → increment `Watchdog Strikes`.
+   - First check after dispatch has no previous snapshot → store it, strikes stay 0.
+3. Store the new snapshot in the Active Agents row.
+4. **Strikes reach 3 → kill.**
+   - Terminate with **TaskStop** (KillShell on older harnesses).
+   - **Implementer**: sortie → BACKOFF, attempt counter **increments** (a stall is a failure). If attempts are exhausted → FATAL, work unit → BLOCKED. The retry prompt says: "The previous agent stalled with no progress for ~60 minutes and was terminated. Check `git status` for its uncommitted work before continuing." Do not commit or discard that work — the retry agent decides.
+   - **Verifier**: treat as a verifier FAIL with the finding "verifier stalled and was terminated" (§3f), so it uses up a verifier round, and escalate the next verifier to `opus`.
+   - Log `WATCHDOG KILL: <work_unit> Sortie N (<role>) — no progress for 3 checks` in the Decisions Log.
+5. Write SUPERVISOR_STATE.md, output a status update, re-arm the timer if agents remain.
+
+**Resume.** Timers and agents from a previous session are gone. `resume` arms a fresh timer if it dispatches anything, and resets every strike count to 0.
+
+**Tuning.** `watchdog_interval_minutes` (default 20) and `watchdog_max_strikes` (default 3) live in SUPERVISOR_STATE.md `## Configuration`. To make it a hard runtime cap instead of a no-progress detector, skip step 2's comparison and increment strikes every tick.
 
 ### Deferred Sortie Handling
 For sorties classified as `deferred` (waiting on external conditions like deployments or long processes), the harness cannot notify on the condition — so turn the wait into something it *can* notify on: one background shell command that exits when the condition is met or the check budget runs out.

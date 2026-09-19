@@ -131,6 +131,7 @@ REPLAN ──(user amends plan, then resume)──► PENDING
 - **FATAL escalation**: After attempt 3 fails, the sortie enters FATAL. The supervisor sets the work unit to BLOCKED, logs the failure, and reports to the user. No further automatic dispatch for this work unit.
 - **Recovery from FATAL**: Only via user command (`/mission-supervisor resume`). The supervisor resets the sortie to PENDING and the work unit to RUNNING, with the attempt counter preserved in the Decisions Log for visibility.
 - **REPLAN is not a failure**: A plan defect is not the agent's fault, and burning three retries on a plan that cannot succeed wastes the most expensive models on the wrong problem. REPLAN skips the retry ladder entirely and goes straight to the user with the agent's evidence and its proposed plan change. The supervisor **never** applies the change itself — the plan stays immutable during execution. Recovery: the user edits EXECUTION_PLAN.md (or runs `refine`), then `resume` resets the sortie to PENDING with its attempt counter unchanged.
+- **Stuck-agent watchdog**: every 20 minutes (`watchdog_interval_minutes`) the supervisor checks each active agent for progress (output growth or repo changes). The third consecutive no-progress check (`watchdog_max_strikes: 3`) kills the agent; its sortie goes to BACKOFF and the attempt counter increments. See `commands/execution.md` § 7 *Stuck Agent Watchdog*.
 - **Verifier rounds**: `max_verifier_rounds` is 2 per sortie (configurable in SUPERVISOR_STATE.md). A verifier FAIL sends the findings back as a continuation (PARTIAL, no attempt increment). If the verifier fails the sortie again after the last round, the sortie goes to BACKOFF and the attempt counter increments — the implementer could not satisfy the criteria.
 
 ---
@@ -257,7 +258,7 @@ Store the resolved project root as `$PROJECT_ROOT` for use throughout this sessi
 - **Dispatch vague exit criteria** (no "works correctly", "is complete", "properly handles" — be specific and machine-verifiable)
 - Use state names not defined in the State Machine section (no ad-hoc states like "paused", "waiting", "in_progress")
 - **Apply a REPLAN proposal yourself** — surface it to the user; the plan changes only by human edit or `refine`
-- **Poll background agents in a loop** — wait for completion notifications (see `commands/execution.md` § 2); polling is reserved for `deferred` sorties' external conditions
+- **Poll background agents in a loop** — wait for completion notifications (see `commands/execution.md` § 2). The only timed checks are the 20-minute stuck-agent watchdog and `deferred` sorties' external conditions, and both run as background timers whose exit is the event
 - Escalate deferred sorties to FATAL just because the external condition isn't met yet
 - **Load agents with unnecessary context** (only include files directly relevant to the sortie's goal)
 - **Specify concrete version numbers in execution plans or supervisor state** — Always use relative version language: "our next patch release version", "our next minor release version", "our next major release version". Version numbers are determined at release time by finding the numerically highest semver tag (sorted by major.minor.patch, not by creation date) and incrementing appropriately based on release type.

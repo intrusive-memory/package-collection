@@ -25,7 +25,7 @@ The `stop` command follows a three-phase escalation modeled after supervisord's 
 2. As each agent completes, process its result normally (run verification, set sortie state). A verifier that completes during drain is processed too; do not dispatch the continuation it may call for.
 3. After processing, set the work unit state from `STOPPING` to `STOPPED`.
 4. After each completion, output a brief status update.
-5. **Escalation**: Tell the user how many agents are still draining. If they don't want to wait, they run `stop` again (or `killall`), which escalates to Phase 3. There is no poll-count timeout — without polling, the user decides when waiting has gone on long enough.
+5. **Escalation**: Tell the user how many agents are still draining. The stuck-agent watchdog keeps running during drain, so a hung agent is killed after three no-progress checks even if nobody is watching. Draining agents killed by the watchdog go to BACKOFF as usual (not re-dispatched while STOPPING). If the user doesn't want to wait, they run `stop` again (or `killall`), which escalates to Phase 3.
 
 ## Phase 3: Force-terminate remaining agents
 
@@ -34,6 +34,7 @@ The `stop` command follows a three-phase escalation modeled after supervisord's 
    - Set their sortie state to `BACKOFF` (preserving the attempt counter for resume).
    - Set their work unit state to `KILLED`.
    - Log in Decisions Log: `Sortie N force-terminated during graceful shutdown`.
+   - Disarm the watchdog timer (TaskStop its task ID).
 2. Check for uncommitted work (same as Kill All Step 4 in `commands/killall.md`).
 3. Update SUPERVISOR_STATE.md.
 4. Output final status report (same format as Kill All Step 6 in `commands/killall.md`).
