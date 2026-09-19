@@ -18,14 +18,14 @@ Read SUPERVISOR_STATE.md and collect every entry from the `## Active Agents` tab
 
 ## Step 2: Terminate Every Agent
 
-For each active agent, use the **KillShell** tool with the task ID to terminate it immediately. Do this for ALL agents — do not skip any.
+For each active agent — implementers **and** verifiers — use the **TaskStop** tool with the task ID to terminate it immediately (**KillShell** on older harnesses). Also stop any background deferred-wait shell. Do this for ALL agents — do not skip any.
 
 ```
 For each agent in Active Agents table:
-  → KillShell(shell_id: <task_id>)
+  → TaskStop(<task_id>)        # or KillShell(shell_id: <task_id>) on older harnesses
 ```
 
-If KillShell fails for a specific agent (already finished, invalid ID), log it and continue to the next one. Do not stop the killall process because one kill failed.
+If the stop call fails for a specific agent (already finished, invalid ID), log it and continue to the next one. Do not stop the killall process because one kill failed.
 
 ## Step 3: Assess Work Unit State
 

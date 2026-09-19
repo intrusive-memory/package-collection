@@ -21,16 +21,16 @@ The `stop` command follows a three-phase escalation modeled after supervisord's 
 
 ## Phase 2: Wait for active agents
 
-1. Poll each active agent with `TaskOutput(block: false, timeout: 5000)`.
-2. As each agent completes, process its result normally (run verification, set sortie state).
+1. End the turn and wait for completion notifications. Do not poll with `TaskOutput`.
+2. As each agent completes, process its result normally (run verification, set sortie state). A verifier that completes during drain is processed too; do not dispatch the continuation it may call for.
 3. After processing, set the work unit state from `STOPPING` to `STOPPED`.
 4. After each completion, output a brief status update.
-5. **Timeout**: After 10 poll cycles with no agent completing, escalate to Phase 3.
+5. **Escalation**: Tell the user how many agents are still draining. If they don't want to wait, they run `stop` again (or `killall`), which escalates to Phase 3. There is no poll-count timeout — without polling, the user decides when waiting has gone on long enough.
 
 ## Phase 3: Force-terminate remaining agents
 
 1. For any agents still running after the timeout:
-   - Use `KillShell(shell_id: <task_id>)` to terminate them.
+   - Use `TaskStop` with the agent's task ID to terminate them (`KillShell(shell_id: <task_id>)` on older harnesses).
    - Set their sortie state to `BACKOFF` (preserving the attempt counter for resume).
    - Set their work unit state to `KILLED`.
    - Log in Decisions Log: `Sortie N force-terminated during graceful shutdown`.

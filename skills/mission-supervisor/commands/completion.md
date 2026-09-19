@@ -74,7 +74,7 @@ Last updated: <ISO 8601 timestamp>
 - **Started timestamp**: From Active Agents table `Dispatched At` column
 - **Completed timestamp**: Current time when verification confirms COMPLETED
 - **Duration**: `completed_time - started_time`
-- **Turns used**: From `TaskOutput` final result (look for turn count in output)
+- **Turns used**: From the agent's completion notification or final result (look for turn/usage count); "unknown" if the harness does not report it
 - **Git commits**: `git log --oneline --since="<started_time>" --until="<completed_time>" -- <work_unit_dir>` (first 7 chars of hash only)
 - **Exit criteria**: From EXECUTION_PLAN.md for this sortie, mark each as ✓ if verification confirmed it
 

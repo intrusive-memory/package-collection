@@ -1,10 +1,10 @@
 ---
 name: mission-supervisor
 type: skill
-description: Plan and execute sorties with sergeant precision. Give each agent ONE clear, measurable goal. Pre-execution commands (breakdown, refine + 5 subcommands) create and refine an EXECUTION_PLAN.md from requirements. Refine performs 5 passes: blocking open questions (hard stop for user decisions), atomicity/testability, prioritization, parallelism (up to 4 sub-agents, builds only by supervisor), and a final vague-criteria/lingering-questions pass. Execution commands (start, resume, status, stop, killall) orchestrate sortie agents with lean context and crystal-clear objectives. On `start` (Swift/Xcode projects only), the supervisor runs a pre-build clean — removes the project's DerivedData and runs its clean-build target — so every build-gate sortie starts from a known-clean artifact state; it never touches the dependency graph (no floor bumps, no Package.resolved deletion, no global SPM cache clear). `resume` skips this. THE RITUAL (name-feature) generates humorous military operation names. Post-mission flow runs automatically after the last sortie completes: (test-cleanup) prunes tests added during the mission that cannot run reliably in CI, then (brief) harvests lessons and renders an explicit ROLLBACK | KEEP | PARTIAL_SALVAGE verdict, then auto-triggers (clean) → /organize-agent-docs to archive every mission artifact in the project root into docs/<complete|incomplete>/<mission name>/.
+description: Plan and execute sorties with sergeant precision. Give each agent ONE clear, measurable goal. Pre-execution commands (breakdown, refine + 5 subcommands) create and refine an EXECUTION_PLAN.md from requirements. Refine performs 5 passes: blocking open questions (hard stop for user decisions), atomicity/testability, prioritization, parallelism (up to 4 sub-agents, builds only by supervisor), and a final vague-criteria/lingering-questions pass. Execution commands (start, resume, status, stop, killall) orchestrate sortie agents with lean context and crystal-clear objectives, react to agent completion notifications instead of polling, continue PARTIAL sorties in the same agent, route judgment-based exit criteria to an independent verifier agent, and halt a work unit on REPLAN when a sortie proves the plan itself is wrong. On `start` (Swift/Xcode projects only), the supervisor runs a pre-build clean — removes the project's DerivedData and runs its clean-build target — so every build-gate sortie starts from a known-clean artifact state; it never touches the dependency graph (no floor bumps, no Package.resolved deletion, no global SPM cache clear). `resume` skips this. THE RITUAL (name-feature) generates humorous military operation names. Post-mission flow runs automatically after the last sortie completes: (test-cleanup) prunes tests added during the mission that cannot run reliably in CI, then (brief) harvests lessons and renders an explicit ROLLBACK | KEEP | PARTIAL_SALVAGE verdict, then auto-triggers (clean) → /organize-agent-docs to archive every mission artifact in the project root into docs/<complete|incomplete>/<mission name>/.
 argument-hint: "[breakdown|name-feature|refine|refine-blockers|refine-atomicity|refine-priority|refine-parallelism|refine-questions|start|resume|status|stop|killall|test-cleanup|brief|clean] [path] [--max-turns=N]"
 disable-model-invocation: false
-allowed-tools: Read, Glob, Grep, Bash, Task, Write, Edit, TaskOutput, KillShell
+allowed-tools: Read, Glob, Grep, Bash, Agent, Task, SendMessage, Write, Edit, TaskOutput, TaskStop, KillShell
 ---
 
 # Mission Supervisor Agent
@@ -75,6 +75,7 @@ NOT_STARTED ──(start command)──► RUNNING
 RUNNING ──(all sorties complete)──► COMPLETED
 RUNNING ──(stop command)──► STOPPING
 RUNNING ──(sortie enters FATAL)──► BLOCKED
+RUNNING ──(sortie enters REPLAN)──► BLOCKED
 STOPPING ──(active agent finishes or timeout)──► STOPPED
 STOPPED ──(resume command)──► RUNNING
 BLOCKED ──(user intervenes / resume)──► RUNNING
@@ -88,7 +89,7 @@ KILLED ──(resume command)──► RUNNING
 | `COMPLETED` | All sorties finished and verified |
 | `STOPPING` | Stop requested; waiting for active agent to finish (no new dispatches) |
 | `STOPPED` | Gracefully stopped; can resume |
-| `BLOCKED` | A sortie hit FATAL after exhausting retries; needs human intervention |
+| `BLOCKED` | A sortie hit FATAL after exhausting retries, or raised REPLAN; needs human intervention. Record which in the Decisions Log. |
 | `KILLED` | Terminated via killall; may have uncommitted work |
 
 ### Sortie States
@@ -96,24 +97,32 @@ KILLED ──(resume command)──► RUNNING
 ```
 PENDING ──(dispatched)──► DISPATCHED
 DISPATCHED ──(agent starts work)──► RUNNING
-RUNNING ──(verification confirms success)──► COMPLETED
+RUNNING ──(verification confirms success, no judgment criteria)──► COMPLETED
+RUNNING ──(mechanical checks pass, judgment criteria remain)──► VERIFYING
 RUNNING ──(verification shows partial)──► PARTIAL
 RUNNING ──(agent fails/exits, retries remain)──► BACKOFF
-PARTIAL ──(continuation dispatched)──► DISPATCHED
+RUNNING ──(agent reports a plan defect)──► REPLAN
+VERIFYING ──(verifier PASS)──► COMPLETED
+VERIFYING ──(verifier FAIL, verifier rounds remain)──► PARTIAL
+VERIFYING ──(verifier FAIL, verifier rounds exhausted)──► BACKOFF
+PARTIAL ──(continuation dispatched or resumed)──► DISPATCHED
 BACKOFF ──(retry dispatched)──► DISPATCHED
 BACKOFF ──(max_retries exhausted)──► FATAL
 FATAL ──(user manually restarts)──► PENDING
+REPLAN ──(user amends plan, then resume)──► PENDING
 ```
 
 | State | Description |
 |-------|-------------|
 | `PENDING` | Not yet dispatched |
 | `DISPATCHED` | Agent launched as background task; not yet confirmed running |
-| `RUNNING` | Agent is actively working (TaskOutput shows activity) |
+| `RUNNING` | Agent is actively working (no completion notification yet) |
+| `VERIFYING` | Mechanical exit criteria passed; an independent verifier agent is judging the `[judgment]` criteria. See `commands/execution.md` § 3f. |
 | `COMPLETED` | Verification confirms sortie done |
-| `PARTIAL` | Verification shows partial progress; remainder needs continuation |
+| `PARTIAL` | Verification shows partial progress, or the verifier returned concrete findings; remainder needs continuation |
 | `BACKOFF` | Agent failed; waiting for retry. Attempt counter increments. |
 | `FATAL` | Max retries exhausted. Work unit enters BLOCKED. No auto-retry. |
+| `REPLAN` | The sortie agent showed that the plan itself is wrong (a premise is false, a referenced API does not exist, sorties conflict). Attempt counter does **not** increment. Work unit enters BLOCKED. No auto-retry. |
 
 ### Retry Rules
 
@@ -121,6 +130,8 @@ FATAL ──(user manually restarts)──► PENDING
 - **Backoff delay**: Not time-based (agents are dispatched immediately), but the attempt counter tracks how many times a sortie has been retried.
 - **FATAL escalation**: After attempt 3 fails, the sortie enters FATAL. The supervisor sets the work unit to BLOCKED, logs the failure, and reports to the user. No further automatic dispatch for this work unit.
 - **Recovery from FATAL**: Only via user command (`/mission-supervisor resume`). The supervisor resets the sortie to PENDING and the work unit to RUNNING, with the attempt counter preserved in the Decisions Log for visibility.
+- **REPLAN is not a failure**: A plan defect is not the agent's fault, and burning three retries on a plan that cannot succeed wastes the most expensive models on the wrong problem. REPLAN skips the retry ladder entirely and goes straight to the user with the agent's evidence and its proposed plan change. The supervisor **never** applies the change itself — the plan stays immutable during execution. Recovery: the user edits EXECUTION_PLAN.md (or runs `refine`), then `resume` resets the sortie to PENDING with its attempt counter unchanged.
+- **Verifier rounds**: `max_verifier_rounds` is 2 per sortie (configurable in SUPERVISOR_STATE.md). A verifier FAIL sends the findings back as a continuation (PARTIAL, no attempt increment). If the verifier fails the sortie again after the last round, the sortie goes to BACKOFF and the attempt counter increments — the implementer could not satisfy the criteria.
 
 ---
 
@@ -245,6 +256,8 @@ Store the resolved project root as `$PROJECT_ROOT` for use throughout this sessi
 - **Give an agent multiple goals in one sortie** (sergeant principle: one clear, measurable objective per dispatch)
 - **Dispatch vague exit criteria** (no "works correctly", "is complete", "properly handles" — be specific and machine-verifiable)
 - Use state names not defined in the State Machine section (no ad-hoc states like "paused", "waiting", "in_progress")
+- **Apply a REPLAN proposal yourself** — surface it to the user; the plan changes only by human edit or `refine`
+- **Poll background agents in a loop** — wait for completion notifications (see `commands/execution.md` § 2); polling is reserved for `deferred` sorties' external conditions
 - Escalate deferred sorties to FATAL just because the external condition isn't met yet
 - **Load agents with unnecessary context** (only include files directly relevant to the sortie's goal)
 - **Specify concrete version numbers in execution plans or supervisor state** — Always use relative version language: "our next patch release version", "our next minor release version", "our next major release version". Version numbers are determined at release time by finding the numerically highest semver tag (sorted by major.minor.patch, not by creation date) and incrementing appropriately based on release type.

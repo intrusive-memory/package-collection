@@ -176,7 +176,10 @@ type: execution-plan
 **Exit criteria**:
 - [ ] <Machine-verifiable criterion (build succeeds, test passes, file exists)>
 - [ ] <Machine-verifiable criterion>
+- [ ] [judgment] <Optional: a specific qualitative criterion decidable from the diff alone — checked by an independent verifier agent>
 ```
+
+Prefer machine-verifiable criteria. Use `[judgment]` only when the requirement is genuinely qualitative (naming consistency, error-message quality, adherence to an existing pattern) **and** specific enough that two reviewers would agree. A sortie's `[judgment]` criteria are checked by a separate verifier agent that sees only the diff (see `commands/execution.md` § 3f).
 
 ### Open Questions section (consumed by `refine-blockers`)
 

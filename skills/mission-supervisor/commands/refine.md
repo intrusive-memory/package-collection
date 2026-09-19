@@ -294,6 +294,7 @@ Pass 1 (`refine-blockers`) is a **hard-stop gate**: if any blocking open questio
      - "Works correctly", "properly handles", "is complete"
      - "Tests pass" without naming specific tests
      - "Build succeeds" without specifying build command
+   - **`[judgment]` criteria** are allowed — they go to an independent verifier agent (`commands/execution.md` § 3f) — but only when specific. Keep "error messages name the offending file path"; flag "code is clean" or "good error handling" as vague. If a `[judgment]` criterion can be rewritten as a command, rewrite it.
 
 4. **Identify missing documentation**:
    - Sortie references files that don't exist

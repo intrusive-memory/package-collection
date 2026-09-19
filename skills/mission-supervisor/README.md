@@ -140,19 +140,21 @@ The recommended path is **breakdown** then **refine** then restart the context w
         │     (parallel for independent     │
         │      work units)                  │
         │                                   │
-        │  2. Poll for completion           │
-        │     (non-blocking TaskOutput)     │
+        │  2. Wait for completion           │
+        │     (notifications — no polling)  │
         │                                   │
         │  3. Verify sortie outcome         │
         │     • Git commits                 │
         │     • Exit criteria commands      │
         │     • Agent output signals        │
+        │     • [judgment] → verifier       │
         │                                   │
         │  4. Handle results                │
         │     • SUCCESS → next sortie       │
-        │     • PARTIAL → continuation      │
-        │     • FAILURE → retry (backoff)   │
+        │     • PARTIAL → same agent        │
+        │     • FAILURE → fresh retry       │
         │     • FATAL → BLOCKED (manual)    │
+        │     • REPLAN → BLOCKED (plan fix) │
         │                                   │
         │  5. Update state                  │
         │     (SUPERVISOR_STATE.md)         │
@@ -435,7 +437,7 @@ NOT_STARTED ──(start)──► RUNNING ──(all sorties done)──► COM
                            │
                            ├──(stop)──► STOPPING ──(agents finish)──► STOPPED
                            │
-                           ├──(sortie FATAL)──► BLOCKED
+                           ├──(sortie FATAL or REPLAN)──► BLOCKED
                            │
                            └──(killall)──► KILLED
 
@@ -449,17 +451,141 @@ KILLED ──(resume)──► RUNNING
 ```
 PENDING ──(dispatch)──► DISPATCHED ──(agent starts)──► RUNNING
                                                           │
-                          ┌───────────────────────────────┤
-                          │                               │
-                          ▼                               ▼
-                      COMPLETED                       PARTIAL
-                                                          │
-                                                          └──(continuation)──► DISPATCHED
-
-RUNNING ──(failure)──► BACKOFF ──(retry)──► DISPATCHED
-                         │
-                         └──(max retries)──► FATAL
+       ┌──────────────────┬─────────────────┬─────────────┼──────────────────┐
+       │                  │                 │             │                  │
+       ▼                  ▼                 ▼             ▼                  ▼
+   COMPLETED          VERIFYING          PARTIAL       BACKOFF            REPLAN
+ (no [judgment]    (mechanical checks       │             │           (plan defect;
+   criteria)        passed; verifier        │             │            work unit
+                      judging diff)         │             │            BLOCKED)
+                     │         │            │             │
+                 PASS│     FAIL│            │             ├──(retry, fresh agent)──► DISPATCHED
+                     ▼         └──► PARTIAL │             └──(max retries)──► FATAL
+                 COMPLETED                  │
+                                            └──(same agent via SendMessage, or fresh)──► DISPATCHED
 ```
+
+- **PARTIAL** continues the *same* agent when possible, so it keeps its context. **BACKOFF** always starts a fresh agent, so a failed approach doesn't carry over.
+- **VERIFYING** applies only to sorties with `[judgment]` exit criteria. After `max_verifier_rounds` (default 2) FAILs, the sortie goes to BACKOFF.
+- **REPLAN** does not use up a retry. The supervisor shows the agent's proposed plan change to the user and never applies it itself.
+
+---
+
+## Agent Lifetimes: Sorties vs. Hub-and-Spoke Spokes
+
+Mission Supervisor *is* a hub-and-spoke system. The supervisor is the hub, sortie agents are spokes, and spokes never talk to each other. Where it differs from the usual coordinator pattern is **how long a spoke lives and what it remembers**. The bars in each diagram show how long each agent is alive.
+
+### Hub-and-spoke coordinator: spokes live for the session
+
+```mermaid
+sequenceDiagram
+    participant H as Hub (coordinator)
+    participant R as Researcher spoke
+    participant I as Implementer spoke
+    participant V as Reviewer spoke
+    H->>+R: Investigate module A
+    R-->>H: findings
+    H->>+I: Implement change 1 (from findings)
+    I-->>H: done
+    H->>+V: Review change 1
+    V-->>H: 2 issues
+    H->>I: Fix the issues (same agent, remembers change 1)
+    I-->>H: fixed
+    H->>R: Investigate module B (same agent, remembers A)
+    R-->>H: findings
+    H->>I: Implement change 2 (context now holds 1 and 2)
+    I-->>H: done
+    Note over R,V: Spokes are specialized by role and live for the whole session.<br/>Their context grows with every task. State lives in the hub's context.
+    deactivate R
+    deactivate I
+    deactivate V
+```
+
+### Mission Supervisor previously: one agent per dispatch
+
+```mermaid
+sequenceDiagram
+    participant S as Supervisor (hub)
+    participant F as SUPERVISOR_STATE.md + git
+    participant A1 as Sortie 1 · attempt 1
+    participant A2 as Sortie 1 · continuation
+    participant A3 as Sortie 2 · attempt 1
+    participant A4 as Sortie 2 · retry
+    S->>F: write state
+    S->>+A1: dispatch (fresh agent)
+    loop every few seconds
+        S->>A1: TaskOutput(block: false)
+        A1-->>S: still running
+    end
+    A1-->>-S: partial
+    S->>F: PARTIAL
+    S->>+A2: dispatch continuation (fresh, re-reads everything)
+    A2-->>-S: done
+    S->>F: verify via git + exit commands → COMPLETED
+    S->>+A3: dispatch (fresh agent)
+    A3-->>-S: failed
+    S->>F: BACKOFF (attempt 2)
+    S->>+A4: dispatch retry (fresh, stronger model)
+    A4-->>-S: done
+    S->>F: COMPLETED
+    Note over A1,A4: Every agent lives for exactly one dispatch.<br/>Nothing survives between them except files and git.
+```
+
+### Mission Supervisor now: one agent per sortie attempt
+
+```mermaid
+sequenceDiagram
+    participant S as Supervisor (hub)
+    participant F as SUPERVISOR_STATE.md + git
+    participant I1 as Sortie 1 · implementer
+    participant V as Verifier (one per round)
+    participant I2 as Sortie 2 · attempt 1
+    participant I3 as Sortie 2 · retry
+    S->>F: write state
+    S->>+I1: dispatch (fresh agent)
+    Note over S: ends turn, no polling
+    I1-->>S: completion notification: partial
+    S->>F: PARTIAL
+    S->>I1: SendMessage: remaining work (same agent, context kept)
+    I1-->>S: notification: done
+    S->>F: mechanical checks pass → VERIFYING
+    S->>+V: diff + [judgment] criteria only
+    V-->>-S: VERDICT: FAIL (cited findings)
+    S->>F: PARTIAL (verifier round 1 of 2)
+    S->>I1: SendMessage: verifier findings
+    I1-->>-S: notification: fixed
+    S->>+V: new verifier: diff + [judgment] criteria only
+    V-->>-S: VERDICT: PASS
+    S->>F: COMPLETED
+    S->>+I2: dispatch Sortie 2 (fresh, inherits nothing from Sortie 1's agent)
+    I2-->>-S: failed
+    S->>F: BACKOFF (attempt 2)
+    S->>+I3: dispatch retry (fresh by design, stronger model)
+    I3-->>-S: REPLAN: plan defect + evidence
+    S->>F: REPLAN → work unit BLOCKED, proposal shown to user
+```
+
+### Side by side
+
+| | Hub-and-spoke spoke | Sortie agent (before) | Sortie agent (now) |
+|---|---|---|---|
+| **Lives for** | The session / its role | One dispatch | One sortie attempt, including its continuations |
+| **Specialized by** | Role (research, implement, review) | Work item | Work item (implementer) + role (verifier) |
+| **Continued by the hub** | Yes, repeatedly | Never | Only for PARTIAL, via SendMessage |
+| **Context carried across tasks** | Yes | No | No: never across sorties or across retries |
+| **Hub learns of completion by** | Message / notification | Polling `TaskOutput` | Completion notification |
+| **Source of truth** | Hub's context | SUPERVISOR_STATE.md + git | SUPERVISOR_STATE.md + git |
+| **Survives a crashed / compacted hub** | Poorly | Yes (`resume`) | Yes (`resume`; unreachable agents fall back to fresh ones) |
+
+### Why spokes don't live for the whole session
+
+The middle ground above is deliberate. Long-lived spokes would break three things Mission Supervisor relies on:
+
+1. **Lean context.** A spoke that carries sortie 1 into sortie 5 carries sortie 1's dead ends too. Each sortie gets only what its orders require.
+2. **Clean retries.** A failed agent's context usually holds the mistake that made it fail. Retries start fresh, on purpose.
+3. **Crash safety.** A long-lived spoke's knowledge lives only in its context, and `resume` can't rebuild it. Everything that matters is in SUPERVISOR_STATE.md and git, so losing an agent costs time, never correctness.
+
+Continuing a PARTIAL sortie in the same agent is the one place keeping the agent is clearly worth it. The agent is mid-task, and it's still the same objective.
 
 ---
 
@@ -472,10 +598,12 @@ When a sortie agent completes, the supervisor determines the outcome using these
 3. **Progress files**: PROGRESS.md, TODO.md status markers
 4. **Exit criteria commands**: Execute and check return codes
 5. **Task-type-specific checks**: Based on sortie classification
+6. **Independent verifier** (only for `[judgment]` criteria, only after 1–5 pass): a separate agent that sees the diff and the criteria, not the implementer's reasoning
 
 **Verdict**:
 - SUCCESS: Any source shows definitive success, no contradictions → sortie COMPLETED
-- PARTIAL: Progress made but work remains → sortie PARTIAL (continuation)
+- PARTIAL: Progress made but work remains, or verifier FAIL → sortie PARTIAL (continuation in the same agent when possible)
+- REPLAN: Agent proved the plan itself is wrong → sortie REPLAN, work unit BLOCKED (no retry used)
 - FAILURE: No progress, agent exited → sortie BACKOFF (retry)
 - FATAL: Max retries exhausted → sortie FATAL, work unit BLOCKED
 
@@ -488,12 +616,15 @@ All recovery follows the state machine — no ad-hoc fixes:
 | Scenario | State Transition | Action |
 |----------|------------------|--------|
 | Sortie succeeds | RUNNING → COMPLETED | Dispatch next sortie (if any) |
-| Sortie partial | RUNNING → PARTIAL | Dispatch continuation with remaining work |
-| Sortie fails | RUNNING → BACKOFF | Increment attempt, dispatch retry with failure context |
+| Sortie partial | RUNNING → PARTIAL | Continue the same agent via SendMessage (fresh agent if context exhausted or unreachable) |
+| Judgment criteria present | RUNNING → VERIFYING | Dispatch independent verifier with diff + criteria only |
+| Verifier FAIL | VERIFYING → PARTIAL | Send cited findings to the implementer; after max rounds → BACKOFF |
+| Sortie fails | RUNNING → BACKOFF | Increment attempt, dispatch a **fresh** retry agent with failure context |
+| Plan defect | RUNNING → REPLAN | Check evidence, BLOCK work unit, surface proposed plan change to user (no attempt increment) |
 | Max retries hit | BACKOFF → FATAL | Work unit → BLOCKED, report to user |
 | Context exhaustion | RUNNING → PARTIAL or BACKOFF | Verify progress, dispatch continuation or retry |
-| Agent unresponsive | (after 10 empty polls) → BACKOFF | Terminate agent, increment attempt |
-| Deferred wait | (poll until condition met) → COMPLETED | Do not increment attempt (waiting ≠ failure) |
+| Agent runs long | (no automatic action) | `status` shows how long it's been running; user decides on `stop` / `killall` |
+| Deferred wait | (background wait command exits) → COMPLETED | Do not increment attempt (waiting ≠ failure) |
 
 ---
 
@@ -551,13 +682,14 @@ Configured in `SUPERVISOR_STATE.md`:
 ```markdown
 ## Configuration
 - max_retries: 3
+- max_verifier_rounds: 2
 ```
 
-### Polling Cadence
+### Waiting for Agents
 
-- Poll interval: Non-blocking checks with `timeout: 5000ms`
-- Unresponsive threshold: 10 consecutive empty polls → terminate agent
-- Deferred wait threshold: 20 unsuccessful polls → report to user
+- No polling. The supervisor ends its turn after dispatching and is re-invoked by completion notifications.
+- No automatic "unresponsive" kill. `status` shows how long each agent has been running; the user decides.
+- Deferred waits run as one background shell command (up to 20 checks) whose exit is the event.
 
 ---
 
@@ -618,7 +750,7 @@ Sorties waiting on external conditions:
 - [ ] Deployment succeeded: `curl https://api.example.com/health`
 ```
 
-Supervisor polls verification command until success — does not fail after retries.
+A single background wait command re-checks the verification command until success (up to 20 checks) — the supervisor is not polling, and waiting never consumes retries.
 
 ---
 
@@ -651,9 +783,8 @@ The supervisor selects the cheapest appropriate model for each sortie:
 
 ### Work unit stuck in BLOCKED
 
-- Sortie hit FATAL after max retries
-- Manual intervention needed
-- Fix underlying issue, then run `/mission-supervisor resume`
+- **FATAL**: Sortie failed after max retries. Fix the underlying issue, then run `/mission-supervisor resume`.
+- **REPLAN**: A sortie showed the plan is wrong. Read the proposed change in the Decisions Log, edit EXECUTION_PLAN.md (or run `refine`), then run `/mission-supervisor resume`.
 
 ### Execution too slow
 
@@ -676,7 +807,8 @@ The Mission Supervisor is a **state machine orchestrator**, not a code generator
 **What it does**:
 - Parse execution plans (any markdown format)
 - Dispatch background agents (one per sortie)
-- Poll for completion (non-blocking)
+- React to completion notifications (no polling)
+- Route `[judgment]` exit criteria to an independent verifier agent
 - Verify outcomes (git state, exit criteria, agent output)
 - Manage state transitions (deterministic state machine)
 - Handle errors (retry with backoff, escalate to FATAL)
@@ -686,11 +818,11 @@ The Mission Supervisor is a **state machine orchestrator**, not a code generator
 - Write tests (agents do this)
 - Override dependencies (enforces plan constraints)
 - Skip verification (always validates sortie completion)
-- Modify execution plan during execution (plan is immutable during `start`/`resume`)
+- Modify execution plan during execution (plan is immutable during `start`/`resume`; REPLAN proposes changes, the human applies them)
 
 **Design principles**:
 - **Event-at-a-time processing**: Handle one completion event, update state, dispatch next
 - **State transitions drive dispatch**: Reactive, not imperative (sortie enters PENDING → gets dispatched)
 - **Write state before dispatching**: Crash-safe (state never lost)
 - **Verification cascade**: Multiple sources of truth (agent output, git, files, commands)
-- **Graceful degradation**: PARTIAL → continuation, FAILURE → retry, FATAL → BLOCKED
+- **Graceful degradation**: PARTIAL → same-agent continuation, FAILURE → fresh retry, FATAL → BLOCKED, REPLAN → BLOCKED with a proposed fix
