@@ -136,7 +136,9 @@ DELIVERABLES
 1. Delete the qualifying tests (whole `func test*` block or its language equivalent — never leave dangling braces).
 2. If a file becomes empty after deletions, delete the file.
 3. After all deletions, run the project's test target if a Makefile target exists (`make test`, `make test-unit`). If no Makefile target exists, skip this — do NOT run `swift test` or `swift build` directly.
-4. Write `TEST_CLEANUP_REPORT.md` at the project root with:
+4. Write `TEST_CLEANUP_REPORT.md` at the project root, opening with the OKF frontmatter
+   `---` / `type: test-cleanup-report` / `state: current` / `---` (see skill.md
+   § Mission Documents & OKF Types), then:
    - Section "Removed": table of `file:test_name` | reason | confidence
    - Section "Flagged for Review": table of `file:test_name` | concern | recommended action
    - Section "Build Verification": result of the test run, or "skipped (no Makefile target)"

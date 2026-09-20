@@ -6,9 +6,35 @@ type: docs
 
 > **Terminology reminder**: A *mission* is the definable scope of work. A *sortie* is an atomic agent task within that mission.
 
-The `breakdown` command reads a requirements document and generates `EXECUTION_PLAN.md`. This is the first step in the pre-execution pipeline.
+The `breakdown` command reads a requirements document and generates `EXECUTION_PLAN.md`. It is the **second** step in the pre-execution pipeline: `recon` establishes ground truth first and gates this command (see § 0).
 
-**Referenced by**: `skill.md` § Argument Parsing → `breakdown` command.
+**Referenced by**: `skill.md` § Argument Parsing → `breakdown` command. Gated by `commands/recon.md`.
+
+---
+
+## 0. Recon Gate (runs first, always)
+
+`breakdown` may not plan against unverified premises. Before reading requirements for decomposition, check `$PROJECT_ROOT/RECON_REPORT.md`:
+
+1. **Missing** → invoke `recon` (see `commands/recon.md`) against the same requirements document, then continue only if its verdict is `CLEAR`.
+2. **Present but stale** → re-invoke `recon`. The report is stale unless all of:
+   - `requirements_sha256` matches the current hash of the requirements document
+   - `project_head` matches the current `git rev-parse HEAD`, **or** the diff between them touches no manifest or lock file
+   - every dependency's resolved revision in the map still matches the lock file
+3. **Present, fresh, `verdict: BLOCKED`** → STOP. Do not decompose. Output:
+   ```
+   ERROR: Cannot break down — recon is BLOCKED.
+   <N> assumptions in the requirements do not hold against the code.
+   See RECON_REPORT.md § Blocking findings, resolve them, then re-run:
+     /mission-supervisor recon
+   ```
+4. **Present, fresh, `verdict: CLEAR`** → proceed, carrying the report's findings forward:
+   - **`CONFIRMED` facts are ground truth.** Reference them directly in entry criteria without adding a re-verification task. This is the payoff of the pass — don't spend a sortie turn re-proving what recon already cited.
+   - **`UNVERIFIABLE` findings must not be treated as true.** Each one becomes either an `OQ-<N>` in § Open Questions (when the answer changes the plan's shape) or an explicit verification step in the entry criteria of the first sortie that depends on it (when it only changes that sortie's work). Never silently assume.
+   - **Blocking findings carried by `recon --accept-risk`** arrive as pre-formed `OQ-<N>` records. Copy them verbatim into § Open Questions — `refine-blockers` will hard-stop on them.
+   - **The local dependency map is carried into the plan** (see § 7 → Local Dependency Map section) so sortie agents inherit resolved checkout paths instead of rediscovering them.
+
+If the project has no requirements document and recon cannot run, `breakdown` has nothing to gate on — it already stops per skill.md § Locate Requirements Document.
 
 ---
 
@@ -99,6 +125,8 @@ While decomposing tasks (Steps 3–5), watch for **blocking open questions** —
 - Requirements doc contains literal TBD / TODO / "decide later" / "clarify" markers
 - A sortie cannot write machine-verifiable exit criteria without a missing answer
 
+**Already answered by recon** — do not re-raise as an open question anything `RECON_REPORT.md` marked `CONFIRMED`. It has a citation; that is settled. Conversely, every `UNVERIFIABLE` finding that changes the plan's shape MUST appear here as an `OQ-<N>` (see § 0.4).
+
 **What does NOT count** (these are handled by later refine passes, not here):
 - Vague verification language ("works correctly", "tests pass") — Pass 5 / `refine-questions`
 - Sortie sizing or splitting concerns — Pass 2 / `refine-atomicity`
@@ -181,6 +209,22 @@ type: execution-plan
 
 Prefer machine-verifiable criteria. Use `[judgment]` only when the requirement is genuinely qualitative (naming consistency, error-message quality, adherence to an existing pattern) **and** specific enough that two reviewers would agree. A sortie's `[judgment]` criteria are checked by a separate verifier agent that sees only the diff (see `commands/execution.md` § 3f).
 
+### Local Dependency Map section (carried from RECON_REPORT.md)
+
+Copy the dependency map from `RECON_REPORT.md` so sortie agents inherit resolved paths rather than rediscovering them. Place it immediately before `## Open Questions`. Omit the section entirely when the project declares no dependencies.
+
+```markdown
+## Local Dependency Map
+
+<!-- Carried from RECON_REPORT.md. Sortie agents may read these paths; they may not edit them. -->
+
+| Dependency | Resolved version | Local checkout | Status |
+|------------|------------------|----------------|--------|
+| <owner/repo> | <version> (<sha>) | <absolute path or "—"> | <LOCAL_MATCHES_PIN \| NO_LOCAL_CHECKOUT \| …> |
+```
+
+A sortie whose tasks read a dependency's source MUST name the path from this table in its entry criteria. A sortie may **never** modify a dependency checkout — that is a separate mission in a separate repo.
+
 ### Open Questions section (consumed by `refine-blockers`)
 
 Emit this section **always**, even when there are zero blockers — the section's presence tells `refine-blockers` that breakdown checked. Place it immediately after the last Sortie definition and before the Summary table.
@@ -216,6 +260,7 @@ _No blocking open questions identified during breakdown._
 | Work units | <N> |
 | Total sorties | <N> |
 | Open questions | <N> |
+| Dependencies mapped | <N> |
 | Dependency structure | <layers \| sequential \| parallel> |
 ```
 
@@ -231,6 +276,7 @@ After writing EXECUTION_PLAN.md, output:
 ## Breakdown Complete
 
 Source: <requirements file path>
+Recon:  $PROJECT_ROOT/RECON_REPORT.md (<CLEAR>, <N> confirmed / <N> unverifiable)
 Output: $PROJECT_ROOT/EXECUTION_PLAN.md
 
 | Metric | Count |
@@ -240,6 +286,7 @@ Output: $PROJECT_ROOT/EXECUTION_PLAN.md
 | Work units | <N> |
 | Sorties | <N> |
 | Open questions | <N> |
+| Dependencies mapped | <N> |
 
 <If open questions > 0>:
 Next step: /mission-supervisor refine

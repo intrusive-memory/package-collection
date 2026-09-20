@@ -11,7 +11,8 @@ Orchestrate multi-agent sortie execution with automatic verification, retry logi
 The Mission Supervisor is an agentic orchestrator that breaks down complex projects into atomic sorties and dispatches background agents to execute them in parallel. It manages state, handles failures with automatic retry, and enforces dependency constraints.
 
 **Key Features**:
-- **Pre-execution pipeline**: Break down requirements, refine execution plans with 4 automated passes
+- **Pre-execution pipeline**: Recon the requirements against real code, break them down, refine the plan with 5 automated passes
+- **Ground-truth recon**: Every assumption the requirements make about existing code is verified against the revision the build actually resolves — including dependencies resolved to their local checkouts under `~/Projects`
 - **Parallel execution**: Run independent work units simultaneously (up to 4 sub-agents)
 - **Automatic verification**: Validate sortie completion via git state, exit criteria, and agent output
 - **Fault tolerance**: Automatic retry with backoff, graceful degradation
@@ -24,7 +25,7 @@ The Mission Supervisor is an agentic orchestrator that breaks down complex proje
 
 ## Recommended Workflow
 
-The recommended path is **breakdown** then **refine** then restart the context window with **start**.
+The recommended path is **recon** then **breakdown** then **refine**, then restart the context window with **start**.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -32,6 +33,23 @@ The recommended path is **breakdown** then **refine** then restart the context w
 │                  (PRD, SPEC, README, etc.)                   │
 └───────────────────────────┬─────────────────────────────────┘
                             │
+                            ▼
+                  ┌─────────────────────┐
+                  │ /mission-supervisor │
+                  │        recon        │
+                  └──────────┬──────────┘
+                             │
+                             │ Verifies every assumption about existing code
+                             │ against the revision the build resolves; maps
+                             │ each dependency to its local checkout
+                             ▼
+┌─────────────────────────────────────────────────────────────┐
+│                       RECON_REPORT.md                        │
+│ • Assumption findings (CONFIRMED / REFUTED / STALE / …)      │
+│ • Local dependency map (declared vs resolved vs local)       │
+│ • Verdict: CLEAR → proceed | BLOCKED → hard stop             │
+└───────────────────────────┬─────────────────────────────────┘
+                            │ CLEAR
                             ▼
                   ┌─────────────────────┐
                   │  /mission-supervisor │
@@ -54,61 +72,22 @@ The recommended path is **breakdown** then **refine** then restart the context w
                   │       refine        │
                   └──────────┬──────────┘
                              │
-                             │ Runs 4 passes sequentially
-                             ▼
+                             │ Runs 5 passes sequentially
         ┌───────────────────────────────────┐
-        │                                   │
-        │  Pass 1: Atomicity & Testability  │
-        │  (refine-atomicity)               │
-        │  • Context fitness check          │
-        │  • Sortie sizing (split/merge)    │
-        │  • Machine-verifiable criteria    │
-        │                                   │
-        └───────────────┬───────────────────┘
-                        │
-                        ▼
-        ┌───────────────────────────────────┐
-        │                                   │
-        │  Pass 2: Prioritization           │
-        │  (refine-priority)                │
-        │  • Dependency depth scoring       │
-        │  • Foundation/risk/complexity     │
-        │  • Priority-based reordering      │
-        │                                   │
-        └───────────────┬───────────────────┘
-                        │
-                        ▼
-        ┌───────────────────────────────────┐
-        │                                   │
-        │  Pass 3: Parallelism              │
-        │  (refine-parallelism)             │
-        │  • Dependency graph analysis      │
-        │  • Agent allocation (up to 4)     │
-        │  • Builds: supervising agent only │
-        │  • Critical path identification   │
-        │                                   │
-        └───────────────┬───────────────────┘
-                        │
-                        ▼
-        ┌───────────────────────────────────┐
-        │                                   │
-        │  Pass 4: Open Questions           │
-        │  (refine-questions)               │
-        │  • TBD/TODO marker detection      │
-        │  • Vague criteria replacement     │
-        │  • Missing documentation flags    │
-        │  • External dependency checks     │
-        │                                   │
+        │  Pass 1  Blocking open questions  │
+        │          (hard stop for decisions)│
+        │  Pass 2  Atomicity & testability  │
+        │  Pass 3  Prioritization           │
+        │  Pass 4  Parallelism (≤4 agents)  │
+        │  Pass 5  Vague criteria cleanup   │
         └───────────────┬───────────────────┘
                         │
                         ▼
 ┌─────────────────────────────────────────────────────────────┐
 │              EXECUTION_PLAN.md (refined)                     │
-│  • Atomic sorties (right-sized for context budget)          │
-│  • Machine-verifiable exit criteria                         │
-│  • Optimal execution order (priority-based)                 │
-│  • Parallelism annotations (agent allocation)               │
-│  • Open questions resolved or flagged                       │
+│  • Right-sized sorties, machine-verifiable exit criteria     │
+│  • Priority order + parallelism annotations                  │
+│  • Open questions resolved                                   │
 └───────────────────────┬─────────────────────────────────────┘
                         │
                         │ ✦ RESTART CONTEXT WINDOW ✦
@@ -170,6 +149,19 @@ The recommended path is **breakdown** then **refine** then restart the context w
         │   All work units COMPLETED        │
         │        — or —                     │
         │   All active work units BLOCKED   │
+        └───────────────┬───────────────────┘
+                        │ COMPLETED — post-mission chain, automatic
+                        ▼
+        ┌───────────────────────────────────┐
+        │  test-cleanup  prune mission tests│
+        │                that can't run in CI│
+        │       ↓                           │
+        │  brief         lessons + verdict: │
+        │                ROLLBACK | KEEP |  │
+        │                PARTIAL_SALVAGE    │
+        │       ↓                           │
+        │  clean         stamp state: →     │
+        │                /organize-agent-docs│
         └───────────────────────────────────┘
 ```
 
@@ -181,12 +173,14 @@ The recommended path is **breakdown** then **refine** then restart the context w
 
 | Command | Purpose | Input | Output |
 |---------|---------|-------|--------|
-| `breakdown` | Generate execution plan from requirements | Requirements doc | EXECUTION_PLAN.md |
-| `refine` | Run all 4 refinement passes sequentially | EXECUTION_PLAN.md | EXECUTION_PLAN.md (refined) |
-| `refine-atomicity` | Pass 1: Check sortie sizing and testability | EXECUTION_PLAN.md | EXECUTION_PLAN.md (modified) |
-| `refine-priority` | Pass 2: Score and reorder by priority | EXECUTION_PLAN.md | EXECUTION_PLAN.md (modified) |
-| `refine-parallelism` | Pass 3: Identify parallel work, allocate agents | EXECUTION_PLAN.md | EXECUTION_PLAN.md (modified) |
-| `refine-questions` | Pass 4: Flag vague criteria and open questions | EXECUTION_PLAN.md | EXECUTION_PLAN.md (modified) |
+| `recon` | Verify the requirements' assumptions about existing code; map dependencies to local checkouts | Requirements doc | RECON_REPORT.md |
+| `breakdown` | Generate execution plan from requirements (gated on a fresh, CLEAR recon) | Requirements doc + RECON_REPORT.md | EXECUTION_PLAN.md |
+| `refine` | Run all 5 refinement passes sequentially (Pass 1 is a hard-stop gate) | EXECUTION_PLAN.md | EXECUTION_PLAN.md (refined) |
+| `refine-blockers` | Pass 1: Surface blocking open questions; hard stop for user decisions | EXECUTION_PLAN.md | chat report (plan edited on decision) |
+| `refine-atomicity` | Pass 2: Check sortie sizing and testability | EXECUTION_PLAN.md | EXECUTION_PLAN.md (modified) |
+| `refine-priority` | Pass 3: Score and reorder by priority | EXECUTION_PLAN.md | EXECUTION_PLAN.md (modified) |
+| `refine-parallelism` | Pass 4: Identify parallel work, allocate agents | EXECUTION_PLAN.md | EXECUTION_PLAN.md (modified) |
+| `refine-questions` | Pass 5: Flag vague criteria and lingering questions | EXECUTION_PLAN.md | EXECUTION_PLAN.md (modified) |
 
 ### The Ritual
 
@@ -203,6 +197,16 @@ The recommended path is **breakdown** then **refine** then restart the context w
 | `status` | Report current progress | SUPERVISOR_STATE.md |
 | `stop` | Graceful shutdown (drain → wait → kill) | SUPERVISOR_STATE.md |
 | `killall` | Emergency stop (immediate termination) | SUPERVISOR_STATE.md |
+
+### Post-mission Commands
+
+Auto-chained after the last sortie completes; each can also be run manually.
+
+| Command | Purpose | Output |
+|---------|---------|--------|
+| `test-cleanup` | Prune tests added during the mission that can't run reliably in CI | `TEST_CLEANUP_REPORT.md` |
+| `brief` | Harvest lessons, assess sortie accuracy, render `ROLLBACK \| KEEP \| PARTIAL_SALVAGE` | `<OPERATION>_<NN>_BRIEF.md` |
+| `clean` | Stamp final `state:` on root mission files, then delegate archival to `/organize-agent-docs` | files archived under `docs/` |
 
 ---
 
@@ -345,15 +349,35 @@ The supervisor classifies sorties by task type to determine dispatch and verific
 
 ## Usage Examples
 
+### Recon the requirements (ground truth first)
+
+```bash
+/mission-supervisor recon /path/to/PRD.md
+
+# Widen the local checkout search, or go deeper for nested package groups
+/mission-supervisor recon /path/to/PRD.md --search-root=~/Projects --depth=5
+
+# Record blocking findings as Open Questions instead of stopping
+/mission-supervisor recon /path/to/PRD.md --accept-risk
+```
+
+**Output**: `RECON_REPORT.md` — every assumption the requirements make about existing
+code, each with a citation against the revision the build resolves, plus the local
+dependency map. **BLOCKED** when an assumption is refuted, stale, or true only in a
+local checkout that is ahead of its pin.
+
 ### Generate plan from requirements
 
 ```bash
 /mission-supervisor breakdown /path/to/PRD.md
 ```
 
+> Auto-invokes `recon` when `RECON_REPORT.md` is missing or stale, and refuses to
+> decompose while the verdict is `BLOCKED`.
+
 **Output**: `EXECUTION_PLAN.md` with work units, sorties, entry/exit criteria
 
-### Refine the plan (all 4 passes)
+### Refine the plan (all 5 passes)
 
 ```bash
 /mission-supervisor refine
@@ -368,16 +392,19 @@ The supervisor classifies sorties by task type to determine dispatch and verific
 ### Run individual refinement passes
 
 ```bash
-# Pass 1 only: Check sortie sizing and testability
+# Pass 1 only: Surface blocking open questions (hard stop)
+/mission-supervisor refine-blockers
+
+# Pass 2 only: Check sortie sizing and testability
 /mission-supervisor refine-atomicity
 
-# Pass 2 only: Score and reorder sorties by priority
+# Pass 3 only: Score and reorder sorties by priority
 /mission-supervisor refine-priority
 
-# Pass 3 only: Analyze parallelism opportunities
+# Pass 4 only: Analyze parallelism opportunities
 /mission-supervisor refine-parallelism
 
-# Pass 4 only: Flag open questions and vague criteria
+# Pass 5 only: Flag vague criteria and lingering questions
 /mission-supervisor refine-questions
 ```
 
@@ -405,22 +432,26 @@ The supervisor classifies sorties by task type to determine dispatch and verific
 ### Typical workflow
 
 ```bash
-# 1. Generate plan from requirements
+# 1. Verify the requirements against the code that actually exists
+/mission-supervisor recon requirements.md
+#    BLOCKED? Fix the premise (or the pin) and re-run before planning anything.
+
+# 2. Generate plan from requirements
 /mission-supervisor breakdown requirements.md
 
-# 2. Refine plan (all 4 passes)
+# 3. Refine plan (all 5 passes)
 /mission-supervisor refine
 
-# 3. ✦ RESTART CONTEXT WINDOW ✦
+# 4. ✦ RESTART CONTEXT WINDOW ✦
 #    (fresh context = more budget for execution)
 
-# 4. Execute
+# 5. Execute
 /mission-supervisor start
 
-# 5. Monitor (in another session or periodically)
+# 6. Monitor (in another session or periodically)
 /mission-supervisor status
 
-# 6. If issues arise
+# 7. If issues arise
 /mission-supervisor stop      # graceful shutdown
 # ... fix issues manually ...
 /mission-supervisor resume    # continue execution
@@ -635,9 +666,13 @@ mission-supervisor/
 ├── skill.md                          # Root: terminology, state machine, argument parsing, constraints
 ├── commands/
 │   ├── execution.md                  # start/resume: startup, core loop, verification, dispatch, state, error recovery
+│   ├── recon.md                      # recon: assumption audit + local dependency map → RECON_REPORT.md
 │   ├── breakdown.md                  # breakdown: requirements → EXECUTION_PLAN.md
-│   ├── refine.md                     # refine: 4 passes (atomicity, priority, parallelism, questions)
-│   ├── completion.md                 # COMPLETE_*.md management: audit trail + final verification
+│   ├── refine.md                     # refine: 5 passes (blockers, atomicity, priority, parallelism, questions)
+│   ├── completion.md                 # COMPLETE_*.md: audit trail + final verification → test-cleanup → brief
+│   ├── test-cleanup.md               # test-cleanup: prune mission-added tests that can't run in CI
+│   ├── brief.md                      # brief: post-mission review + ROLLBACK | KEEP | PARTIAL_SALVAGE verdict
+│   ├── clean.md                      # clean: stamp state:, delegate archival to /organize-agent-docs
 │   ├── status.md                     # status: read-only progress report
 │   ├── stop.md                       # stop: 3-phase graceful shutdown
 │   └── killall.md                    # killall: emergency termination
@@ -652,6 +687,7 @@ mission-supervisor/
 
 | File | Created By | Purpose |
 |------|-----------|---------|
+| `RECON_REPORT.md` | `recon` | Assumption findings with citations, local dependency map, CLEAR/BLOCKED verdict |
 | `EXECUTION_PLAN.md` | `breakdown`, `refine` | Work units, sorties, entry/exit criteria, parallelism annotations |
 | `SUPERVISOR_STATE.md` | `start` | Persistent state (work unit/sortie states, active agents, attempt counters) |
 | `COMPLETE_<PROJECT>.md` | execution engine | Additive completion log with timing, verification, cadence analysis |
