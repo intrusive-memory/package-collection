@@ -10,8 +10,10 @@ A file is a MISSION artifact if its filename matches any of these patterns (case
 
 | Pattern | What it is |
 |---------|-----------|
+| `RECON_REPORT.md` | Pre-breakdown assumption audit + local dependency map |
 | `EXECUTION_PLAN.md` | The mission plan |
 | `SUPERVISOR_STATE.md` | Sortie execution state |
+| `TEST_CLEANUP_REPORT.md` | Post-mission test-pruning report |
 | `COMPLETE_*.md` | Completion log (e.g., `COMPLETE_PROYECTO.md`) |
 | `*_BRIEF.md` | Post-mission brief (uppercase operation name + iteration) |
 | `sortie-*.md` | Sortie deliverable (markdown) |

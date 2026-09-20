@@ -11,7 +11,8 @@ Orchestrate multi-agent sortie execution with automatic verification, retry logi
 The Mission Supervisor is an agentic orchestrator that breaks down complex projects into atomic sorties and dispatches background agents to execute them in parallel. It manages state, handles failures with automatic retry, and enforces dependency constraints.
 
 **Key Features**:
-- **Pre-execution pipeline**: Break down requirements, refine execution plans with 4 automated passes
+- **Pre-execution pipeline**: Recon the requirements against real code, break them down, refine the plan with 5 automated passes
+- **Ground-truth recon**: Every assumption the requirements make about existing code is verified against the revision the build actually resolves — including dependencies resolved to their local checkouts under `~/Projects`
 - **Parallel execution**: Run independent work units simultaneously (up to 4 sub-agents)
 - **Automatic verification**: Validate sortie completion via git state, exit criteria, and agent output
 - **Fault tolerance**: Automatic retry with backoff, graceful degradation
@@ -24,7 +25,7 @@ The Mission Supervisor is an agentic orchestrator that breaks down complex proje
 
 ## Recommended Workflow
 
-The recommended path is **breakdown** then **refine** then restart the context window with **start**.
+The recommended path is **recon** then **breakdown** then **refine**, then restart the context window with **start**.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -32,6 +33,23 @@ The recommended path is **breakdown** then **refine** then restart the context w
 │                  (PRD, SPEC, README, etc.)                   │
 └───────────────────────────┬─────────────────────────────────┘
                             │
+                            ▼
+                  ┌─────────────────────┐
+                  │ /mission-supervisor │
+                  │        recon        │
+                  └──────────┬──────────┘
+                             │
+                             │ Verifies every assumption about existing code
+                             │ against the revision the build resolves; maps
+                             │ each dependency to its local checkout
+                             ▼
+┌─────────────────────────────────────────────────────────────┐
+│                       RECON_REPORT.md                        │
+│ • Assumption findings (CONFIRMED / REFUTED / STALE / …)      │
+│ • Local dependency map (declared vs resolved vs local)       │
+│ • Verdict: CLEAR → proceed | BLOCKED → hard stop             │
+└───────────────────────────┬─────────────────────────────────┘
+                            │ CLEAR
                             ▼
                   ┌─────────────────────┐
                   │  /mission-supervisor │
@@ -54,61 +72,22 @@ The recommended path is **breakdown** then **refine** then restart the context w
                   │       refine        │
                   └──────────┬──────────┘
                              │
-                             │ Runs 4 passes sequentially
-                             ▼
+                             │ Runs 5 passes sequentially
         ┌───────────────────────────────────┐
-        │                                   │
-        │  Pass 1: Atomicity & Testability  │
-        │  (refine-atomicity)               │
-        │  • Context fitness check          │
-        │  • Sortie sizing (split/merge)    │
-        │  • Machine-verifiable criteria    │
-        │                                   │
-        └───────────────┬───────────────────┘
-                        │
-                        ▼
-        ┌───────────────────────────────────┐
-        │                                   │
-        │  Pass 2: Prioritization           │
-        │  (refine-priority)                │
-        │  • Dependency depth scoring       │
-        │  • Foundation/risk/complexity     │
-        │  • Priority-based reordering      │
-        │                                   │
-        └───────────────┬───────────────────┘
-                        │
-                        ▼
-        ┌───────────────────────────────────┐
-        │                                   │
-        │  Pass 3: Parallelism              │
-        │  (refine-parallelism)             │
-        │  • Dependency graph analysis      │
-        │  • Agent allocation (up to 4)     │
-        │  • Builds: supervising agent only │
-        │  • Critical path identification   │
-        │                                   │
-        └───────────────┬───────────────────┘
-                        │
-                        ▼
-        ┌───────────────────────────────────┐
-        │                                   │
-        │  Pass 4: Open Questions           │
-        │  (refine-questions)               │
-        │  • TBD/TODO marker detection      │
-        │  • Vague criteria replacement     │
-        │  • Missing documentation flags    │
-        │  • External dependency checks     │
-        │                                   │
+        │  Pass 1  Blocking open questions  │
+        │          (hard stop for decisions)│
+        │  Pass 2  Atomicity & testability  │
+        │  Pass 3  Prioritization           │
+        │  Pass 4  Parallelism (≤4 agents)  │
+        │  Pass 5  Vague criteria cleanup   │
         └───────────────┬───────────────────┘
                         │
                         ▼
 ┌─────────────────────────────────────────────────────────────┐
 │              EXECUTION_PLAN.md (refined)                     │
-│  • Atomic sorties (right-sized for context budget)          │
-│  • Machine-verifiable exit criteria                         │
-│  • Optimal execution order (priority-based)                 │
-│  • Parallelism annotations (agent allocation)               │
-│  • Open questions resolved or flagged                       │
+│  • Right-sized sorties, machine-verifiable exit criteria     │
+│  • Priority order + parallelism annotations                  │
+│  • Open questions resolved                                   │
 └───────────────────────┬─────────────────────────────────────┘
                         │
                         │ ✦ RESTART CONTEXT WINDOW ✦
@@ -140,19 +119,21 @@ The recommended path is **breakdown** then **refine** then restart the context w
         │     (parallel for independent     │
         │      work units)                  │
         │                                   │
-        │  2. Poll for completion           │
-        │     (non-blocking TaskOutput)     │
+        │  2. Wait for completion           │
+        │     (notifications — no polling)  │
         │                                   │
         │  3. Verify sortie outcome         │
         │     • Git commits                 │
         │     • Exit criteria commands      │
         │     • Agent output signals        │
+        │     • [judgment] → verifier       │
         │                                   │
         │  4. Handle results                │
         │     • SUCCESS → next sortie       │
-        │     • PARTIAL → continuation      │
-        │     • FAILURE → retry (backoff)   │
+        │     • PARTIAL → same agent        │
+        │     • FAILURE → fresh retry       │
         │     • FATAL → BLOCKED (manual)    │
+        │     • REPLAN → BLOCKED (plan fix) │
         │                                   │
         │  5. Update state                  │
         │     (SUPERVISOR_STATE.md)         │
@@ -168,6 +149,19 @@ The recommended path is **breakdown** then **refine** then restart the context w
         │   All work units COMPLETED        │
         │        — or —                     │
         │   All active work units BLOCKED   │
+        └───────────────┬───────────────────┘
+                        │ COMPLETED — post-mission chain, automatic
+                        ▼
+        ┌───────────────────────────────────┐
+        │  test-cleanup  prune mission tests│
+        │                that can't run in CI│
+        │       ↓                           │
+        │  brief         lessons + verdict: │
+        │                ROLLBACK | KEEP |  │
+        │                PARTIAL_SALVAGE    │
+        │       ↓                           │
+        │  clean         stamp state: →     │
+        │                /organize-agent-docs│
         └───────────────────────────────────┘
 ```
 
@@ -179,12 +173,14 @@ The recommended path is **breakdown** then **refine** then restart the context w
 
 | Command | Purpose | Input | Output |
 |---------|---------|-------|--------|
-| `breakdown` | Generate execution plan from requirements | Requirements doc | EXECUTION_PLAN.md |
-| `refine` | Run all 4 refinement passes sequentially | EXECUTION_PLAN.md | EXECUTION_PLAN.md (refined) |
-| `refine-atomicity` | Pass 1: Check sortie sizing and testability | EXECUTION_PLAN.md | EXECUTION_PLAN.md (modified) |
-| `refine-priority` | Pass 2: Score and reorder by priority | EXECUTION_PLAN.md | EXECUTION_PLAN.md (modified) |
-| `refine-parallelism` | Pass 3: Identify parallel work, allocate agents | EXECUTION_PLAN.md | EXECUTION_PLAN.md (modified) |
-| `refine-questions` | Pass 4: Flag vague criteria and open questions | EXECUTION_PLAN.md | EXECUTION_PLAN.md (modified) |
+| `recon` | Verify the requirements' assumptions about existing code; map dependencies to local checkouts | Requirements doc | RECON_REPORT.md |
+| `breakdown` | Generate execution plan from requirements (gated on a fresh, CLEAR recon) | Requirements doc + RECON_REPORT.md | EXECUTION_PLAN.md |
+| `refine` | Run all 5 refinement passes sequentially (Pass 1 is a hard-stop gate) | EXECUTION_PLAN.md | EXECUTION_PLAN.md (refined) |
+| `refine-blockers` | Pass 1: Surface blocking open questions; hard stop for user decisions | EXECUTION_PLAN.md | chat report (plan edited on decision) |
+| `refine-atomicity` | Pass 2: Check sortie sizing and testability | EXECUTION_PLAN.md | EXECUTION_PLAN.md (modified) |
+| `refine-priority` | Pass 3: Score and reorder by priority | EXECUTION_PLAN.md | EXECUTION_PLAN.md (modified) |
+| `refine-parallelism` | Pass 4: Identify parallel work, allocate agents | EXECUTION_PLAN.md | EXECUTION_PLAN.md (modified) |
+| `refine-questions` | Pass 5: Flag vague criteria and lingering questions | EXECUTION_PLAN.md | EXECUTION_PLAN.md (modified) |
 
 ### The Ritual
 
@@ -201,6 +197,16 @@ The recommended path is **breakdown** then **refine** then restart the context w
 | `status` | Report current progress | SUPERVISOR_STATE.md |
 | `stop` | Graceful shutdown (drain → wait → kill) | SUPERVISOR_STATE.md |
 | `killall` | Emergency stop (immediate termination) | SUPERVISOR_STATE.md |
+
+### Post-mission Commands
+
+Auto-chained after the last sortie completes; each can also be run manually.
+
+| Command | Purpose | Output |
+|---------|---------|--------|
+| `test-cleanup` | Prune tests added during the mission that can't run reliably in CI | `TEST_CLEANUP_REPORT.md` |
+| `brief` | Harvest lessons, assess sortie accuracy, render `ROLLBACK \| KEEP \| PARTIAL_SALVAGE` | `<OPERATION>_<NN>_BRIEF.md` |
+| `clean` | Stamp final `state:` on root mission files, then delegate archival to `/organize-agent-docs` | files archived under `docs/` |
 
 ---
 
@@ -343,15 +349,35 @@ The supervisor classifies sorties by task type to determine dispatch and verific
 
 ## Usage Examples
 
+### Recon the requirements (ground truth first)
+
+```bash
+/mission-supervisor recon /path/to/PRD.md
+
+# Widen the local checkout search, or go deeper for nested package groups
+/mission-supervisor recon /path/to/PRD.md --search-root=~/Projects --depth=5
+
+# Record blocking findings as Open Questions instead of stopping
+/mission-supervisor recon /path/to/PRD.md --accept-risk
+```
+
+**Output**: `RECON_REPORT.md` — every assumption the requirements make about existing
+code, each with a citation against the revision the build resolves, plus the local
+dependency map. **BLOCKED** when an assumption is refuted, stale, or true only in a
+local checkout that is ahead of its pin.
+
 ### Generate plan from requirements
 
 ```bash
 /mission-supervisor breakdown /path/to/PRD.md
 ```
 
+> Auto-invokes `recon` when `RECON_REPORT.md` is missing or stale, and refuses to
+> decompose while the verdict is `BLOCKED`.
+
 **Output**: `EXECUTION_PLAN.md` with work units, sorties, entry/exit criteria
 
-### Refine the plan (all 4 passes)
+### Refine the plan (all 5 passes)
 
 ```bash
 /mission-supervisor refine
@@ -366,16 +392,19 @@ The supervisor classifies sorties by task type to determine dispatch and verific
 ### Run individual refinement passes
 
 ```bash
-# Pass 1 only: Check sortie sizing and testability
+# Pass 1 only: Surface blocking open questions (hard stop)
+/mission-supervisor refine-blockers
+
+# Pass 2 only: Check sortie sizing and testability
 /mission-supervisor refine-atomicity
 
-# Pass 2 only: Score and reorder sorties by priority
+# Pass 3 only: Score and reorder sorties by priority
 /mission-supervisor refine-priority
 
-# Pass 3 only: Analyze parallelism opportunities
+# Pass 4 only: Analyze parallelism opportunities
 /mission-supervisor refine-parallelism
 
-# Pass 4 only: Flag open questions and vague criteria
+# Pass 5 only: Flag vague criteria and lingering questions
 /mission-supervisor refine-questions
 ```
 
@@ -403,22 +432,26 @@ The supervisor classifies sorties by task type to determine dispatch and verific
 ### Typical workflow
 
 ```bash
-# 1. Generate plan from requirements
+# 1. Verify the requirements against the code that actually exists
+/mission-supervisor recon requirements.md
+#    BLOCKED? Fix the premise (or the pin) and re-run before planning anything.
+
+# 2. Generate plan from requirements
 /mission-supervisor breakdown requirements.md
 
-# 2. Refine plan (all 4 passes)
+# 3. Refine plan (all 5 passes)
 /mission-supervisor refine
 
-# 3. ✦ RESTART CONTEXT WINDOW ✦
+# 4. ✦ RESTART CONTEXT WINDOW ✦
 #    (fresh context = more budget for execution)
 
-# 4. Execute
+# 5. Execute
 /mission-supervisor start
 
-# 5. Monitor (in another session or periodically)
+# 6. Monitor (in another session or periodically)
 /mission-supervisor status
 
-# 6. If issues arise
+# 7. If issues arise
 /mission-supervisor stop      # graceful shutdown
 # ... fix issues manually ...
 /mission-supervisor resume    # continue execution
@@ -435,7 +468,7 @@ NOT_STARTED ──(start)──► RUNNING ──(all sorties done)──► COM
                            │
                            ├──(stop)──► STOPPING ──(agents finish)──► STOPPED
                            │
-                           ├──(sortie FATAL)──► BLOCKED
+                           ├──(sortie FATAL or REPLAN)──► BLOCKED
                            │
                            └──(killall)──► KILLED
 
@@ -449,17 +482,141 @@ KILLED ──(resume)──► RUNNING
 ```
 PENDING ──(dispatch)──► DISPATCHED ──(agent starts)──► RUNNING
                                                           │
-                          ┌───────────────────────────────┤
-                          │                               │
-                          ▼                               ▼
-                      COMPLETED                       PARTIAL
-                                                          │
-                                                          └──(continuation)──► DISPATCHED
-
-RUNNING ──(failure)──► BACKOFF ──(retry)──► DISPATCHED
-                         │
-                         └──(max retries)──► FATAL
+       ┌──────────────────┬─────────────────┬─────────────┼──────────────────┐
+       │                  │                 │             │                  │
+       ▼                  ▼                 ▼             ▼                  ▼
+   COMPLETED          VERIFYING          PARTIAL       BACKOFF            REPLAN
+ (no [judgment]    (mechanical checks       │             │           (plan defect;
+   criteria)        passed; verifier        │             │            work unit
+                      judging diff)         │             │            BLOCKED)
+                     │         │            │             │
+                 PASS│     FAIL│            │             ├──(retry, fresh agent)──► DISPATCHED
+                     ▼         └──► PARTIAL │             └──(max retries)──► FATAL
+                 COMPLETED                  │
+                                            └──(same agent via SendMessage, or fresh)──► DISPATCHED
 ```
+
+- **PARTIAL** continues the *same* agent when possible, so it keeps its context. **BACKOFF** always starts a fresh agent, so a failed approach doesn't carry over.
+- **VERIFYING** applies only to sorties with `[judgment]` exit criteria. After `max_verifier_rounds` (default 2) FAILs, the sortie goes to BACKOFF.
+- **REPLAN** does not use up a retry. The supervisor shows the agent's proposed plan change to the user and never applies it itself.
+
+---
+
+## Agent Lifetimes: Sorties vs. Hub-and-Spoke Spokes
+
+Mission Supervisor *is* a hub-and-spoke system. The supervisor is the hub, sortie agents are spokes, and spokes never talk to each other. Where it differs from the usual coordinator pattern is **how long a spoke lives and what it remembers**. The bars in each diagram show how long each agent is alive.
+
+### Hub-and-spoke coordinator: spokes live for the session
+
+```mermaid
+sequenceDiagram
+    participant H as Hub (coordinator)
+    participant R as Researcher spoke
+    participant I as Implementer spoke
+    participant V as Reviewer spoke
+    H->>+R: Investigate module A
+    R-->>H: findings
+    H->>+I: Implement change 1 (from findings)
+    I-->>H: done
+    H->>+V: Review change 1
+    V-->>H: 2 issues
+    H->>I: Fix the issues (same agent, remembers change 1)
+    I-->>H: fixed
+    H->>R: Investigate module B (same agent, remembers A)
+    R-->>H: findings
+    H->>I: Implement change 2 (context now holds 1 and 2)
+    I-->>H: done
+    Note over R,V: Spokes are specialized by role and live for the whole session.<br/>Their context grows with every task. State lives in the hub's context.
+    deactivate R
+    deactivate I
+    deactivate V
+```
+
+### Mission Supervisor previously: one agent per dispatch
+
+```mermaid
+sequenceDiagram
+    participant S as Supervisor (hub)
+    participant F as SUPERVISOR_STATE.md + git
+    participant A1 as Sortie 1 · attempt 1
+    participant A2 as Sortie 1 · continuation
+    participant A3 as Sortie 2 · attempt 1
+    participant A4 as Sortie 2 · retry
+    S->>F: write state
+    S->>+A1: dispatch (fresh agent)
+    loop every few seconds
+        S->>A1: TaskOutput(block: false)
+        A1-->>S: still running
+    end
+    A1-->>-S: partial
+    S->>F: PARTIAL
+    S->>+A2: dispatch continuation (fresh, re-reads everything)
+    A2-->>-S: done
+    S->>F: verify via git + exit commands → COMPLETED
+    S->>+A3: dispatch (fresh agent)
+    A3-->>-S: failed
+    S->>F: BACKOFF (attempt 2)
+    S->>+A4: dispatch retry (fresh, stronger model)
+    A4-->>-S: done
+    S->>F: COMPLETED
+    Note over A1,A4: Every agent lives for exactly one dispatch.<br/>Nothing survives between them except files and git.
+```
+
+### Mission Supervisor now: one agent per sortie attempt
+
+```mermaid
+sequenceDiagram
+    participant S as Supervisor (hub)
+    participant F as SUPERVISOR_STATE.md + git
+    participant I1 as Sortie 1 · implementer
+    participant V as Verifier (one per round)
+    participant I2 as Sortie 2 · attempt 1
+    participant I3 as Sortie 2 · retry
+    S->>F: write state
+    S->>+I1: dispatch (fresh agent)
+    Note over S: ends turn, no polling
+    I1-->>S: completion notification: partial
+    S->>F: PARTIAL
+    S->>I1: SendMessage: remaining work (same agent, context kept)
+    I1-->>S: notification: done
+    S->>F: mechanical checks pass → VERIFYING
+    S->>+V: diff + [judgment] criteria only
+    V-->>-S: VERDICT: FAIL (cited findings)
+    S->>F: PARTIAL (verifier round 1 of 2)
+    S->>I1: SendMessage: verifier findings
+    I1-->>-S: notification: fixed
+    S->>+V: new verifier: diff + [judgment] criteria only
+    V-->>-S: VERDICT: PASS
+    S->>F: COMPLETED
+    S->>+I2: dispatch Sortie 2 (fresh, inherits nothing from Sortie 1's agent)
+    I2-->>-S: failed
+    S->>F: BACKOFF (attempt 2)
+    S->>+I3: dispatch retry (fresh by design, stronger model)
+    I3-->>-S: REPLAN: plan defect + evidence
+    S->>F: REPLAN → work unit BLOCKED, proposal shown to user
+```
+
+### Side by side
+
+| | Hub-and-spoke spoke | Sortie agent (before) | Sortie agent (now) |
+|---|---|---|---|
+| **Lives for** | The session / its role | One dispatch | One sortie attempt, including its continuations |
+| **Specialized by** | Role (research, implement, review) | Work item | Work item (implementer) + role (verifier) |
+| **Continued by the hub** | Yes, repeatedly | Never | Only for PARTIAL, via SendMessage |
+| **Context carried across tasks** | Yes | No | No: never across sorties or across retries |
+| **Hub learns of completion by** | Message / notification | Polling `TaskOutput` | Completion notification |
+| **Source of truth** | Hub's context | SUPERVISOR_STATE.md + git | SUPERVISOR_STATE.md + git |
+| **Survives a crashed / compacted hub** | Poorly | Yes (`resume`) | Yes (`resume`; unreachable agents fall back to fresh ones) |
+
+### Why spokes don't live for the whole session
+
+The middle ground above is deliberate. Long-lived spokes would break three things Mission Supervisor relies on:
+
+1. **Lean context.** A spoke that carries sortie 1 into sortie 5 carries sortie 1's dead ends too. Each sortie gets only what its orders require.
+2. **Clean retries.** A failed agent's context usually holds the mistake that made it fail. Retries start fresh, on purpose.
+3. **Crash safety.** A long-lived spoke's knowledge lives only in its context, and `resume` can't rebuild it. Everything that matters is in SUPERVISOR_STATE.md and git, so losing an agent costs time, never correctness.
+
+Continuing a PARTIAL sortie in the same agent is the one place keeping the agent is clearly worth it. The agent is mid-task, and it's still the same objective.
 
 ---
 
@@ -472,10 +629,12 @@ When a sortie agent completes, the supervisor determines the outcome using these
 3. **Progress files**: PROGRESS.md, TODO.md status markers
 4. **Exit criteria commands**: Execute and check return codes
 5. **Task-type-specific checks**: Based on sortie classification
+6. **Independent verifier** (only for `[judgment]` criteria, only after 1–5 pass): a separate agent that sees the diff and the criteria, not the implementer's reasoning
 
 **Verdict**:
 - SUCCESS: Any source shows definitive success, no contradictions → sortie COMPLETED
-- PARTIAL: Progress made but work remains → sortie PARTIAL (continuation)
+- PARTIAL: Progress made but work remains, or verifier FAIL → sortie PARTIAL (continuation in the same agent when possible)
+- REPLAN: Agent proved the plan itself is wrong → sortie REPLAN, work unit BLOCKED (no retry used)
 - FAILURE: No progress, agent exited → sortie BACKOFF (retry)
 - FATAL: Max retries exhausted → sortie FATAL, work unit BLOCKED
 
@@ -488,12 +647,15 @@ All recovery follows the state machine — no ad-hoc fixes:
 | Scenario | State Transition | Action |
 |----------|------------------|--------|
 | Sortie succeeds | RUNNING → COMPLETED | Dispatch next sortie (if any) |
-| Sortie partial | RUNNING → PARTIAL | Dispatch continuation with remaining work |
-| Sortie fails | RUNNING → BACKOFF | Increment attempt, dispatch retry with failure context |
+| Sortie partial | RUNNING → PARTIAL | Continue the same agent via SendMessage (fresh agent if context exhausted or unreachable) |
+| Judgment criteria present | RUNNING → VERIFYING | Dispatch independent verifier with diff + criteria only |
+| Verifier FAIL | VERIFYING → PARTIAL | Send cited findings to the implementer; after max rounds → BACKOFF |
+| Sortie fails | RUNNING → BACKOFF | Increment attempt, dispatch a **fresh** retry agent with failure context |
+| Plan defect | RUNNING → REPLAN | Check evidence, BLOCK work unit, surface proposed plan change to user (no attempt increment) |
 | Max retries hit | BACKOFF → FATAL | Work unit → BLOCKED, report to user |
 | Context exhaustion | RUNNING → PARTIAL or BACKOFF | Verify progress, dispatch continuation or retry |
-| Agent unresponsive | (after 10 empty polls) → BACKOFF | Terminate agent, increment attempt |
-| Deferred wait | (poll until condition met) → COMPLETED | Do not increment attempt (waiting ≠ failure) |
+| Agent stuck | 3 consecutive no-progress watchdog checks (20 min apart) → BACKOFF | TaskStop the agent, increment attempt, retry fresh (verifier: counts as a FAIL round) |
+| Deferred wait | (background wait command exits) → COMPLETED | Do not increment attempt (waiting ≠ failure) |
 
 ---
 
@@ -504,9 +666,13 @@ mission-supervisor/
 ├── skill.md                          # Root: terminology, state machine, argument parsing, constraints
 ├── commands/
 │   ├── execution.md                  # start/resume: startup, core loop, verification, dispatch, state, error recovery
+│   ├── recon.md                      # recon: assumption audit + local dependency map → RECON_REPORT.md
 │   ├── breakdown.md                  # breakdown: requirements → EXECUTION_PLAN.md
-│   ├── refine.md                     # refine: 4 passes (atomicity, priority, parallelism, questions)
-│   ├── completion.md                 # COMPLETE_*.md management: audit trail + final verification
+│   ├── refine.md                     # refine: 5 passes (blockers, atomicity, priority, parallelism, questions)
+│   ├── completion.md                 # COMPLETE_*.md: audit trail + final verification → test-cleanup → brief
+│   ├── test-cleanup.md               # test-cleanup: prune mission-added tests that can't run in CI
+│   ├── brief.md                      # brief: post-mission review + ROLLBACK | KEEP | PARTIAL_SALVAGE verdict
+│   ├── clean.md                      # clean: stamp state:, delegate archival to /organize-agent-docs
 │   ├── status.md                     # status: read-only progress report
 │   ├── stop.md                       # stop: 3-phase graceful shutdown
 │   └── killall.md                    # killall: emergency termination
@@ -521,6 +687,7 @@ mission-supervisor/
 
 | File | Created By | Purpose |
 |------|-----------|---------|
+| `RECON_REPORT.md` | `recon` | Assumption findings with citations, local dependency map, CLEAR/BLOCKED verdict |
 | `EXECUTION_PLAN.md` | `breakdown`, `refine` | Work units, sorties, entry/exit criteria, parallelism annotations |
 | `SUPERVISOR_STATE.md` | `start` | Persistent state (work unit/sortie states, active agents, attempt counters) |
 | `COMPLETE_<PROJECT>.md` | execution engine | Additive completion log with timing, verification, cadence analysis |
@@ -551,13 +718,16 @@ Configured in `SUPERVISOR_STATE.md`:
 ```markdown
 ## Configuration
 - max_retries: 3
+- max_verifier_rounds: 2
+- watchdog_interval_minutes: 20
+- watchdog_max_strikes: 3
 ```
 
-### Polling Cadence
+### Waiting for Agents
 
-- Poll interval: Non-blocking checks with `timeout: 5000ms`
-- Unresponsive threshold: 10 consecutive empty polls → terminate agent
-- Deferred wait threshold: 20 unsuccessful polls → report to user
+- No polling. The supervisor ends its turn after dispatching and is re-invoked by completion notifications.
+- **Stuck-agent watchdog** for unattended runs. A background 20-minute timer fires a check on every active agent. An agent whose output and repo state haven't changed gets a strike, and any progress resets it to zero. The third consecutive strike kills the agent and retries the sortie, so a hung agent is gone about an hour after it stopped working. A long build that's still producing output is never killed.
+- Deferred waits run as one background shell command (up to 20 checks) whose exit is the event.
 
 ---
 
@@ -618,7 +788,7 @@ Sorties waiting on external conditions:
 - [ ] Deployment succeeded: `curl https://api.example.com/health`
 ```
 
-Supervisor polls verification command until success — does not fail after retries.
+A single background wait command re-checks the verification command until success (up to 20 checks) — the supervisor is not polling, and waiting never consumes retries.
 
 ---
 
@@ -651,9 +821,8 @@ The supervisor selects the cheapest appropriate model for each sortie:
 
 ### Work unit stuck in BLOCKED
 
-- Sortie hit FATAL after max retries
-- Manual intervention needed
-- Fix underlying issue, then run `/mission-supervisor resume`
+- **FATAL**: Sortie failed after max retries. Fix the underlying issue, then run `/mission-supervisor resume`.
+- **REPLAN**: A sortie showed the plan is wrong. Read the proposed change in the Decisions Log, edit EXECUTION_PLAN.md (or run `refine`), then run `/mission-supervisor resume`.
 
 ### Execution too slow
 
@@ -676,7 +845,8 @@ The Mission Supervisor is a **state machine orchestrator**, not a code generator
 **What it does**:
 - Parse execution plans (any markdown format)
 - Dispatch background agents (one per sortie)
-- Poll for completion (non-blocking)
+- React to completion notifications (no polling)
+- Route `[judgment]` exit criteria to an independent verifier agent
 - Verify outcomes (git state, exit criteria, agent output)
 - Manage state transitions (deterministic state machine)
 - Handle errors (retry with backoff, escalate to FATAL)
@@ -686,11 +856,11 @@ The Mission Supervisor is a **state machine orchestrator**, not a code generator
 - Write tests (agents do this)
 - Override dependencies (enforces plan constraints)
 - Skip verification (always validates sortie completion)
-- Modify execution plan during execution (plan is immutable during `start`/`resume`)
+- Modify execution plan during execution (plan is immutable during `start`/`resume`; REPLAN proposes changes, the human applies them)
 
 **Design principles**:
 - **Event-at-a-time processing**: Handle one completion event, update state, dispatch next
 - **State transitions drive dispatch**: Reactive, not imperative (sortie enters PENDING → gets dispatched)
 - **Write state before dispatching**: Crash-safe (state never lost)
 - **Verification cascade**: Multiple sources of truth (agent output, git, files, commands)
-- **Graceful degradation**: PARTIAL → continuation, FAILURE → retry, FATAL → BLOCKED
+- **Graceful degradation**: PARTIAL → same-agent continuation, FAILURE → fresh retry, FATAL → BLOCKED, REPLAN → BLOCKED with a proposed fix
