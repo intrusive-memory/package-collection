@@ -1,7 +1,7 @@
 ---
 type: skill
 name: ship-app
-description: Ship one or more iOS/macOS App Store apps from a single repo through development → main → TestFlight, then promote to the App Store by tagging a release candidate (v<version>-rc.<k>) on main and merging that tag into a release branch. Handles repos that ship several apps at once (e.g. an iOS app + a macOS app, each its own App Store Connect record/scheme). Orchestrates the development→main PR cycle (which auto-ships to TestFlight via Xcode Cloud), then the RC-tag → release promotion that uploads to App Store Connect, then submission. Xcode Cloud only builds/archives/uploads; GitHub CI owns all test gating. Use when asked to ship, release, cut a release candidate, promote to the App Store, run release QA, or push iOS/macOS apps to TestFlight or the App Store.
+description: Ship one or more iOS/macOS App Store apps from a single repo through development → main → TestFlight, then promote to the App Store by tagging a release candidate (<version>-rc<n>, e.g. 1.2.0-rc1) on main and merging that tag into release/<version>. Handles repos that ship several apps at once (e.g. an iOS app + a macOS app, each its own App Store Connect record/scheme). Orchestrates the development→main PR cycle (which auto-ships to TestFlight via Xcode Cloud), then the RC-tag → release promotion that uploads to App Store Connect, then submission. Xcode Cloud only builds/archives/uploads; GitHub CI owns all test gating. Use when asked to ship, release, cut a release candidate, promote to the App Store, run release QA, or push iOS/macOS apps to TestFlight or the App Store.
 allowed-tools: Bash, Read, Grep, Glob, Edit, Skill
 ---
 
@@ -20,7 +20,7 @@ model is identical; it just fans out across every app.
   runs tests** (its runners are Intel; parts of the suite are
   Apple-Silicon-specific — MLX/Metal/arm64).
 - **GitHub CI** owns **all test gating** — the required PR gate into `main`, plus
-  the optional `v*-rc.*` tag and final-tag/release gates — and gates the merge,
+  the optional `*-rc*` tag and final-tag/release gates — and gates the merge,
   tag, and release process. GitHub Actions runs on Apple Silicon, the only place
   the arm64 tests run faithfully.
 
@@ -39,18 +39,18 @@ criteria, hotfix flow) lives in [`references/qa-process.md`](references/qa-proce
 | Land code on… | Xcode Cloud does… | Result |
 |---|---|---|
 | `main` (merge) | `MAIN => TESTFLIGHT` — build + archive + upload | **TestFlight (beta)** |
-| tag `v<version>-rc.<k>` on `main` (push) | `RC => RELEASE` — build + archive | release gate (no upload) |
-| `release/<n>` (merge) | `RELEASE => APP STORE` — archive + upload | **App Store Connect** |
+| tag `<version>-rc<n>` on `main` (push) | `RC => RELEASE` — build + archive | release gate (no upload) |
+| `release/<version>` (merge) | `RELEASE => APP STORE` — archive + upload | **App Store Connect** |
 
 So **shipping to TestFlight = merging `development → main`.** Promoting to the
-App Store = **tagging that `main` commit `v<version>-rc.<k>`** and **merging that
-tag into the standing `release/<n>` branch.** There is **no candidate branch** and
+App Store = **tagging that `main` commit `<version>-rc<n>`** and **merging that
+tag into `release/<version>`** (e.g. `release/1.2.0`). There is **no candidate branch** and
 **no manual uploads** — the release candidate is a *tag on `main`*, not a branch.
 
 **Where the marketing version lives (load-bearing):** `development` always carries
 the **next** version being worked on; `main` always carries the **current shipping**
 version. The version advances **at the `development → main` merge** — that merge is
-the only place `MARKETING_VERSION` changes. The RC tag and the `release/<n>` merge
+the only place `MARKETING_VERSION` changes. The RC tag and the `release/<version>` merge
 carry whatever version is already on `main`; they never bump it.
 
 ## When to use this vs. ship-swift-library
@@ -105,9 +105,9 @@ matches the current state. Run the validation phase first whenever you're unsure
 |---|---|---|
 | **0. Validate CI** | First time / before any release work | Confirms Xcode Cloud + GitHub Actions are wired correctly. |
 | **A. Land development → main (ship TestFlight)** | A development cycle has accumulated changes ready for beta | PR opened, CI clears, PR merged. `main` advances and Xcode Cloud auto-ships the build to TestFlight. |
-| **B. Promote to App Store** | A TestFlight build has passed QA and is ready for production | The `main` commit is tagged `v<version>-rc.<k>` and that tag is merged into the standing `release/<n>` branch; the merge triggers the App Store archive + upload. |
-| **C. Re-roll a candidate** | App Review or final QA rejected the current candidate | A fix lands on `main` (→ TestFlight), then a fresh `v<version>-rc.<k+1>` tag carries it into the same `release/<n>`. |
-| **D. Submit & finalize** | The App Store build is processed and ready | Drive App Review submission, tag `v<version>` on the accepted `release/<n>` commit, close out. |
+| **B. Promote to App Store** | A TestFlight build has passed QA and is ready for production | The `main` commit is tagged `<version>-rc<n>` and that tag is merged into `release/<version>`; the merge triggers the App Store archive + upload. |
+| **C. Re-roll a candidate** | App Review or final QA rejected the current candidate | A fix lands on `main` (→ TestFlight), then a fresh `<version>-rc<n+1>` tag carries it into the same `release/<version>`. |
+| **D. Submit & finalize** | The App Store build is processed and ready | Drive App Review submission, tag `v<version>` on the accepted `release/<version>` commit, close out. |
 | **E. Hotfix** | A bug surfaced in a shipped version that can't wait | Hotfix branch off `v<version>`, compressed B→D. |
 
 ---
@@ -160,14 +160,14 @@ Or filter the orchestrator:
 | 10 | `gha-ios-test-gate` *(optional)* | GitHub Actions iOS test gate on PR → main; SKIPs if absent (some repos can't run iOS sim tests reliably on CI). Xcode Cloud is **not** a substitute — it runs no tests |
 | 11 | `gha-last-pr-passed` | Most recent merged `development → main` PR had no failed checks |
 | 12 | `xcc-testflight-workflow` | **Per app:** Xcode Cloud workflow with a **branch** start condition on `main` (→ TestFlight). ≥1 app required |
-| 13 | `xcc-candidate-workflow` | **Per app:** Xcode Cloud workflow with a **tag** start condition matching `v*-rc.*` (RC release gate) |
+| 13 | `xcc-candidate-workflow` | **Per app:** Xcode Cloud workflow with a **tag** start condition matching `*-rc*` (RC release gate) |
 | 14 | `xcc-appstore-workflow` | **Per app:** Xcode Cloud workflow with a **branch** start condition on `release/*` (→ App Store) |
 | 15 | `xcc-pr-gate-workflow` *(optional)* | **Per app:** Xcode Cloud **pull-request** workflow on `main` — a *build* gate only, never a test gate |
 | 16 | `xcc-recent-main-run` | **Per app:** latest commit on `main` has a corresponding TestFlight build run |
-| 17 | `xcc-recent-release-run` | **Per app:** latest `release/*` branch or `v*-rc.*` tag (if any) has a corresponding build run |
+| 17 | `xcc-recent-release-run` | **Per app:** latest `release/*` branch or `*-rc*` tag (if any) has a corresponding build run |
 | 18 | `tf-build-from-main-distributed` | **Per app:** latest main-sourced build reached TestFlight (attached to a beta group) |
 | 19 | `appstore-build-from-release` | **Per app:** latest `release/*` build (if any) produced an App Store Connect version/build |
-| 20 | `gha-candidate-test-gate` *(optional)* | GitHub Actions runs tests on the `v*-rc.*` tag push (the App Store promotion gate); SKIPs if absent — the RC tag points at `main` code already cleared by the dev → main test gate (check 09) |
+| 20 | `gha-candidate-test-gate` *(optional)* | GitHub Actions runs tests on the `*-rc*` tag push (the App Store promotion gate); SKIPs if absent — the RC tag points at `main` code already cleared by the dev → main test gate (check 09) |
 | 21 | `gha-release-tag-gate` *(optional)* | GitHub Actions runs tests on a `v*` tag push / release event; SKIPs if absent |
 
 ### Known fragile checks (debug-as-you-go)
@@ -296,12 +296,12 @@ re-ship. Notify beta testers once builds are `VALID`.
 ## Phase B: Promote to App Store
 
 A TestFlight build (from `main`) has passed QA and is ready for production. Tag
-that exact `main` commit `v<version>-rc.<k>` and merge the tag into the standing
-`release/<n>` branch. Merging into `release/<n>` triggers the App Store archive +
+that exact `main` commit `<version>-rc<n>` and merge the tag into
+`release/<version>`. Merging into `release/<version>` triggers the App Store archive +
 upload. **No version is bumped here** — `main` already carries the shipping
 marketing version (it advanced at the `development → main` merge).
 
-### B.1 — Confirm the version on `main` and pick the release number
+### B.1 — Confirm the version on `main` and name the release branch
 
 The marketing version that ships is **whatever is already on `main`** — it does
 not get decided or bumped in this phase. Read it back and confirm it's the
@@ -318,40 +318,31 @@ git fetch --tags
 VERSION=$(grep -E '^\s*MARKETING_VERSION' Config/Version.xcconfig | sed -E 's/.*=\s*//' | tr -d ' ')
 echo "Version on main (ships as-is): $VERSION"
 
-# Highest existing release sequence number
-LAST_RELEASE_N=$(git branch -a | grep -oE 'release/[0-9]+' | grep -oE '[0-9]+$' | sort -n | tail -1)
-echo "Last release branch: release/${LAST_RELEASE_N:-none}"
+RELEASE_BRANCH="release/${VERSION}"     # e.g. release/1.2.0
+echo "Release branch: $RELEASE_BRANCH"
 ```
 
-The **release number `<n>` is repo-wide** (one release branch carries all apps):
-- If this release's `release/<n>` already exists, reuse it.
-- Otherwise `<n> = LAST_RELEASE_N + 1` (first release ever → `release/1`).
+**The release branch is named for the marketing version:** `release/<version>`
+(e.g. `release/1.2.0`). There is no separate release sequence number. Each
+marketing version gets its own branch, cut from its first RC tag (B.3). Every
+re-roll of that version (Phase C) merges into the same branch.
 
-```bash
-RELEASE_N=1            # the release sequence number (repo-wide)
-RELEASE_BRANCH="release/$RELEASE_N"
-```
+> **Legacy naming.** Repos that shipped before this convention may carry
+> sequence-numbered branches (`release/1`, `release/2`, …) and `v<version>-rc.<k>`
+> tags. Leave them alone; don't rename or re-tag history. New releases always use
+> `release/<version>` and `<version>-rc<n>`.
 
-### B.2 — Ensure the `release/<n>` branch exists (off `main`)
+With **multiple apps shipping in lockstep** (the same marketing version), one
+`release/<version>` branch carries all of them. If apps sit at **divergent**
+versions, stop and confirm with the user which version names the branch before
+cutting it.
 
-The RC tag merges *into* this branch, so it must exist first. The cleanest first
-cut is to branch it **at the RC tag** (B.3) — but if you create it ahead of time,
-branch it from `main`:
+### B.2 — Tag the release candidate on `main`
 
-```bash
-git checkout main && git pull origin main
-if ! git ls-remote --exit-code origin "$RELEASE_BRANCH" >/dev/null 2>&1; then
-  git checkout -b "$RELEASE_BRANCH"
-  git push -u origin "$RELEASE_BRANCH"
-  git checkout main
-fi
-```
-
-### B.3 — Tag the release candidate on `main`
-
-`<k>` is the RC counter **for this version**, starting at `1` and incrementing on
-each re-roll of the *same* version (`v1.1.0-rc.1`, `v1.1.0-rc.2`, …). It resets to
-`1` for the next version. The tag is placed on the current `main` tip — the exact
+The tag is **`<version>-rc<n>`**, with no `v` prefix and no dot before the counter
+(`1.2.0-rc1`, `1.2.0-rc2`, …). `<n>` is the RC counter **for this version**. It
+starts at `1`, increments on each re-roll of the *same* version, and resets to `1`
+for the next version. The tag is placed on the current `main` tip — the exact
 commit that passed TestFlight QA. **Nothing is bumped**; this is a marker, not a
 commit.
 
@@ -359,17 +350,20 @@ commit.
 git checkout main && git pull origin main
 
 # next RC counter for THIS version
-LAST_K=$(git tag --list "v${VERSION}-rc.*" | sed -E "s/.*-rc\.//" | sort -n | tail -1)
-K=$(( ${LAST_K:-0} + 1 ))
-RC_TAG="v${VERSION}-rc.${K}"
+LAST_N=$(git tag --list "${VERSION}-rc*" | sed -E "s/^.*-rc//" | grep -E '^[0-9]+$' | sort -n | tail -1)
+N=$(( ${LAST_N:-0} + 1 ))
+RC_TAG="${VERSION}-rc${N}"          # e.g. 1.2.0-rc1
 
-git tag -a "$RC_TAG" -m "Release candidate $K for $VERSION → $RELEASE_BRANCH"
+git tag -a "$RC_TAG" -m "Release candidate $N for $VERSION → $RELEASE_BRANCH"
 git push origin "$RC_TAG"
 ```
 
-Pushing the `v*-rc.*` tag triggers each app's `RC => RELEASE` workflow (build +
-archive — a gate, not an upload; Xcode Cloud tag start condition `v*-rc.*`).
-Confirm they ran clean before merging into the release branch. Tests are **not**
+Pushing the RC tag triggers each app's `RC => RELEASE` workflow (build + archive,
+a gate rather than an upload), **if** that workflow's Xcode Cloud tag start
+condition matches `*-rc*`. A workflow still configured for the legacy `v*-rc.*`
+pattern will **not** fire on `1.2.0-rc1`. In that case the `release/<version>`
+merge (B.3) is the only Xcode Cloud trigger, and nothing gates before it. If the
+RC workflow fired, confirm it ran clean before merging into the release branch. Tests are **not**
 run here — they ran in GitHub CI on the `development → main` PR that produced this
 commit.
 
@@ -379,31 +373,31 @@ commit.
 > (recommended), or by bumping `CURRENT_PROJECT_VERSION` on `development` so it
 > lands on `main` with the `development → main` merge. Never bump it on the RC tag.
 
-### B.4 — Merge the RC tag into `release/<n>` (triggers the App Store upload)
+### B.3 — Merge the RC tag into `release/<version>` (triggers the App Store upload)
 
 You cannot open a GitHub PR from a tag, and the test gating already happened at
-the `development → main` merge — so the RC tag is merged into `release/<n>`
+the `development → main` merge — so the RC tag is merged into `release/<version>`
 **directly** by the release manager. (This is why `release/*` branch protection
 must allow the release manager to push this merge — see the branch-protection
 note in `DEVELOPMENT_PATTERN.md`; the App Store gate is Xcode Cloud on
 `release/*`, not a GitHub PR.)
 
 ```bash
-# First release for this release/<n>: branch it at the RC tag.
+# First RC for this version: cut release/<version> at the RC tag.
 if ! git ls-remote --exit-code origin "$RELEASE_BRANCH" >/dev/null 2>&1; then
   git checkout -b "$RELEASE_BRANCH" "$RC_TAG"
   git push -u origin "$RELEASE_BRANCH"
 else
-  # Re-roll / subsequent RC: merge the new tag into the existing release branch.
+  # Re-roll (rc2, rc3, …): merge the new tag into this version's release branch.
   git checkout "$RELEASE_BRANCH" && git pull origin "$RELEASE_BRANCH"
   git merge --no-ff "$RC_TAG" -m "Merge $RC_TAG into $RELEASE_BRANCH"
   git push origin "$RELEASE_BRANCH"
 fi
 ```
 
-### B.5 — Confirm the App Store upload (per app)
+### B.4 — Confirm the App Store upload (per app)
 
-Landing the RC tag on `release/<n>` triggers each shipping app's
+Landing the RC tag on `release/<version>` triggers each shipping app's
 `RELEASE => APP STORE` workflow (archive + upload to App Store Connect). Confirm
 and wait, **per app**:
 
@@ -421,9 +415,9 @@ jq -c '(.apps // [{name:(.app//.appId), appId:(.app//.appId)}])[]' .asc.json \
   done
 ```
 
-If an optional GitHub CI test gate runs on the `v*-rc.*` tag push (check 20),
+If an optional GitHub CI test gate runs on the `*-rc*` tag push (check 20),
 confirm it's green too; if it fails, **stop** → Phase C (re-roll). **Phase B is
-complete** when every shipping app's `release/<n>` build is in App Store Connect
+complete** when every shipping app's `release/<version>` build is in App Store Connect
 with `processingState=VALID`. Proceed to Phase D to submit.
 
 ---
@@ -452,21 +446,23 @@ unchanged (a re-roll keeps the same `<version>`), so no version bump is involved
 git checkout main && git pull origin main
 VERSION=$(grep -E '^\s*MARKETING_VERSION' Config/Version.xcconfig | sed -E 's/.*=\s*//' | tr -d ' ')
 
-LAST_K=$(git tag --list "v${VERSION}-rc.*" | sed -E "s/.*-rc\.//" | sort -n | tail -1)
-K=$(( ${LAST_K:-0} + 1 ))          # next RC counter for this version
-RC_TAG="v${VERSION}-rc.${K}"
+RELEASE_BRANCH="release/${VERSION}"
 
-git tag -a "$RC_TAG" -m "Release candidate $K re-roll for $VERSION → $RELEASE_BRANCH"
+LAST_N=$(git tag --list "${VERSION}-rc*" | sed -E "s/^.*-rc//" | grep -E '^[0-9]+$' | sort -n | tail -1)
+N=$(( ${LAST_N:-0} + 1 ))          # next RC counter for this version
+RC_TAG="${VERSION}-rc${N}"
+
+git tag -a "$RC_TAG" -m "Release candidate $N re-roll for $VERSION → $RELEASE_BRANCH"
 git push origin "$RC_TAG"
 ```
 
 Pushing the tag re-fires the `RC => RELEASE` build gate. Build numbers still climb
 per ASC app (via Xcode Cloud auto-increment, or the bump that already landed on
-`main`) — see B.3.
+`main`) — see B.2.
 
-### C.3 — Merge the new RC tag into the same `release/<n>`
+### C.3 — Merge the new RC tag into the same `release/<version>`
 
-Same as B.4–B.5, targeting the same `release/<n>` (the re-roll branch already
+Same as B.3–B.4, targeting the same `release/<version>` (the re-roll branch already
 exists, so it's the `git merge --no-ff "$RC_TAG"` path). Update the GitHub
 issue(s) that motivated the re-roll: "Fixed in $RC_TAG → $RELEASE_BRANCH."
 
@@ -474,7 +470,7 @@ issue(s) that motivated the re-roll: "Fixed in $RC_TAG → $RELEASE_BRANCH."
 
 ## Phase D: Submit & finalize
 
-The `release/<n>` build is processed and `VALID` in App Store Connect.
+The `release/<version>` build is processed and `VALID` in App Store Connect.
 
 ### D.1 — Submit each app to App Review
 
@@ -489,10 +485,10 @@ necessarily submit it for review. Drive the submission **per app**:
 ### D.2 — Tag the accepted release commit
 
 Once App Review accepts the builds (or once you've submitted and are confident),
-tag the `release/<n>` tip with the **final** clean-semver tag `v<version>` (the
-RC tags `v<version>-rc.<k>` remain as history). **No merge-back to `main`** — the
+tag the `release/<version>` tip with the **final** clean-semver tag `v<version>` (the
+RC tags `<version>-rc<n>` remain as history). **No merge-back to `main`** — the
 shipping version is already on `main` (it arrived via `development → main`), and
-`release/<n>` carries only release bookkeeping (the RC-tag merge commits), no
+`release/<version>` carries only release bookkeeping (the RC-tag merge commits), no
 unique product code. After the release ships, bump `development` to the **next**
 version so `development` again leads `main`.
 
@@ -523,13 +519,13 @@ RELEASE_SHA=$(git rev-parse "origin/$RELEASE_BRANCH")
 ### D.3 — Close out
 
 - Close the `Release <version>` GitHub milestone if one was opened for QA.
-- Leave `release/<n>` in place (it's the standing branch for this release).
+- Leave `release/<version>` in place. It is the permanent record of what shipped as that version.
 - Report (see D.4).
 
 ### D.4 — Summary report
 
 Report (**per app**, plus the shared facts):
-- The RC tag (`v<version>-rc.<k>`) that shipped this release
+- The RC tag (`<version>-rc<n>`) that shipped this release
 - For each app: released marketing version + App Store Connect build number that shipped
 - The tag(s) created (`v<version>` for lockstep, or per-app `<scheme>-v<version>`) + any GitHub release URLs
 - Per-app App Store Connect submission ID
@@ -544,27 +540,27 @@ A bug surfaced in a shipped version (`v1.0.0`) and can't wait for the next
 planned release. See [`references/qa-process.md#hotfixes`](references/qa-process.md)
 for the procedure — branch from the `v<version>` tag, land the fix, and run a
 compressed B→D against a new patch version (e.g. `v1.0.1`): the fix reaches `main`
-(carrying the patched version), gets tagged `v1.0.1-rc.<k>`, and that tag merges
-into the next `release/<n>`.
+(carrying the patched version), gets tagged `1.0.1-rc<n>`, and that tag merges
+into `release/1.0.1`.
 
 ---
 
 ## Hard guards (NEVER violate)
 
-1. **App Store uploads originate only from a `release/<n>` merge.** Never from
+1. **App Store uploads originate only from a `release/<version>` merge.** Never from
    `main`, a tag, or a laptop. (Invariant 3.)
 2. **`MARKETING_VERSION` changes only at the `development → main` merge.**
    `development` carries the **next** version; `main` carries the **current
-   shipping** version. The RC tag and the `release/<n>` merge never bump it — they
+   shipping** version. The RC tag and the `release/<version>` merge never bump it — they
    ship whatever is already on `main`. (Invariant 4; step B.1.)
 3. **Build numbers are strictly monotonic _per ASC app_.** Each app's build
    climbs past its own latest build in App Store Connect, independently of the
    other apps — via Xcode Cloud auto-increment or a `CURRENT_PROJECT_VERSION`
    bump on `development`. (Invariant 5.)
 4. **The release candidate is a tag on `main`, not a branch.** Format
-   `v<version>-rc.<k>` (`<k>` per-version, starting at 1, resets each version).
-   There are **no `candidate/*` branches.** (Steps B.3 / C.2.)
-5. **Final release tags are clean semver**, placed on the accepted `release/<n>`
+   `<version>-rc<n>` (`<n>` per-version, starting at 1, resets each version).
+   There are **no `candidate/*` branches.** (Steps B.2 / C.2.)
+5. **Final release tags are clean semver**, placed on the accepted `release/<version>`
    commit — `v<version>` when apps ship in lockstep, else per-app
    `<scheme>-v<version>`. (Step D.2.)
 6. **No manual upload to TestFlight or App Store.** Xcode Cloud owns distribution
@@ -572,10 +568,10 @@ into the next `release/<n>`.
 7. **Xcode Cloud never gates on tests; GitHub CI does.** All test gating lives in
    GitHub CI — Xcode Cloud runners are Intel and can't run the Apple-Silicon
    suite. The `main` (development → main) test gate is **required**; the optional
-   `v*-rc.*` tag and final-tag/release test gates are **optional** (the RC tag
+   `*-rc*` tag and final-tag/release test gates are **optional** (the RC tag
    points at main code already tested at the dev → main gate). Xcode Cloud only
    builds/archives/uploads, and its workflow set per app decides what ships.
-8. **No `development` merged into a `release/<n>` branch.** Fixes reach production
+8. **No `development` merged into a `release/<version>` branch.** Fixes reach production
    via `main` → a fresh RC tag. (Phase C.)
 9. **RC counters are per-version and monotonic within a version; never reused.**
 10. **No force-pushing `main` or `release/*`.** Always commit forward. `release/*`

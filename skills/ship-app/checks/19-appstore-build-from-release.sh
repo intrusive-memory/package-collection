@@ -15,8 +15,7 @@ APPS=$(resolve_apps)
 [ "$(echo "$APPS" | jq 'length' 2>/dev/null || echo 0)" = "0" ] && skip "no apps (check 06)"
 
 git fetch origin --quiet 2>/dev/null || true
-REL_BRANCH=$(git ls-remote --heads origin 'release/*' 2>/dev/null \
-  | sed 's#.*refs/heads/##' | grep -E '^release/[0-9]+$' | sort -t/ -k2 -n | tail -1)
+REL_BRANCH=$(latest_release_branch)   # release/<version>, else legacy release/<n>
 [ -z "$REL_BRANCH" ] && skip "no release/* branch in repo yet"
 
 agg_reset

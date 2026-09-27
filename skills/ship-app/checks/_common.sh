@@ -225,3 +225,29 @@ agg_finish() {
     skip "$1 (no participating apps; ${AGG_SKIP:-0} skipped)"
   fi
 }
+
+# ── Release-ref naming ─────────────────────────────────────────────────────────
+# Current convention: branch release/<version> (e.g. release/1.2.0) and RC tag
+# <version>-rc<n> (e.g. 1.2.0-rc1). Legacy repos may still carry sequence
+# branches (release/3) and v<version>-rc.<k> tags. Prefer the current form and
+# fall back to legacy only when no current-form ref exists yet.
+
+# Newest release branch on origin (without refs/heads/), or empty.
+latest_release_branch() {
+  local heads
+  heads=$(git ls-remote --heads origin 'release/*' 2>/dev/null | sed 's#.*refs/heads/##')
+  local cur
+  cur=$(echo "$heads" | grep -E '^release/[0-9]+\.[0-9]+\.[0-9]+$' | sort -t/ -k2 -V | tail -1)
+  if [ -n "$cur" ]; then echo "$cur"; return; fi
+  echo "$heads" | grep -E '^release/[0-9]+$' | sort -t/ -k2 -n | tail -1
+}
+
+# Newest release-candidate tag on origin, or empty.
+latest_rc_tag() {
+  local tags
+  tags=$(git ls-remote --tags origin 2>/dev/null | sed 's#.*refs/tags/##' | grep -v '\^{}')
+  local cur
+  cur=$(echo "$tags" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+-rc[0-9]+$' | sort -V | tail -1)
+  if [ -n "$cur" ]; then echo "$cur"; return; fi
+  echo "$tags" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$' | sort -V | tail -1
+}

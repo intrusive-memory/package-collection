@@ -1,8 +1,8 @@
 #!/bin/bash
 # 20-gha-candidate-test-gate — Verify a GitHub Actions workflow runs the test
-# suite on the release-candidate tag push (push targeting `v*-rc.*` tags).
+# suite on the release-candidate tag push (push targeting `*-rc*` tags).
 #
-# The release candidate is a TAG on `main` (v<version>-rc.<k>), not a branch, and
+# The release candidate is a TAG on `main` (<version>-rc<n>), not a branch, and
 # merging that tag into `release/*` is what PROMOTES code to the App Store. When a
 # test gate for the candidate exists it is owned by GitHub CI, not Xcode Cloud
 # (Xcode Cloud only builds/archives/uploads; its runners are Intel and can't run
@@ -10,7 +10,7 @@
 # on Apple-Silicon runners). OPTIONAL — SKIPs when absent: the RC tag points at
 # `main` code that already cleared the development → main test gate (check 09), so
 # re-running the suite on the RC tag is a belt-and-suspenders extra, not a
-# requirement. Repos that want it can add a `push: tags: ['v*-rc*']` trigger.
+# requirement. Repos that want it can add a `push: tags: ['*-rc*']` trigger.
 #
 # Best-effort YAML scan (grep-based, not a real parser). If a real workflow
 # exists but doesn't match, refine the patterns below rather than declaring this
@@ -30,8 +30,9 @@ for f in .github/workflows/*.yml .github/workflows/*.yaml; do
   grep -qE '^\s*push:' "$f" || continue
   grep -qE '^\s*tags:' "$f" || continue
 
-  # Must match an RC tag pattern (v*-rc*, list form or inline-array form).
-  if ! grep -qE "(^\s*-\s*['\"]?v\*?-?rc[^'\"]*['\"]?\s*$)|(tags:\s*\[[^]]*rc)" "$f"; then
+  # Must match an RC tag pattern: current '*-rc*' or legacy 'v*-rc*' (list form
+  # or inline-array form).
+  if ! grep -qE "(^\s*-\s*['\"]?v?\*?-?rc[^'\"]*['\"]?\s*$)|(tags:\s*\[[^]]*rc)" "$f"; then
     continue
   fi
 
@@ -45,5 +46,5 @@ done
 if [ -n "$MATCH" ]; then
   pass "RC-tag test gate: $(basename "$MATCH")"
 else
-  skip "no GitHub Actions test gate on push → v*-rc.* tags (optional — the RC tag points at main code already cleared by the development → main test gate, check 09)"
+  skip "no GitHub Actions test gate on push → *-rc* tags (optional — the RC tag points at main code already cleared by the development → main test gate, check 09)"
 fi

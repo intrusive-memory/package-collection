@@ -1,10 +1,11 @@
 #!/bin/bash
-# 17-xcc-recent-release-run — If any release/* branch or v*-rc.* tag exists,
+# 17-xcc-recent-release-run — If any release/* branch or RC tag exists,
 # verify, for each app shipped from this repo, that the most recent such ref
 # has a corresponding Xcode Cloud build run (App Store / release-gate workflow).
 # SKIP when no such ref exists yet.
 #
-# The release candidate is a TAG on `main` (v<version>-rc.<k>), not a branch, so
+# The release candidate is a TAG on `main` (<version>-rc<n>; legacy
+# v<version>-rc.<k>), not a branch, so
 # the fallback target is the newest RC tag, matched against the RC workflow's
 # tag start condition.
 #
@@ -21,22 +22,21 @@ APPS=$(resolve_apps)
 git fetch origin --quiet 2>/dev/null || true
 git fetch origin --tags --quiet 2>/dev/null || true
 
-# Prefer a release/* branch (App Store); fall back to the newest v*-rc.* tag.
+# Prefer a release/* branch (App Store); fall back to the newest RC tag.
+# release/<version> is preferred over legacy release/<n> (see _common.sh).
 # WF_COND selects which Xcode Cloud start-condition kind to match the workflow by.
-TARGET_REF=$(git ls-remote --heads origin 'release/*' 2>/dev/null \
-  | sed 's#.*refs/heads/##' | grep -E '^release/[0-9]+$' | sort -t/ -k2 -n | tail -1)
+TARGET_REF=$(latest_release_branch)
 WF_PATTERN="release"; WF_COND="branchStartCondition"; REF_KIND="refs/heads"
 if [ -n "$TARGET_REF" ]; then
   TIP_SHA=$(git ls-remote origin "refs/heads/$TARGET_REF" 2>/dev/null | awk '{print $1}')
 else
-  TARGET_REF=$(git ls-remote --tags origin 'v*-rc.*' 2>/dev/null \
-    | sed 's#.*refs/tags/##' | grep -v '\^{}' | sort -V | tail -1)
+  TARGET_REF=$(latest_rc_tag)
   WF_PATTERN="rc"; WF_COND="tagStartCondition"; REF_KIND="refs/tags"
   # For a tag, resolve the peeled (dereferenced) commit sha when available.
   TIP_SHA=$(git ls-remote origin "refs/tags/${TARGET_REF}^{}" 2>/dev/null | awk '{print $1}')
   [ -z "$TIP_SHA" ] && TIP_SHA=$(git ls-remote origin "refs/tags/$TARGET_REF" 2>/dev/null | awk '{print $1}')
 fi
-[ -z "$TARGET_REF" ] && skip "no release/* branches or v*-rc.* tags in repo yet"
+[ -z "$TARGET_REF" ] && skip "no release/* branches or RC tags in repo yet"
 
 SHORT="${TIP_SHA:0:7}"
 

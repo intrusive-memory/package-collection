@@ -1,9 +1,9 @@
 #!/bin/bash
 # 13-xcc-candidate-workflow — For each app this repo ships, look for an Xcode
-# Cloud workflow with a TAG start condition matching `v*-rc.*` (the
+# Cloud workflow with a TAG start condition matching `*-rc*` (the
 # release-candidate gate: build + archive, no upload).
 #
-# The release candidate is a TAG on `main` (v<version>-rc.<k>), not a branch —
+# The release candidate is a TAG on `main` (<version>-rc<n>, e.g. 1.2.0-rc1), not a branch —
 # so this gate keys off a tag start condition, not a `candidate/*` branch.
 #
 # Multi-app: loops every app from resolve_apps. An app with no RC-tag workflow
@@ -22,7 +22,7 @@ APPS=$(resolve_apps)
 
 match_rc_tag() {
   local wf="$1" id
-  # A tagStartCondition whose pattern is an RC tag (v*-rc*, or just contains "rc").
+  # A tagStartCondition whose pattern is an RC tag (*-rc*, legacy v*-rc.*, or just contains "rc").
   id=$(echo "$wf" | jq -r '
     .[] | select(
       [ (.attributes.tagStartCondition.source.patterns[]?.pattern // empty) ]
@@ -52,8 +52,8 @@ while IFS= read -r app; do
     name=$(echo "$wf" | jq --arg id "$id" -r '.[] | select(.id==$id) | .attributes.name // "(unnamed)"')
     info "$label: RC gate '$name' (${id:0:12}…)"; agg_add 0
   else
-    info "$label: no tag=v*-rc.* workflow"; agg_add 2
+    info "$label: no tag=*-rc* workflow"; agg_add 2
   fi
 done <<< "$(echo "$APPS" | jq -c '.[]')"
 
-agg_finish "RC (release-gate) workflow (tag=v*-rc.*)"
+agg_finish "RC (release-gate) workflow (tag=*-rc*)"
