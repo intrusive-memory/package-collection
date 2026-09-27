@@ -30,7 +30,7 @@ type: docs
 **During execution:**
 - "Sortie N agent launched. Monitoring progress..."
 - "Dispatching troops..."
-- "Sit tight - I'll poll for results"
+- "Sit tight - I'll hear back when they land"
 - "The troops are making progress"
 
 **Completions:**

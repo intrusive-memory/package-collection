@@ -40,6 +40,10 @@ Pass 1 (`refine-blockers`) is a **hard-stop gate**: if any blocking open questio
 
    If the `## Open Questions` section is missing entirely, note this in the output (it means `breakdown` was run on an older version of the skill) and proceed via the fallback scan with inline recommendations.
 
+   **Recon-sourced blockers**: entries carried in by `recon --accept-risk` (see `commands/recon.md` § Stage 5) are already fully formed — claim, evidence, and numbered resolution options. Present them verbatim; do not redraft their recommendations. They are distinguishable by a `**Found**:`/`**Resolved version**:` pair in the OQ body.
+
+   **Do not re-open anything `RECON_REPORT.md` marked `CONFIRMED`** — it carries a citation against the revision the build resolves. That is settled evidence, not an open question.
+
    **Do not collect** vague exit criteria like "works correctly" or "tests pass" — those belong to Pass 5 (`refine-questions`).
 
 3. **Sanity-check each recommendation** (light review, not regeneration): Skim the recommendation/rationale produced by `breakdown` against the current EXECUTION_PLAN.md. If a recommendation conflicts with a later sortie's tasks or contradicts a constraint elsewhere in the plan, flag it as `**Refine-flagged conflict**: <one-line reason>` in the blocker report so the user sees the issue alongside breakdown's recommendation. Do not silently overwrite breakdown's recommendation.
@@ -294,6 +298,7 @@ Pass 1 (`refine-blockers`) is a **hard-stop gate**: if any blocking open questio
      - "Works correctly", "properly handles", "is complete"
      - "Tests pass" without naming specific tests
      - "Build succeeds" without specifying build command
+   - **`[judgment]` criteria** are allowed — they go to an independent verifier agent (`commands/execution.md` § 3f) — but only when specific. Keep "error messages name the offending file path"; flag "code is clean" or "good error handling" as vague. If a `[judgment]` criterion can be rewritten as a command, rewrite it.
 
 4. **Identify missing documentation**:
    - Sortie references files that don't exist

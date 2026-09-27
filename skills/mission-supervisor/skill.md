@@ -1,10 +1,10 @@
 ---
 name: mission-supervisor
 type: skill
-description: Plan and execute sorties with sergeant precision. Give each agent ONE clear, measurable goal. Pre-execution commands (breakdown, refine + 5 subcommands) create and refine an EXECUTION_PLAN.md from requirements. Refine performs 5 passes: blocking open questions (hard stop for user decisions), atomicity/testability, prioritization, parallelism (up to 4 sub-agents, builds only by supervisor), and a final vague-criteria/lingering-questions pass. Execution commands (start, resume, status, stop, killall) orchestrate sortie agents with lean context and crystal-clear objectives. On `start` (Swift/Xcode projects only), the supervisor runs a pre-build /dependency-purge so every build-gate sortie resolves against a clean dep tree with intrusive-memory/* floors bumped to latest releases; `resume` skips this. THE RITUAL (name-feature) generates humorous military operation names. Post-mission flow runs automatically after the last sortie completes: (test-cleanup) prunes tests added during the mission that cannot run reliably in CI, then (brief) harvests lessons and renders an explicit ROLLBACK | KEEP | PARTIAL_SALVAGE verdict, then auto-triggers (clean) → /organize-agent-docs to archive every mission artifact in the project root into docs/<complete|incomplete>/<mission name>/.
-argument-hint: "[breakdown|name-feature|refine|refine-blockers|refine-atomicity|refine-priority|refine-parallelism|refine-questions|start|resume|status|stop|killall|test-cleanup|brief|clean] [path] [--max-turns=N]"
+description: Plan and execute missions as sorties, with sergeant precision — one clear, measurable goal per agent. Pre-execution: `recon` audits every assumption the requirements make about existing code (resolving each dependency to its local checkout under ~/Projects and verifying against the revision the build actually resolves) and hard-stops on a false premise; `breakdown` turns requirements into EXECUTION_PLAN.md; `refine` runs 5 passes — blocking questions (hard stop), atomicity, priority, parallelism (≤4 agents), vague-criteria cleanup. Execution: `start`/`resume`/`status`/`stop`/`killall` dispatch sortie agents with lean context, react to completion notifications instead of polling, continue PARTIAL sorties in the same agent, route `[judgment]` criteria to an independent verifier, and halt a work unit on REPLAN when the plan itself is wrong. `start` also runs THE RITUAL (operation naming) and, on Swift/Xcode projects, an artifact-only pre-build clean. Post-mission, automatic: `test-cleanup` prunes mission-added tests that can't run in CI, `brief` renders a ROLLBACK | KEEP | PARTIAL_SALVAGE verdict, `clean` archives every mission artifact via /organize-agent-docs.
+argument-hint: "[recon|breakdown|name-feature|refine|refine-blockers|refine-atomicity|refine-priority|refine-parallelism|refine-questions|start|resume|status|stop|killall|test-cleanup|brief|clean] [path] [--max-turns=N]"
 disable-model-invocation: false
-allowed-tools: Read, Glob, Grep, Bash, Task, Write, Edit, TaskOutput, KillShell
+allowed-tools: Read, Glob, Grep, Bash, Agent, Task, SendMessage, Write, Edit, TaskOutput, TaskStop, KillShell
 ---
 
 # Mission Supervisor Agent
@@ -38,7 +38,9 @@ The Mission Supervisor reads and writes a small set of canonical documents. Each
 | Document | Filename pattern | OKF `type` | Authored / edited by | Definition |
 |----------|------------------|-----------|----------------------|------------|
 | **Requirements** | `REQUIREMENTS.md` (also accepts `PRD.md`, `SPEC.md`, `README.md`) | `requirements` | Upstream (human). Read by `breakdown`; only its `type` key is stamped, never its body. | The upstream source of truth describing *what* the mission must accomplish — functional/non-functional requirements, user stories, acceptance criteria, constraints. This is the input the mission decomposes. |
+| **Recon Report** | `RECON_REPORT.md` | `recon-report` | Created by `recon`; read by `breakdown`. | The ground-truth audit of the requirements: every assumption the requirements make about existing code, each verified against the source the build actually resolves, plus the local dependency map (declared vs. resolved vs. local checkout). The evidentiary source of truth for *what is actually already there*. |
 | **Execution Plan** | `EXECUTION_PLAN.md` | `execution-plan` | Created by `breakdown`; edited by `refine` and `start`. | The mission plan derived from the requirements: work units, sortie definitions with machine-verifiable entry/exit criteria, open questions, and dependency layers. The operational source of truth for *how* the mission executes. |
+| **Test Cleanup Report** | `TEST_CLEANUP_REPORT.md` | `test-cleanup-report` | Created by `test-cleanup`; read by `brief`. | The record of tests added during the mission that were pruned for being unable to run reliably in CI, plus the borderline cases flagged for human review. Feeds the brief's verdict. |
 | **Mission Brief** | `<OPERATION_NAME>_<NN>_BRIEF.md` | `mission-brief` | Created by `brief` (one per iteration). | The post-mission review that harvests hard discoveries and process lessons, assesses sortie accuracy, and renders the explicit `ROLLBACK \| KEEP \| PARTIAL_SALVAGE` verdict. The retrospective source of truth for *what was learned*. |
 
 **OKF frontmatter rule** — applies to every command in this skill:
@@ -46,6 +48,30 @@ The Mission Supervisor reads and writes a small set of canonical documents. Each
 1. Whenever you **create** one of these documents, its YAML frontmatter MUST include the matching `type:` value from the table above.
 2. Whenever you **edit** one of these documents (adding mission fields like `feature_name`, `starting_point_commit`, `state:`, etc.), the existing `type:` key MUST be preserved — never drop or overwrite it.
 3. For the **Requirements** document specifically: Mission Supervisor never rewrites the body. If the requirements doc lacks a `type:` key, `breakdown` adds `type: requirements` to its frontmatter (creating a frontmatter block if none exists) and changes nothing else.
+
+---
+
+## The Pipeline
+
+Five phases, in order — the post-mission chain counts as one. Each gates the next; each writes its own artifact.
+
+```
+recon ──► breakdown ──► refine ──► start / resume ──► test-cleanup ──► brief ──► clean
+  │           │            │             │                  │            │         │
+RECON_    EXECUTION_   EXECUTION_    SUPERVISOR_       TEST_CLEANUP_  <OP>_NN_  artifacts
+REPORT.md  PLAN.md      PLAN.md       STATE.md          REPORT.md    BRIEF.md   archived
+(CLEAR?)  (gated on    (Pass 1 is    COMPLETE_*.md
+           CLEAR)       a hard stop)
+                                    └──────── post-mission chain: automatic ────────┘
+```
+
+| Phase | Gate into it | Hard stop when |
+|-------|--------------|----------------|
+| `recon` | A requirements document exists | An assumption is `REFUTED`, `STALE`, or `CONFIRMED_LOCAL_ONLY` |
+| `breakdown` | `RECON_REPORT.md` is fresh and `CLEAR` | Recon is `BLOCKED` or missing and cannot run |
+| `refine` | `EXECUTION_PLAN.md` exists | Pass 1 finds unresolved blocking open questions |
+| `start` / `resume` | A refined `EXECUTION_PLAN.md` | A sortie reaches `FATAL` or `REPLAN` → work unit `BLOCKED` |
+| post-mission | The last sortie completed | Never — it reports a verdict rather than blocking |
 
 ---
 
@@ -75,6 +101,7 @@ NOT_STARTED ──(start command)──► RUNNING
 RUNNING ──(all sorties complete)──► COMPLETED
 RUNNING ──(stop command)──► STOPPING
 RUNNING ──(sortie enters FATAL)──► BLOCKED
+RUNNING ──(sortie enters REPLAN)──► BLOCKED
 STOPPING ──(active agent finishes or timeout)──► STOPPED
 STOPPED ──(resume command)──► RUNNING
 BLOCKED ──(user intervenes / resume)──► RUNNING
@@ -88,7 +115,7 @@ KILLED ──(resume command)──► RUNNING
 | `COMPLETED` | All sorties finished and verified |
 | `STOPPING` | Stop requested; waiting for active agent to finish (no new dispatches) |
 | `STOPPED` | Gracefully stopped; can resume |
-| `BLOCKED` | A sortie hit FATAL after exhausting retries; needs human intervention |
+| `BLOCKED` | A sortie hit FATAL after exhausting retries, or raised REPLAN; needs human intervention. Record which in the Decisions Log. |
 | `KILLED` | Terminated via killall; may have uncommitted work |
 
 ### Sortie States
@@ -96,24 +123,32 @@ KILLED ──(resume command)──► RUNNING
 ```
 PENDING ──(dispatched)──► DISPATCHED
 DISPATCHED ──(agent starts work)──► RUNNING
-RUNNING ──(verification confirms success)──► COMPLETED
+RUNNING ──(verification confirms success, no judgment criteria)──► COMPLETED
+RUNNING ──(mechanical checks pass, judgment criteria remain)──► VERIFYING
 RUNNING ──(verification shows partial)──► PARTIAL
 RUNNING ──(agent fails/exits, retries remain)──► BACKOFF
-PARTIAL ──(continuation dispatched)──► DISPATCHED
+RUNNING ──(agent reports a plan defect)──► REPLAN
+VERIFYING ──(verifier PASS)──► COMPLETED
+VERIFYING ──(verifier FAIL, verifier rounds remain)──► PARTIAL
+VERIFYING ──(verifier FAIL, verifier rounds exhausted)──► BACKOFF
+PARTIAL ──(continuation dispatched or resumed)──► DISPATCHED
 BACKOFF ──(retry dispatched)──► DISPATCHED
 BACKOFF ──(max_retries exhausted)──► FATAL
 FATAL ──(user manually restarts)──► PENDING
+REPLAN ──(user amends plan, then resume)──► PENDING
 ```
 
 | State | Description |
 |-------|-------------|
 | `PENDING` | Not yet dispatched |
 | `DISPATCHED` | Agent launched as background task; not yet confirmed running |
-| `RUNNING` | Agent is actively working (TaskOutput shows activity) |
+| `RUNNING` | Agent is actively working (no completion notification yet) |
+| `VERIFYING` | Mechanical exit criteria passed; an independent verifier agent is judging the `[judgment]` criteria. See `commands/execution.md` § 3f. |
 | `COMPLETED` | Verification confirms sortie done |
-| `PARTIAL` | Verification shows partial progress; remainder needs continuation |
+| `PARTIAL` | Verification shows partial progress, or the verifier returned concrete findings; remainder needs continuation |
 | `BACKOFF` | Agent failed; waiting for retry. Attempt counter increments. |
 | `FATAL` | Max retries exhausted. Work unit enters BLOCKED. No auto-retry. |
+| `REPLAN` | The sortie agent showed that the plan itself is wrong (a premise is false, a referenced API does not exist, sorties conflict). Attempt counter does **not** increment. Work unit enters BLOCKED. No auto-retry. |
 
 ### Retry Rules
 
@@ -121,6 +156,9 @@ FATAL ──(user manually restarts)──► PENDING
 - **Backoff delay**: Not time-based (agents are dispatched immediately), but the attempt counter tracks how many times a sortie has been retried.
 - **FATAL escalation**: After attempt 3 fails, the sortie enters FATAL. The supervisor sets the work unit to BLOCKED, logs the failure, and reports to the user. No further automatic dispatch for this work unit.
 - **Recovery from FATAL**: Only via user command (`/mission-supervisor resume`). The supervisor resets the sortie to PENDING and the work unit to RUNNING, with the attempt counter preserved in the Decisions Log for visibility.
+- **REPLAN is not a failure**: A plan defect is not the agent's fault, and burning three retries on a plan that cannot succeed wastes the most expensive models on the wrong problem. REPLAN skips the retry ladder entirely and goes straight to the user with the agent's evidence and its proposed plan change. The supervisor **never** applies the change itself — the plan stays immutable during execution. Recovery: the user edits EXECUTION_PLAN.md (or runs `refine`), then `resume` resets the sortie to PENDING with its attempt counter unchanged.
+- **Stuck-agent watchdog**: every 20 minutes (`watchdog_interval_minutes`) the supervisor checks each active agent for progress (output growth or repo changes). The third consecutive no-progress check (`watchdog_max_strikes: 3`) kills the agent; its sortie goes to BACKOFF and the attempt counter increments. See `commands/execution.md` § 7 *Stuck Agent Watchdog*.
+- **Verifier rounds**: `max_verifier_rounds` is 2 per sortie (configurable in SUPERVISOR_STATE.md). A verifier FAIL sends the findings back as a continuation (PARTIAL, no attempt increment). If the verifier fails the sortie again after the last round, the sortie goes to BACKOFF and the attempt counter increments — the implementer could not satisfy the criteria.
 
 ---
 
@@ -135,7 +173,7 @@ Parse `$ARGUMENTS` as follows:
 
 | Category | Commands | Purpose |
 |----------|----------|---------|
-| **Pre-execution** | `breakdown`, `refine` (+ 5 subcommands) | Create and refine EXECUTION_PLAN.md from requirements |
+| **Pre-execution** | `recon`, `breakdown`, `refine` (+ 5 subcommands) | Establish ground truth, then create and refine EXECUTION_PLAN.md from requirements. `recon` runs first and gates `breakdown`. |
 | **The Ritual** | `name-feature` | Generate humorous military operation name (happens at `start`, or manual regeneration) |
 | **Execution** | `start`, `resume`, `status`, `stop`, `killall` | Orchestrate sortie agents against an existing plan |
 | **Post-mission** | `test-cleanup`, `brief`, `clean` | Auto-chain after the last sortie completes. `test-cleanup` prunes tests added during the mission that cannot run reliably in CI (CI is the primary build mechanism); `brief` harvests lessons and renders an explicit `ROLLBACK | KEEP | PARTIAL_SALVAGE` verdict; `clean` (auto-triggered by `brief`) sets final `state:` on each root mission file then delegates to `/organize-agent-docs` for archival. All file moves and link updates live in the [organize-agent-docs](../organize-agent-docs/) skill. |
@@ -146,7 +184,8 @@ Each command is documented in its own file. Read the referenced file for full in
 
 | Command | File | Summary |
 |---------|------|---------|
-| `breakdown` | `commands/breakdown.md` | Parse requirements → generate EXECUTION_PLAN.md |
+| `recon` | `commands/recon.md` | Audit requirements assumptions against real code + map local dependency checkouts → RECON_REPORT.md |
+| `breakdown` | `commands/breakdown.md` | Parse requirements → generate EXECUTION_PLAN.md (requires a fresh RECON_REPORT.md) |
 | `refine` | `commands/refine.md` | Run all 5 refinement passes sequentially (Pass 1 is a hard-stop gate) |
 | `refine-blockers` | `commands/refine.md` § Pass 1 | Surface blocking open questions with recommendations; full stop for user decisions |
 | `refine-atomicity` | `commands/refine.md` § Pass 2 | Check sortie size, testability, context fitness |
@@ -170,6 +209,7 @@ Each command is documented in its own file. Read the referenced file for full in
 
 ### Pre-execution Command Signatures
 
+- **`recon [path/to/requirements.md] [--search-root=DIR] [--max-agents=N] [--depth=N] [--accept-risk]`**: Runs **before** `breakdown`. Extracts every assumption the requirements make about existing code, builds a local dependency map by indexing git checkouts under `--search-root` (default `~/Projects`) and matching on normalized remote URL, then dispatches up to 4 read-only verification spokes — one per verification locus — to check each assumption against the revision the build actually resolves. Writes `RECON_REPORT.md` and **hard stops** when any assumption is `REFUTED`, `STALE`, or `CONFIRMED_LOCAL_ONLY` (true in a local checkout that is ahead of its pin). `--accept-risk` converts blocking findings into Open Questions instead of stopping. See `commands/recon.md`.
 - **`breakdown [path/to/requirements.md]`**: Path to a requirements document. If omitted, search the current directory for common filenames: `REQUIREMENTS.md`, `PRD.md`, `SPEC.md`, `README.md` (in that order). If none found, STOP with an error.
 - **`refine [path/to/EXECUTION_PLAN.md] [--max-turns=N]`**: Runs all 5 refinement passes sequentially on an existing execution plan. Optional path (uses standard resolution logic). Optional `--max-turns` flag (default 50) for context budget. **Pass 1 is a hard-stop gate**: if blockers are found, refinement halts and waits for user decisions before continuing. After all passes succeed, declares the plan ready for execution and summarizes to user.
 - **`refine-blockers [path/to/EXECUTION_PLAN.md]`**: Pass 1 only — surface blocking open questions left over from `breakdown`, attach a concrete recommendation to each, and full stop for user resolution.
@@ -234,6 +274,10 @@ Store the resolved project root as `$PROJECT_ROOT` for use throughout this sessi
 
 ## What You Must NOT Do
 
+- **Run `breakdown` without a fresh `RECON_REPORT.md`** — `breakdown` auto-invokes `recon` when the report is missing or stale (see `commands/recon.md` § Freshness). Planning on unverified premises is what `REPLAN` exists to catch late and expensively.
+- **Treat a recon `UNVERIFIABLE` finding as true** — it becomes an Open Question or an explicit verification step in the first dependent sortie's entry criteria, never a silent assumption
+- **Let `recon` repair what it finds** — it writes `RECON_REPORT.md` and nothing else. It never bumps a pin, edits the requirements, resolves a package, or reaches the network
+- **Verify an assumption against a local dependency checkout that differs from the revision the build resolves** — that false confirmation is the specific failure `recon` exists to prevent
 - Write production code (source files, scripts, configs that the plan says to create)
 - Write test code
 - Override the dependency graph defined in the execution plan
@@ -245,6 +289,8 @@ Store the resolved project root as `$PROJECT_ROOT` for use throughout this sessi
 - **Give an agent multiple goals in one sortie** (sergeant principle: one clear, measurable objective per dispatch)
 - **Dispatch vague exit criteria** (no "works correctly", "is complete", "properly handles" — be specific and machine-verifiable)
 - Use state names not defined in the State Machine section (no ad-hoc states like "paused", "waiting", "in_progress")
+- **Apply a REPLAN proposal yourself** — surface it to the user; the plan changes only by human edit or `refine`
+- **Poll background agents in a loop** — wait for completion notifications (see `commands/execution.md` § 2). The only timed checks are the 20-minute stuck-agent watchdog and `deferred` sorties' external conditions, and both run as background timers whose exit is the event
 - Escalate deferred sorties to FATAL just because the external condition isn't met yet
 - **Load agents with unnecessary context** (only include files directly relevant to the sortie's goal)
 - **Specify concrete version numbers in execution plans or supervisor state** — Always use relative version language: "our next patch release version", "our next minor release version", "our next major release version". Version numbers are determined at release time by finding the numerically highest semver tag (sorted by major.minor.patch, not by creation date) and incrementing appropriately based on release type.

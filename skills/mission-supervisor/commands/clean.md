@@ -4,6 +4,10 @@ type: docs
 
 # clean — Delegated to /organize-agent-docs
 
+> **Terminology reminder**: A *mission* is the definable scope of work. A *sortie* is an atomic agent task within that mission.
+
+**Referenced by**: `skill.md` § Argument Parsing → `clean`. Auto-invoked by `commands/brief.md`.
+
 > **This command is a thin stub.** All cleanup logic now lives in the [organize-agent-docs](../../organize-agent-docs/) skill, which is the single owner of repo-level markdown organization. `clean` is preserved here as a compatibility entry point so existing flows (`brief` → `clean`) keep working.
 
 ---
@@ -47,7 +51,7 @@ Resolution is unchanged: derive `$PROJECT_ROOT` from the location of `EXECUTION_
    - If every work unit in `SUPERVISOR_STATE.md` is `COMPLETED` → for every root-level MISSION file with `state: current` or no state, set `state: completed`.
    - Otherwise → set `state: incomplete`.
    - If `SUPERVISOR_STATE.md` does not exist → set `state: incomplete`.
-   - **Preserve the OKF `type:` key** on every file you touch (`type: execution-plan` on `EXECUTION_PLAN.md`, `type: mission-brief` on `*_BRIEF.md`). Setting `state:` must add/update only that key — never drop `type:` (see skill.md § Mission Documents & OKF Types).
+   - **Preserve the OKF `type:` key** on every file you touch (`type: execution-plan` on `EXECUTION_PLAN.md`, `type: mission-brief` on `*_BRIEF.md`, `type: recon-report` on `RECON_REPORT.md`, `type: test-cleanup-report` on `TEST_CLEANUP_REPORT.md`). Setting `state:` must add/update only that key — never drop `type:` (see skill.md § Mission Documents & OKF Types).
 4. Invoke `/organize-agent-docs organize $PROJECT_ROOT`. That skill performs the moves, link updates, and date stamping based on the `state:` values you just set.
 
 ---
@@ -80,7 +84,7 @@ Everything else — moving files, updating links, stamping dates, building desti
 
 ## Invariant (Carried Forward)
 
-`clean` (now via `/organize-agent-docs`) remains the only command in mission-supervisor that moves mission artifacts. No other command — `breakdown`, `refine`, `start`, `resume`, `status`, `stop`, `killall`, `completion.md`, `brief`, `name-feature` — may move, rename, archive, or delete mission artifacts. The chain is:
+`clean` (now via `/organize-agent-docs`) remains the only command in mission-supervisor that moves mission artifacts. No other command — `recon`, `breakdown`, `refine`, `start`, `resume`, `status`, `stop`, `killall`, `completion.md`, `brief`, `name-feature` — may move, rename, archive, or delete mission artifacts. The chain is:
 
 ```
 brief  →  set state: on each root MISSION file  →  /organize-agent-docs organize
