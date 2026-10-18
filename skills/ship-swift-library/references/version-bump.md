@@ -1,6 +1,10 @@
+---
+type: reference
+---
+
 # Step 3: Bump Version, Update Dependencies, Audit Documentation, and Audit CI Workflows
 
-This is the heaviest step in the ship flow. Four coupled sub-tasks (SPM audit, version edit + lint + docs, CI-action audit) all land in a **single commit on `development`** that ships as part of the PR merge.
+This is the heaviest step in the ship flow. Sections 1–7 below all land in a **single commit on `development`** that ships as part of the PR merge (section 6.1's codemap lands as its own adjacent commit).
 
 Make sure you're on the `development` branch first:
 
@@ -8,6 +12,18 @@ Make sure you're on the `development` branch first:
 git checkout development
 git pull origin development
 ```
+
+## 0. Check which sub-steps actually apply
+
+Sections 1, 2, and 4 are entirely about `intrusive-memory/*` dependencies and the `sibling(...)` scaffolding. **A package with neither has nothing for them to do**, and that is common — SwiftAcervo, for instance, depends only on `swift-argument-parser` and `Progress.swift`, has no `Package.resolved` tracked, and has never carried a sibling helper.
+
+```bash
+INTRUSIVE_DEPS=$(grep -c 'intrusive-memory' Package.swift || true)
+HAS_SIBLING=$(grep -cE 'useLocalSiblings|func sibling\(' Package.swift || true)
+echo "intrusive-memory deps: ${INTRUSIVE_DEPS}; sibling scaffolding: ${HAS_SIBLING}"
+```
+
+If both are `0`, skip sections 1, 2, and 4 and **report them as no-ops in the summary** — do not claim `/spm-package-audit` and `/toggle-sibling-libraries` "ran successfully" when there was nothing for them to act on. Still do the section-4 sanity greps; they should pass trivially.
 
 ## 1. Run SPM Package Audit First
 
@@ -54,8 +70,11 @@ Edit `Sources/<LibraryName>/<LibraryName>.swift` (or wherever the canonical vers
 # Locate every file holding the old -dev version (escape the dot)
 grep -rln --exclude-dir=.git --exclude-dir=.build "X\.Y\.Z-dev" .
 
-# After editing all of them to the new clean version, verify nothing remains
-grep -rln --exclude-dir=.git --exclude-dir=.build -- "-dev" . || echo "No -dev markers left."
+# After editing all of them to the new clean version, verify nothing remains.
+# Anchor to a semver suffix -- a bare `-dev` grep false-positives on ordinary
+# English ("on-device", "re-development") and will report a clean tree as dirty.
+grep -rnE --exclude-dir=.git --exclude-dir=.build -- '[0-9]+\.[0-9]+\.[0-9]+-dev' . \
+  || echo "No -dev version markers left."
 ```
 
 Common locations: `Sources/<LibraryName>/<LibraryName>.swift`, `README.md`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`. Do NOT touch dependency version constraints in `Package.swift` — those are unrelated.
@@ -161,7 +180,7 @@ grep -hE '^[[:space:]]*uses:[[:space:]]*[^#]' .github/workflows/*.y*ml 2>/dev/nu
 
 ### 7.2. Build the floor-version table dynamically — do NOT hard-code versions
 
-Hard-coded floor versions go stale the moment GitHub publishes a new major. Instead, build a per-release audit table by querying `releases/latest` for every action this repo actually uses. The output of step 6.1 is the input here.
+Hard-coded floor versions go stale the moment GitHub publishes a new major. Instead, build a per-release audit table by querying `releases/latest` for every action this repo actually uses. The output of section 7.1 is the input here.
 
 **Output target (illustrative shape only — values must come from live API calls):**
 
@@ -169,7 +188,7 @@ Hard-coded floor versions go stale the moment GitHub publishes a new major. Inst
 |---|---|---|---|---|
 | `<owner>/<repo>` | `<extracted from workflow>` | `<derived from gh api>` | `<derived from gh api>` | bump / OK |
 
-**How to populate it**, one row per unique `<owner>/<repo>` discovered in step 6.1:
+**How to populate it**, one row per unique `<owner>/<repo>` discovered in section 7.1:
 
 ```bash
 # Extract just the owner/repo (strip @ref) and dedupe
@@ -239,7 +258,9 @@ done
 
 ### 7.5. Re-confirm the `release.yml` workflow specifically
 
-It owns tarball production and the Homebrew dispatch (Step 8 of the main flow). If its actions were stale, the next release will fire on the updated workflow, so make sure it still uploads to the correct release and dispatches `formula-update` to homebrew-tap.
+It owns tarball production (Step 9 of the main flow). If its actions were stale, the next release fires on the updated workflow, so confirm it still builds the binary and uploads the tarball to the correct release.
+
+**It should NOT contain a Homebrew step.** Source repos no longer dispatch `formula-update` — the org `DEPLOY_TOKEN` PAT expired and was deleted in July 2026, and the tap now pulls on a 6-hour cron instead (`reconcile-formulas.yml`). If you find a `peter-evans/repository-dispatch` step targeting `intrusive-memory/homebrew-tap` still in this workflow, **delete it**: it references a secret that no longer exists and fails on every release run.
 
 ## 8. Single Commit and Push
 

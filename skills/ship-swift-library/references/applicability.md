@@ -1,6 +1,24 @@
+---
+type: reference
+---
+
 # Applicability & Naming Convention
 
 This skill applies to Swift libraries in the `intrusive-memory` GitHub organization that follow the standard `development → PR → main → tag` release flow. The repository name is your first signal of what kind of project you're looking at.
+
+**The tables below are illustrative, not exhaustive.** The org has more `Swift<Word>` libraries than are listed (SwiftAmbiente, SwiftApoderado, SwiftAprendiendo, SwiftDesglose, SwiftEscribo, SwiftEspeak, SwiftHablareOnce, SwiftPruebas, SwiftSemblanzas, SwiftVerificar, SwiftVinetas, …) plus non-`Swift`-prefixed Swift packages (glosa-tools, flux-2-swift-mlx, pixart-swift-mlx). Use the **structural gate in SKILL.md** — `Package.swift` present *and* a `development` branch exists — as the actual decision procedure. Treat the name as a hint, never as the test.
+
+## The `development` branch is not universal
+
+The Applicability Gate checks for a `development` branch because this skill's whole flow is `development → PR → main`. **Some Swift packages in the org are main-only** and cannot use it as written — confirmed cases include `glosa-tools` and `SwiftAprendiendo`, neither of which has a `development` branch at all.
+
+```bash
+git ls-remote --heads origin development | grep -q development \
+  && echo "development exists — skill applies" \
+  || echo "MAIN-ONLY — this skill does not apply as written"
+```
+
+For a main-only repo, stop and tell the user. Do not silently invent a `development` branch, and do not fall back to releasing straight off `main` — that skips the version-bump-before-merge invariant this skill is built around.
 
 ## `Swift<PascalCaseWord>` — in-house Swift library (skill applies)
 
@@ -45,6 +63,8 @@ Single-file or data-driven repos where the "release" is the file itself, not a t
 | Repo | What it is | Release flow |
 |---|---|---|
 | package-collection | Swift Package Collection JSON | **main-only, no development branch** |
+
+Note that `package-collection` is main-only *because* it is data rather than a library — but main-only-ness is not exclusive to data repos. See "The `development` branch is not universal" above: some genuine Swift libraries are main-only too, and the missing branch is the signal, not the repo's kind.
 
 ## Collaboration fork — local copy for upstreaming (skill does NOT apply)
 

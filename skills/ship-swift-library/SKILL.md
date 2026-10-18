@@ -74,13 +74,38 @@ git ls-remote --heads origin development | grep -q development \
   || { echo "No development branch — this may be a main-only repo"; exit 1; }
 ```
 
-If either check fails, stop and ask the user. A missing `development` branch usually means a main-only repo (like `package-collection`) and a different release flow applies.
+If either check fails, stop and ask the user. **A missing `development` branch is not confined to data repos** — genuine Swift libraries in the org are main-only too (confirmed: `glosa-tools`, `SwiftAprendiendo`). Do not create a `development` branch to satisfy the gate, and do not fall back to releasing straight off `main`: that skips the bump-before-merge invariant the whole flow rests on.
 
-For the full repo naming-convention table — which repos this skill applies to (`Swift<Word>`, `<kebab>-swift`, `<domain>-format`) and which it does NOT (`package-collection`, collaboration forks, CLI tools/apps) — see `references/applicability.md`.
+This gate is **structural, not name-based**. The naming tables in the reference are hints; `Package.swift` + a `development` branch is the actual test. For the conventions and the repos this skill explicitly does NOT apply to (data repos, collaboration forks, CLI tools/apps) — see `references/applicability.md`.
 
 ## Process Overview
 
-15 steps in order. Steps marked **[ref]** load a reference file before executing.
+16 steps (0–15) in order. Steps marked **[ref]** load a reference file before executing.
+
+### 0. Preflight: Confirm Development Is a Clean Descendant of Main
+
+**Run this before anything else.** If the *previous* ship cycle skipped Step 11, `development` still carries phantom commits whose content was squashed onto `main`. Replaying them conflicts, the release PR lands in `CONFLICTING` state, and — the part that wastes the most time — **GitHub cannot build a merge ref for a conflicted PR, so the `pull_request` workflow never fires at all.** `gh pr checks` then reports `no checks reported on the 'development' branch`, which reads like "CI hasn't started yet" and will hang a `--watch` or a polling monitor indefinitely.
+
+```bash
+git fetch origin --tags -q
+
+# Is main's tip already an ancestor of development? If not, development is stale
+# or divergent and the release PR will conflict.
+if git merge-base --is-ancestor origin/main origin/development; then
+  echo "OK: development descends cleanly from main."
+else
+  echo "DIVERGENT: development does not contain main's tip."
+  echo "  main:        $(git log -1 --format='%h %s' origin/main)"
+  echo "  development: $(git log -1 --format='%h %s' origin/development)"
+  echo "  main-only commits: $(git rev-list --count origin/development..origin/main)"
+  echo ""
+  echo "Run the Step 11 rebase procedure (references/rebase-development.md) NOW,"
+  echo "before creating or updating the release PR. Do NOT 'git merge main' —"
+  echo "that is what produced this state in the first place."
+fi
+```
+
+If divergent, run `references/rebase-development.md` **up front**. That reference is written to be safe at either end of the cycle. Only continue to Step 1 once `merge-base --is-ancestor` passes.
 
 ### 1. Check for Open Pull Request
 
@@ -193,11 +218,32 @@ This is the heaviest step — five coupled sub-tasks that all land in a **single
 
 ### 4. Verify CI Checks Pass
 
-The version-bump push triggers a new CI run. Wait for it:
+The version-bump push triggers a new CI run.
+
+**Check mergeability BEFORE waiting on checks.** A `CONFLICTING` PR produces zero checks — not failing checks, *no* checks — because GitHub never builds the merge ref that `pull_request`-triggered workflows run against. Waiting on that state never terminates:
 
 ```bash
-gh pr checks <PR_NUMBER> --watch
+MERGEABLE=$(gh pr view "$PR_NUMBER" --json mergeable --jq '.mergeable')
+case "$MERGEABLE" in
+  MERGEABLE) ;;
+  CONFLICTING)
+    echo "ABORT: PR #${PR_NUMBER} is CONFLICTING — no CI will run until this is resolved."
+    echo "Almost always means development was never rebased after the last release."
+    echo "Run references/rebase-development.md, then re-check."
+    exit 1 ;;
+  UNKNOWN)
+    echo "Mergeability still computing; re-poll in a few seconds before proceeding."
+    exit 1 ;;
+esac
 ```
+
+Then wait for the checks:
+
+```bash
+gh pr checks "$PR_NUMBER" --watch
+```
+
+If `gh pr checks` prints `no checks reported on the '<branch>' branch` **while the PR is MERGEABLE**, the workflow's trigger does not cover this PR — inspect `on:` in `.github/workflows/tests.yml` (it should include `pull_request: branches: [main, development]`) rather than continuing to wait.
 
 If checks fail, stop and surface the failure.
 
@@ -278,9 +324,13 @@ case "$VERSION" in
   [0-9]*.[0-9]*.[0-9]*) ;;
   *) echo "ABORT: '$VERSION' is not a clean semver string."; exit 1 ;;
 esac
-grep -RlE -- '-dev' Sources/ README.md AGENTS.md CLAUDE.md GEMINI.md 2>/dev/null \
-  && { echo "ABORT: '-dev' marker still present. Re-run step 3."; exit 1; } \
-  || echo "No -dev markers. Safe to tag."
+# Match a -dev VERSION SUFFIX (1.2.3-dev), not the bare substring.
+# A bare `-dev` grep produces false positives on ordinary English —
+# "on-device", "re-development", "dev-dependencies" — and will abort a
+# perfectly valid release. Anchor to semver.
+grep -REn -- '[0-9]+\.[0-9]+\.[0-9]+-dev' Sources/ README.md AGENTS.md CLAUDE.md GEMINI.md 2>/dev/null \
+  && { echo "ABORT: '-dev' version marker still present. Re-run step 3."; exit 1; } \
+  || echo "No -dev version markers. Safe to tag."
 ```
 
 Then tag:
@@ -295,7 +345,9 @@ git push origin "v${VERSION}"
 
 ### 9. Create GitHub Release (metadata only — NO tarball upload)
 
-The `release.yml` CI workflow fires on `release: published` and builds + uploads the canonical tarball, then dispatches the Homebrew formula update. **Do NOT upload any tarball or binary assets** and **never run `make dist`** as part of releasing.
+The `release.yml` CI workflow fires on `release: published`, builds the canonical tarball, and uploads it to the release. **Do NOT upload any tarball or binary assets** and **never run `make dist`** as part of releasing.
+
+> **Homebrew is no longer part of this step.** Source repos used to dispatch a `formula-update` event to `intrusive-memory/homebrew-tap`. That path is dead — the org `DEPLOY_TOKEN` PAT expired in July 2026 and was deleted, so the dispatch step referenced a nonexistent secret and failed on every release run. It has been removed from `release.yml`. The tap now **pulls** instead. See Step 10.
 
 Re-check the `-dev` guard:
 
@@ -336,33 +388,56 @@ EOF
 
 **CRITICAL**: Never pass a local file path to `gh release create`. Never run `make dist` as part of the release process. CI owns binary production.
 
-### 10. Verify Release and Wait for CI
+### 10. Verify the Release Workflow (and optionally nudge Homebrew)
 
 ```bash
 gh release view vX.Y.Z --json tagName,targetCommitish,url
 gh run list --workflow=release.yml --limit=3
 ```
 
-Wait for the `vX.Y.Z` run to show `completed / success`. The workflow:
-1. Builds the tarball with `make dist` on a clean CI runner
-2. Uploads it to the GitHub release
-3. Dispatches a `formula-update` event to the homebrew-tap repo
+Wait for the `vX.Y.Z` run to show `completed / success`. The workflow builds the release binary and uploads the tarball to the GitHub release. **That is all it does** — it does not touch Homebrew.
 
-Confirm Homebrew updated:
+#### How the tap updates now (pull-based, scheduled)
+
+`intrusive-memory/homebrew-tap` runs `reconcile-formulas.yml` on a **6-hour cron**. It walks every formula, compares it against its source repo's latest stable release, and commits any drift. It needs no cross-repo credential: the source repos are public and the only write is to the tap itself, covered by the built-in `GITHUB_TOKEN`.
+
+This is strictly more reliable than the old dispatch, which failed silently — when the PAT expired, three formulas went stale for a week with no signal anywhere. Reconciliation self-heals drift regardless of cause.
+
+**Consequences for this skill:**
+
+- **Do not wait for the tap in the release flow.** Up to 6 hours may pass before the formula moves. Blocking here would stall every release.
+- **Do not look for a `formula-update` dispatch.** There isn't one. `update-formula.yml` still exists in the tap but is now reachable only via manual `workflow_dispatch`.
+- **A stale formula immediately after release is expected, not a failure.**
+
+If you want the formula updated now rather than within 6 hours, trigger the reconcile manually:
 
 ```bash
-cd <path-to-homebrew-tap> && git fetch origin && git log --oneline origin/main -5
+# Optional fast path — not required for the release to be complete
+gh workflow run reconcile-formulas.yml --repo intrusive-memory/homebrew-tap
+gh run list --workflow=reconcile-formulas.yml --repo intrusive-memory/homebrew-tap --limit 1
 ```
 
-Look for `Update <formula> to vX.Y.Z`. **Never manually edit the formula** — if CI didn't dispatch, investigate the workflow.
+Dry-run first if you want to see drift without committing:
+
+```bash
+gh workflow run reconcile-formulas.yml --repo intrusive-memory/homebrew-tap -f dry_run=true
+```
+
+**Never manually edit a formula.** If reconciliation genuinely isn't picking a release up, investigate `scripts/reconcile-formulas.sh` in the tap — do not hand-patch the `.rb`.
+
+#### Repos with no formula at all
+
+Not every library has one. A library-only package that ships no executable has no formula by design (e.g. SwiftHablare went library-only at v6.1.0; its formula is intentionally absent from the tap). For those, this whole section and Step 14 are **N/A** — say so in the summary rather than reporting a phantom failure.
 
 ### 11. Rebase Development onto Main **[ref]**
 
 After a squash merge, development carries phantom commits whose patch-ids no longer match the squash on main. A naive `git merge main` leaves those phantoms visible in the next PR (huge commit list, zero diff).
 
-The fix: temporarily unlock force-push, reset development to main's tip, cherry-pick only *genuinely new* commits (those added after the PR was created), force-push, then restore protection.
+The fix: back up the current tip, reset development to main's tip, cherry-pick only *genuinely new* commits (those added after the PR was created), then force-push — temporarily unlocking force-push **only if `development` is actually protected**, and restoring it afterward. Protection is per-repo; plenty of repos have none, in which case `gh api .../branches/development/protection` returns a 404 that is a normal answer rather than an error.
 
-**Read `references/rebase-development.md` for the full procedure** — including the protection toggle, why `git cherry` fails on squash merges, and the verification step.
+**Skipping this step is not free.** It is what leaves the *next* cycle's release PR in `CONFLICTING` state with no CI — see Step 0.
+
+**Read `references/rebase-development.md` for the full procedure** — including protection detection, why `git cherry` fails on squash merges, the expected version-bump conflict, and the byte-identical-tree verification.
 
 ### 12. Mark Development Branch with `-dev` Version and Restore Sibling Pattern **[ref]**
 
@@ -401,11 +476,18 @@ Confirm it's draft:
 gh pr list --base main --head development --json number,isDraft,title
 ```
 
-### 14. Verify the Released Version Is Installed via Homebrew
+### 14. (Optional, non-blocking) Verify the Released Version Is Installed via Homebrew
 
-Once Step 10 has confirmed the homebrew-tap formula was bumped to `vX.Y.Z`, pull it onto this machine and confirm the installed CLI binary reports the version you just shipped. This is the end-to-end proof that a user running `brew upgrade` today gets this release.
+**This step no longer gates the release.** Under the pull-based tap (Step 10), reconciliation runs on a 6-hour cron, so in the common case the formula has *not* moved yet when you reach this step. A mismatch here is the expected state immediately after a release, not a defect.
 
-**Applicability:** this step only makes sense if the package ships an **executable product** installed by the formula (a CLI binary). A pure library with no executable has nothing to run — skip the binary check, note "N/A (no executable product)" in the summary, and move on.
+Run it only when one of these is true:
+- You manually triggered `reconcile-formulas.yml` in Step 10 and watched it complete.
+- Enough time has passed (≥6h) that reconciliation should have run.
+- You are specifically investigating a formula suspected of being stale.
+
+Otherwise, record **"deferred — tap reconciles within 6h"** in the summary and finish. Do not poll, and never block the release on it.
+
+**Applicability:** this only makes sense if the package ships an **executable product** installed by a formula (a CLI binary). A pure library with no executable has nothing to run, and a library-only package has no formula at all — note "N/A (no executable product)" in the summary and move on.
 
 **Resolve the binary name per library — do NOT hardcode it.** Different libraries ship differently-named binaries, so derive the executable name from *this* package's manifest. Prefer the declared executable product; fall back to what the formula installs:
 
@@ -441,16 +523,18 @@ if [ "$INSTALLED_VERSION" = "$NEW_VERSION" ]; then
   echo "✅ Homebrew is serving v${NEW_VERSION} — release verified end-to-end."
 else
   echo "⚠️ Installed version '${INSTALLED_VERSION:-<none>}' does not match released 'v${NEW_VERSION}'."
-  echo "   Homebrew bottle/tap propagation can lag a few minutes behind the formula-update commit."
-  echo "   Re-run 'brew update && brew upgrade' shortly, or inspect the tap if it persists."
+  echo "   Expected inside the release window: the tap reconciles on a 6-hour cron."
+  echo "   Trigger it now with: gh workflow run reconcile-formulas.yml --repo intrusive-memory/homebrew-tap"
 fi
 ```
 
-A mismatch is **not** fatal — the release itself already succeeded at Step 9, and bottle builds / tap propagation legitimately lag a few minutes behind the `formula-update` commit that Step 10 confirmed. In unattended mode, surface a mismatch as a warning in the summary rather than aborting.
+A mismatch is **not** fatal and is the *expected* result inside the release window — the release itself already succeeded at Step 9, and the tap reconciles on a 6-hour cron. In unattended mode, surface a mismatch as an informational note in the summary, never as a warning that implies something went wrong, and never abort on it.
 
 ### 15. Summary Report
 
-Provide a final summary covering: SPM audit applied, version bumped, lint, docs organized, README updated, codemap refreshed and committed, CI workflows audited, CI passed, PR title/description updated, PR merged, tag created, GitHub release published, CI release workflow triggered, Homebrew formula updated, installed version verified via `brew upgrade` (or N/A for pure libraries), local branches updated, development synced and stamped `-dev`, draft next-cycle PR opened.
+Provide a final summary covering: preflight branch-divergence check, SPM audit applied (or noted as a no-op), version bumped, lint, docs organized, README updated, codemap refreshed and committed, CI workflows audited, CI passed, PR title/description updated, PR merged, tag created, GitHub release published, release workflow completed, development rebased and stamped `-dev`, draft next-cycle PR opened.
+
+**Report honestly, including no-ops and N/As.** Several steps legitimately do nothing on a given repo — a package with no `intrusive-memory/*` dependencies has nothing for `/spm-package-audit` or the sibling toggle to do; a library with no executable has no Homebrew formula; Step 14 is deferred by design. Say "no-op — no intrusive-memory deps" or "deferred — tap reconciles within 6h" rather than listing them as completed work. A summary that claims a step ran when it didn't is worse than one that admits the step was inapplicable.
 
 Include the release URL and the next-cycle PR URL.
 
@@ -463,27 +547,27 @@ Include the release URL and the next-cycle PR URL.
 5. **Run `make lint` before committing** — Format Swift sources with swift format.
 6. **Organize docs with /organize-agent-docs** — Separate universal vs agent-specific documentation.
 7. **Audit CI workflows for stale GitHub Actions** — Every `uses:` in `.github/workflows/` must be on the latest major. Older majors run on Node 16 (deprecated) and trigger warnings; some are decommissioned (e.g. `actions/upload-artifact@v3`).
-8. **Wait for CI after version bump** — Don't merge until the new CI run passes.
+8. **Wait for CI after version bump — but check `mergeable` first** — Don't merge until the new CI run passes. A `CONFLICTING` PR yields *zero* checks rather than failing ones, because GitHub never builds the merge ref; waiting on it hangs forever. Verify `gh pr view --json mergeable` is `MERGEABLE` before any `--watch` or polling loop.
 9. **Update the PR title and description before merge** — The squash merge inherits the PR title as the commit message on `main`, so it becomes permanent git history. Draft `Release vX.Y.Z: <summary>` and a categorized body from `git log "${LAST_TAG}..HEAD"` and reuse the body for the GitHub release notes.
 10. **Use --squash** — Single commit per PR on main.
 11. **Don't delete development** — It's a long-lived branch.
 12. **Tag on main after merge** — Tag goes on the squash merge commit.
-13. **Rebase development after release using the protected-branch procedure** — See `references/rebase-development.md`. Never `git merge main` (leaves phantom commits).
+13. **Rebase development after release** — See `references/rebase-development.md`. Never `git merge main` (leaves phantom commits). The procedure detects whether `development` is actually protected and only toggles force-push when it is; **protection is per-repo and many repos do not have it**, so never assume either way. Skipping this step is what causes the next cycle's release PR to land `CONFLICTING` — see Step 0.
 14. **Mark development as `-dev` after release AND restore the sibling pattern** — See `references/dev-marker.md`. Never leave development bit-identical to main, and never leave Package.swift in remote-only mode after release (cross-library dev workflows depend on the sibling helpers).
 15. **NEVER tag, release, or publish a `-dev` version** — Steps 8 and 9 carry hard `case` guards. Do not bypass them.
 16. **Create next cycle PR in DRAFT mode** — `gh pr create --draft`.
 17. **NEVER manually build or upload release tarballs** — `release.yml` owns binary production. Never run `make dist`, never pass local file paths to `gh release create`.
-18. **NEVER manually edit the Homebrew formula** — CI dispatches `formula-update` to homebrew-tap. If it doesn't, investigate the workflow.
-19. **Verify the installed version after the formula updates** — Once Step 10 confirms the tap bump, run `brew update && brew upgrade` and `<binary> --version` to prove `brew` now serves the released version. Skip for pure libraries with no executable product. A version mismatch is a warning (propagation lag), not an abort — the release already succeeded at Step 9.
+18. **NEVER manually edit the Homebrew formula** — The tap **pulls**: `reconcile-formulas.yml` in `intrusive-memory/homebrew-tap` compares every formula against its source repo's latest release on a 6-hour cron. Source repos do NOT dispatch `formula-update` any more (the `DEPLOY_TOKEN` PAT expired and was deleted in July 2026; the step was removed from `release.yml`). Do not add a dispatch step back, and do not hand-patch a `.rb` — if a formula is genuinely stuck, fix `scripts/reconcile-formulas.sh` in the tap.
+19. **Never block a release on Homebrew** — Reconciliation runs on a 6-hour cron, so the formula almost always lags the release you just cut. That lag is correct behavior, not a failure. Step 14 is optional and deferred; record it as such. `gh workflow run reconcile-formulas.yml --repo intrusive-memory/homebrew-tap` is the fast path if you need it now.
 
 ## Correct Flow
 
 ```
-development: [features on X.Y.Z-dev] -> [strip -dev, bump to A.B.C] -> [make lint] -> [/organize-agent-docs] -> [/codemap] -> [audit CI workflows] -> (CI passes) -> [update PR title/body] -> PR merged
+preflight:   [merge-base --is-ancestor origin/main origin/development] -- divergent? rebase FIRST (Step 11 ref)
+development: [features on X.Y.Z-dev] -> [strip -dev, bump to A.B.C] -> [make lint] -> [/organize-agent-docs] -> [/codemap] -> [audit CI workflows] -> (mergeable? -> CI passes) -> [update PR title/body] -> PR merged
 main:        -----------------------------------------------------------------------------> [squash commit] -> [tag vA.B.C] -> [release (metadata only)]
-CI:          -------------------------------------------------------------------------------------^-- [build tarball] -> [upload to release] -> [dispatch formula-update to homebrew-tap]
-homebrew-tap:--------------------------------------------------------------------------------^-- (auto-updated by formula-update event)
-local brew:  ------------------------------------------------------------------------------------------^-- [brew update && brew upgrade] -> [<binary> --version == vA.B.C]
+CI:          -------------------------------------------------------------------------------------^-- [build binary] -> [upload tarball to release]  (NO homebrew dispatch)
+homebrew-tap:------------------------------------------------------------------------------------------ (independent 6h cron reconciles formulas; may lag hours)
 development: [rebase onto main] -> [force-push] -> [stamp A.B.C-dev, commit, push] -> [draft PR to main]
 ```
 

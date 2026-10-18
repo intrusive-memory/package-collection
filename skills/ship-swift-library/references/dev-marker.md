@@ -1,6 +1,10 @@
-# Step 11: Mark Development Branch with `-dev` Version
+---
+type: reference
+---
 
-After the rebase (Step 10), development is bit-identical to main and carries the just-shipped clean version (e.g. `1.4.3`). Stamp it with the `-dev` marker so the branch is unambiguously distinguishable from the release.
+# Step 12: Mark Development Branch with `-dev` Version and Restore Sibling Pattern
+
+After the rebase (Step 11), development is bit-identical to main and carries the just-shipped clean version (e.g. `1.4.3`). Stamp it with the `-dev` marker so the branch is unambiguously distinguishable from the release.
 
 ## Why this exists
 
@@ -12,7 +16,7 @@ Use the version that was just released, with `-dev` appended:
 - Just released `1.4.3` → development becomes `1.4.3-dev`
 - Just released `2.0.0` → development becomes `2.0.0-dev`
 
-The `-dev` suffix means "post-1.4.3 development, next release TBD." When the next ship cycle starts, step 3 will strip `-dev` and the user will pick the next clean version (`1.4.4`, `1.5.0`, `2.0.0`, etc.).
+The `-dev` suffix means "post-1.4.3 development, next release TBD." When the next ship cycle starts, Step 3 will strip `-dev` and the user will pick the next clean version (`1.4.4`, `1.5.0`, `2.0.0`, etc.).
 
 ## Find every occurrence and replace it
 
