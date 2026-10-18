@@ -2,13 +2,13 @@
 type: reference
 ---
 
-# Step 11: Rebase Development onto Main
+# Sync Development onto Main (squash-merge procedure)
 
 After a squash merge, development's original commits are not ancestors of the squash commit on main. A `git merge main` would make the code identical but leave those old commits visible in the next PR (tons of commits, zero diff).
 
 ## When to run this
 
-**Normally: Step 11, immediately after the release merge.** That is the designed slot.
+**Normally: `/branch-hygiene` Step 1, immediately after the release merge, when the sync detector reports `squash`.** That is the designed slot. (Merge-commit repos never need this file — a plain `git merge origin/main` is correct there.)
 
 **Also: as a preflight, before the release, when a previous cycle skipped it.** If `development` does not contain main's tip, the release PR will land `CONFLICTING` — and a conflicted PR produces **no CI at all**, because GitHub cannot build the merge ref that `pull_request` workflows run against. `gh pr checks` reports `no checks reported on the '<branch>' branch`, which looks like "CI hasn't started" and will hang a `--watch` indefinitely. Detect it with:
 
@@ -18,7 +18,7 @@ git merge-base --is-ancestor origin/main origin/development \
   || echo "DIVERGENT: rebase now, before touching the release PR"
 ```
 
-This procedure is safe at either end of the cycle. The only difference is which commits count as "genuinely new" (see Step 3 below).
+This procedure is safe at either end of the cycle. The only difference is which commits count as "genuinely new" (see Step 4 below).
 
 ## Why not just `git rebase main`?
 
@@ -37,7 +37,7 @@ git checkout development && git pull origin development
 
 # Step 2: Back up the pre-rebase tip. This is a destructive, history-rewriting
 # operation on a shared branch — always leave a recovery point.
-BACKUP="backup/development-pre-rebase-v${VERSION}"
+BACKUP="backup/development-pre-rebase-v${RELEASED:-${VERSION:-unknown}}"
 git branch "$BACKUP" origin/development
 git push origin "$BACKUP"
 echo "Backup pushed: ${BACKUP} (delete once the release is verified)"

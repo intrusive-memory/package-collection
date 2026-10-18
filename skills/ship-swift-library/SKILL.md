@@ -6,6 +6,7 @@ allowed-tools: Bash, Read, Grep, Glob, Edit, Skill
 dependencies:
   - organize-agent-docs
   - codemap
+  - branch-hygiene
 ---
 
 # Ship Swift Library Skill
@@ -80,7 +81,7 @@ This gate is **structural, not name-based**. The naming tables in the reference 
 
 ## Process Overview
 
-16 steps (0–15) in order. Steps marked **[ref]** load a reference file before executing.
+14 steps (0–13) in order. Steps marked **[ref]** load a reference file before executing.
 
 ### 0. Preflight: Confirm Development Is a Clean Descendant of Main
 
@@ -99,13 +100,13 @@ else
   echo "  development: $(git log -1 --format='%h %s' origin/development)"
   echo "  main-only commits: $(git rev-list --count origin/development..origin/main)"
   echo ""
-  echo "Run the Step 11 rebase procedure (references/rebase-development.md) NOW,"
+  echo "Run /branch-hygiene --sync-only NOW,"
   echo "before creating or updating the release PR. Do NOT 'git merge main' —"
   echo "that is what produced this state in the first place."
 fi
 ```
 
-If divergent, run `references/rebase-development.md` **up front**. That reference is written to be safe at either end of the cycle. Only continue to Step 1 once `merge-base --is-ancestor` passes.
+If divergent, run `/branch-hygiene --sync-only` **up front**. Its squash-merge procedure (`skills/branch-hygiene/references/sync-development.md`) is written to be safe at either end of the cycle. Only continue to Step 1 once `merge-base --is-ancestor` passes.
 
 ### 1. Check for Open Pull Request
 
@@ -149,7 +150,7 @@ echo "Last released version: ${LAST_VERSION}"
 
 If no tags exist, treat as `0.0.0`.
 
-Source files between releases carry an `X.Y.Z-dev` marker (set by step 12 of the previous cycle). Strip the `-dev` suffix before comparing:
+Source files between releases carry an `X.Y.Z-dev` marker (set by `/branch-hygiene` at the end of the previous cycle). Strip the `-dev` suffix before comparing:
 - Source `1.4.2-dev` + tag `v1.4.2` → equivalent, in post-1.4.2 dev cycle.
 - Source `1.4.2-dev` + tag `v1.4.1` → discrepancy, investigate.
 - Source has no `-dev` suffix → flag it.
@@ -229,7 +230,7 @@ case "$MERGEABLE" in
   CONFLICTING)
     echo "ABORT: PR #${PR_NUMBER} is CONFLICTING — no CI will run until this is resolved."
     echo "Almost always means development was never rebased after the last release."
-    echo "Run references/rebase-development.md, then re-check."
+    echo "Run /branch-hygiene --sync-only, then re-check."
     exit 1 ;;
   UNKNOWN)
     echo "Mergeability still computing; re-poll in a few seconds before proceeding."
@@ -297,7 +298,10 @@ gh pr view <PR_NUMBER> --json title,body
 
 ### 6. Merge Pull Request
 
+The PR is normally still a draft — `/branch-hygiene` opened it that way at the end of the previous cycle, and GitHub refuses to merge a draft. Mark it ready first:
+
 ```bash
+gh pr ready <PR_NUMBER>
 gh pr merge <PR_NUMBER> --squash --delete-branch=false
 ```
 
@@ -427,56 +431,25 @@ gh workflow run reconcile-formulas.yml --repo intrusive-memory/homebrew-tap -f d
 
 #### Repos with no formula at all
 
-Not every library has one. A library-only package that ships no executable has no formula by design (e.g. SwiftHablare went library-only at v6.1.0; its formula is intentionally absent from the tap). For those, this whole section and Step 14 are **N/A** — say so in the summary rather than reporting a phantom failure.
+Not every library has one. A library-only package that ships no executable has no formula by design (e.g. SwiftHablare went library-only at v6.1.0; its formula is intentionally absent from the tap). For those, this whole section and Step 12 are **N/A** — say so in the summary rather than reporting a phantom failure.
 
-### 11. Rebase Development onto Main **[ref]**
+### 11. Branch Hygiene: Sync Development, Stamp `-dev`, Open the Next-Cycle PR
 
-After a squash merge, development carries phantom commits whose patch-ids no longer match the squash on main. A naive `git merge main` leaves those phantoms visible in the next PR (huge commit list, zero diff).
+Everything after the release is the same for libraries and apps, so it lives in its own skill. Invoke it with the version you just released and the PR you just merged:
 
-The fix: back up the current tip, reset development to main's tip, cherry-pick only *genuinely new* commits (those added after the PR was created), then force-push — temporarily unlocking force-push **only if `development` is actually protected**, and restoring it afterward. Protection is per-repo; plenty of repos have none, in which case `gh api .../branches/development/protection` returns a 404 that is a normal answer rather than an error.
-
-**Skipping this step is not free.** It is what leaves the *next* cycle's release PR in `CONFLICTING` state with no CI — see Step 0.
-
-**Read `references/rebase-development.md` for the full procedure** — including protection detection, why `git cherry` fails on squash merges, the expected version-bump conflict, and the byte-identical-tree verification.
-
-### 12. Mark Development Branch with `-dev` Version and Restore Sibling Pattern **[ref]**
-
-After the rebase, development is bit-identical to main and carries a remote-only `Package.swift` (because Step 3 flipped it for shipping). Two things happen here:
-
-1. Stamp source with `X.Y.Z-dev` (where `X.Y.Z` is what you just released) so:
-   - `gh pr create` for the next-cycle PR has a non-empty diff and works reliably.
-   - "Release vs. dev snapshot?" is answerable from source.
-2. Run `/toggle-sibling-libraries --to sibling` to restore the `sibling(...)` helpers and route intrusive-memory/* deps back through `../<name>` checkouts when present. Without this, coordinated cross-library development on the new dev cycle is impossible.
-
-**Read `references/dev-marker.md` for the full procedure** — including which files to touch, which NOT to touch, and how the toggle and `-dev` stamp combine into a single commit.
-
-### 13. Create Next Development Cycle PR (Draft)
-
-The `-dev` bump in step 12 guarantees a non-empty diff, so PR creation will succeed reliably. Draft mode signals the PR is a landing target for future work, not ready for review or merge:
-
-```bash
-gh pr create \
-  --draft \
-  --base main \
-  --head development \
-  --title "Development → Main" \
-  --body "$(cat <<'EOF'
-## Next Development Cycle
-
-Development branch is synced with main after vX.Y.Z release and marked as `X.Y.Z-dev`.
-
-This PR is in draft mode and will collect changes for the next release. The `-dev` suffix will be stripped when the next version is bumped.
-EOF
-)"
+```
+/branch-hygiene $NEW_VERSION --pr $PR_NUMBER
 ```
 
-Confirm it's draft:
+What it does for a library, in order:
 
-```bash
-gh pr list --base main --head development --json number,isDraft,title
-```
+1. **Syncs `development` onto `main`.** After a squash merge, `development` carries phantom commits whose patch-ids no longer match the squash on `main`; a naive `git merge main` leaves them visible in the next PR (huge commit list, zero diff). The skill detects the squash and runs the reset + cherry-pick procedure instead, backing up the tip first and toggling force-push protection only if `development` is actually protected. **Skipping this is not free** — it is what leaves the *next* cycle's release PR `CONFLICTING` with no CI (see Step 0).
+2. **Stamps `X.Y.Z-dev` and restores the sibling pattern.** Source gets the `-dev` marker so the next-cycle PR has a non-empty diff and "release or dev snapshot?" is answerable from source. `/toggle-sibling-libraries --to sibling` puts the `sibling(...)` helpers back in `Package.swift` (Step 3 stripped them for shipping) so cross-library development against `../<name>` checkouts works again. One commit, pushed to `development`.
+3. **Opens the draft `Development → Main` PR** that collects the next cycle's work. Draft, always — Step 6 of the next cycle marks it ready right before merging.
 
-### 14. (Optional, non-blocking) Verify the Released Version Is Installed via Homebrew
+`UNATTENDED=1` propagates, so in unattended mode the skill aborts with a stated blocker instead of prompting. Its report (sync procedure used, backup branch, marker commit, PR URL) feeds Step 13.
+
+### 12. (Optional, non-blocking) Verify the Released Version Is Installed via Homebrew
 
 **This step no longer gates the release.** Under the pull-based tap (Step 10), reconciliation runs on a 6-hour cron, so in the common case the formula has *not* moved yet when you reach this step. A mismatch here is the expected state immediately after a release, not a defect.
 
@@ -530,11 +503,11 @@ fi
 
 A mismatch is **not** fatal and is the *expected* result inside the release window — the release itself already succeeded at Step 9, and the tap reconciles on a 6-hour cron. In unattended mode, surface a mismatch as an informational note in the summary, never as a warning that implies something went wrong, and never abort on it.
 
-### 15. Summary Report
+### 13. Summary Report
 
-Provide a final summary covering: preflight branch-divergence check, SPM audit applied (or noted as a no-op), version bumped, lint, docs organized, README updated, codemap refreshed and committed, CI workflows audited, CI passed, PR title/description updated, PR merged, tag created, GitHub release published, release workflow completed, development rebased and stamped `-dev`, draft next-cycle PR opened.
+Provide a final summary covering: preflight branch-divergence check, SPM audit applied (or noted as a no-op), version bumped, lint, docs organized, README updated, codemap refreshed and committed, CI workflows audited, CI passed, PR title/description updated, PR marked ready and merged, tag created, GitHub release published, release workflow completed, branch hygiene run (development synced onto main, stamped `-dev`, sibling pattern restored, draft next-cycle PR opened).
 
-**Report honestly, including no-ops and N/As.** Several steps legitimately do nothing on a given repo — a package with no `intrusive-memory/*` dependencies has nothing for `/spm-package-audit` or the sibling toggle to do; a library with no executable has no Homebrew formula; Step 14 is deferred by design. Say "no-op — no intrusive-memory deps" or "deferred — tap reconciles within 6h" rather than listing them as completed work. A summary that claims a step ran when it didn't is worse than one that admits the step was inapplicable.
+**Report honestly, including no-ops and N/As.** Several steps legitimately do nothing on a given repo — a package with no `intrusive-memory/*` dependencies has nothing for `/spm-package-audit` or the sibling toggle to do; a library with no executable has no Homebrew formula; Step 12 is deferred by design. Say "no-op — no intrusive-memory deps" or "deferred — tap reconciles within 6h" rather than listing them as completed work. A summary that claims a step ran when it didn't is worse than one that admits the step was inapplicable.
 
 Include the release URL and the next-cycle PR URL.
 
@@ -543,7 +516,7 @@ Include the release URL and the next-cycle PR URL.
 1. **Derive version from git tags, not source code** — Run `git tag --sort=-v:refname` to find the last released version. The `version` string in source is informational and may be stale.
 2. **Bump version BEFORE merging** — The version bump must be part of the PR.
 3. **Run /spm-package-audit BEFORE version bump** — Auto-fixes Package.resolved tracking, sibling-dep pattern for intrusive-memory/*, and updates versions to latest. Verify no local `.path()` references remain.
-4. **Run /toggle-sibling-libraries --to remote BEFORE the version edit** — The shipped `Package.swift` must be plain `.package(url:..., .upToNextMajor(from: ...))` calls only. The `sibling(...)` helper and `useLocalSiblings` constant are developmental scaffolding that has no business in a tagged release. Symmetric: at Step 12, run `--to sibling` to restore them for the new dev cycle.
+4. **Run /toggle-sibling-libraries --to remote BEFORE the version edit** — The shipped `Package.swift` must be plain `.package(url:..., .upToNextMajor(from: ...))` calls only. The `sibling(...)` helper and `useLocalSiblings` constant are developmental scaffolding that has no business in a tagged release. Symmetric: `/branch-hygiene` (Step 11) runs `--to sibling` to restore them for the new dev cycle.
 5. **Run `make lint` before committing** — Format Swift sources with swift format.
 6. **Organize docs with /organize-agent-docs** — Separate universal vs agent-specific documentation.
 7. **Audit CI workflows for stale GitHub Actions** — Every `uses:` in `.github/workflows/` must be on the latest major. Older majors run on Node 16 (deprecated) and trigger warnings; some are decommissioned (e.g. `actions/upload-artifact@v3`).
@@ -552,23 +525,23 @@ Include the release URL and the next-cycle PR URL.
 10. **Use --squash** — Single commit per PR on main.
 11. **Don't delete development** — It's a long-lived branch.
 12. **Tag on main after merge** — Tag goes on the squash merge commit.
-13. **Rebase development after release** — See `references/rebase-development.md`. Never `git merge main` (leaves phantom commits). The procedure detects whether `development` is actually protected and only toggles force-push when it is; **protection is per-repo and many repos do not have it**, so never assume either way. Skipping this step is what causes the next cycle's release PR to land `CONFLICTING` — see Step 0.
-14. **Mark development as `-dev` after release AND restore the sibling pattern** — See `references/dev-marker.md`. Never leave development bit-identical to main, and never leave Package.swift in remote-only mode after release (cross-library dev workflows depend on the sibling helpers).
+13. **Run `/branch-hygiene` after release** — Step 11. Never `git merge main` after a squash (leaves phantom commits); the skill detects the squash and resets + cherry-picks instead. It detects whether `development` is actually protected and only toggles force-push when it is; **protection is per-repo and many repos do not have it**, so never assume either way. Skipping this step is what causes the next cycle's release PR to land `CONFLICTING` — see Step 0.
+14. **Mark development as `-dev` after release AND restore the sibling pattern** — `/branch-hygiene` does both (`skills/branch-hygiene/references/library-dev-marker.md`). Never leave development bit-identical to main, and never leave Package.swift in remote-only mode after release (cross-library dev workflows depend on the sibling helpers).
 15. **NEVER tag, release, or publish a `-dev` version** — Steps 8 and 9 carry hard `case` guards. Do not bypass them.
-16. **Create next cycle PR in DRAFT mode** — `gh pr create --draft`.
+16. **Create next cycle PR in DRAFT mode** — `/branch-hygiene` opens it with `gh pr create --draft`; Step 6 of the next cycle runs `gh pr ready` before merging.
 17. **NEVER manually build or upload release tarballs** — `release.yml` owns binary production. Never run `make dist`, never pass local file paths to `gh release create`.
 18. **NEVER manually edit the Homebrew formula** — The tap **pulls**: `reconcile-formulas.yml` in `intrusive-memory/homebrew-tap` compares every formula against its source repo's latest release on a 6-hour cron. Source repos do NOT dispatch `formula-update` any more (the `DEPLOY_TOKEN` PAT expired and was deleted in July 2026; the step was removed from `release.yml`). Do not add a dispatch step back, and do not hand-patch a `.rb` — if a formula is genuinely stuck, fix `scripts/reconcile-formulas.sh` in the tap.
-19. **Never block a release on Homebrew** — Reconciliation runs on a 6-hour cron, so the formula almost always lags the release you just cut. That lag is correct behavior, not a failure. Step 14 is optional and deferred; record it as such. `gh workflow run reconcile-formulas.yml --repo intrusive-memory/homebrew-tap` is the fast path if you need it now.
+19. **Never block a release on Homebrew** — Reconciliation runs on a 6-hour cron, so the formula almost always lags the release you just cut. That lag is correct behavior, not a failure. Step 12 is optional and deferred; record it as such. `gh workflow run reconcile-formulas.yml --repo intrusive-memory/homebrew-tap` is the fast path if you need it now.
 
 ## Correct Flow
 
 ```
-preflight:   [merge-base --is-ancestor origin/main origin/development] -- divergent? rebase FIRST (Step 11 ref)
-development: [features on X.Y.Z-dev] -> [strip -dev, bump to A.B.C] -> [make lint] -> [/organize-agent-docs] -> [/codemap] -> [audit CI workflows] -> (mergeable? -> CI passes) -> [update PR title/body] -> PR merged
+preflight:   [merge-base --is-ancestor origin/main origin/development] -- divergent? /branch-hygiene --sync-only FIRST
+development: [features on X.Y.Z-dev] -> [strip -dev, bump to A.B.C] -> [make lint] -> [/organize-agent-docs] -> [/codemap] -> [audit CI workflows] -> (mergeable? -> CI passes) -> [update PR title/body] -> [gh pr ready] -> PR merged
 main:        -----------------------------------------------------------------------------> [squash commit] -> [tag vA.B.C] -> [release (metadata only)]
 CI:          -------------------------------------------------------------------------------------^-- [build binary] -> [upload tarball to release]  (NO homebrew dispatch)
 homebrew-tap:------------------------------------------------------------------------------------------ (independent 6h cron reconciles formulas; may lag hours)
-development: [rebase onto main] -> [force-push] -> [stamp A.B.C-dev, commit, push] -> [draft PR to main]
+development: /branch-hygiene: [sync onto main (squash-aware)] -> [stamp A.B.C-dev + sibling pattern, push] -> [draft PR to main]
 ```
 
 ## Error Handling

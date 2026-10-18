@@ -285,4 +285,4 @@ CI workflows updated:
 git push origin development
 ```
 
-**Important**: The version bump, SPM audit fixes, sibling-to-remote toggle, doc changes, and CI workflow updates are now part of the PR diff and will be included when the PR is merged. The post-release `-dev` step (Step 11 of the main flow) flips Package.swift back to sibling mode for the next development cycle.
+**Important**: The version bump, SPM audit fixes, sibling-to-remote toggle, doc changes, and CI workflow updates are now part of the PR diff and will be included when the PR is merged. The post-release `/branch-hygiene` step (Step 11 of the main flow) flips Package.swift back to sibling mode for the next development cycle.

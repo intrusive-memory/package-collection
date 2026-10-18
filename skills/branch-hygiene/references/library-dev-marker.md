@@ -2,9 +2,9 @@
 type: reference
 ---
 
-# Step 12: Mark Development Branch with `-dev` Version and Restore Sibling Pattern
+# Libraries: Mark Development with `-dev` and Restore the Sibling Pattern
 
-After the rebase (Step 11), development is bit-identical to main and carries the just-shipped clean version (e.g. `1.4.3`). Stamp it with the `-dev` marker so the branch is unambiguously distinguishable from the release.
+After the sync (`/branch-hygiene` Step 1), development is bit-identical to main and carries the just-shipped clean version (e.g. `1.4.3`). Stamp it with the `-dev` marker so the branch is unambiguously distinguishable from the release.
 
 ## Why this exists
 
@@ -16,7 +16,7 @@ Use the version that was just released, with `-dev` appended:
 - Just released `1.4.3` → development becomes `1.4.3-dev`
 - Just released `2.0.0` → development becomes `2.0.0-dev`
 
-The `-dev` suffix means "post-1.4.3 development, next release TBD." When the next ship cycle starts, Step 3 will strip `-dev` and the user will pick the next clean version (`1.4.4`, `1.5.0`, `2.0.0`, etc.).
+The `-dev` suffix means "post-1.4.3 development, next release TBD." When the next ship cycle starts, `/ship-swift-library` Step 3 will strip `-dev` and the user will pick the next clean version (`1.4.4`, `1.5.0`, `2.0.0`, etc.).
 
 ## Find every occurrence and replace it
 
@@ -43,7 +43,7 @@ Use the `Edit` tool to change each occurrence from `X.Y.Z` to `X.Y.Z-dev`. Typic
 
 ## Flip Package.swift back to the sibling pattern
 
-`development` shipped with a remote-only `Package.swift` (Step 2 of the version-bump flow stripped the `sibling(...)` helpers before commit). Now that we're back in dev mode, restore the sibling pattern so cross-library development against `../<name>` checkouts works again:
+`development` shipped with a remote-only `Package.swift` (`/ship-swift-library` Step 3 stripped the `sibling(...)` helpers before commit). Now that we're back in dev mode, restore the sibling pattern so cross-library development against `../<name>` checkouts works again:
 
 ```
 /toggle-sibling-libraries --to sibling

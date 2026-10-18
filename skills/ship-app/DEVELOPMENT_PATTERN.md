@@ -143,6 +143,8 @@ These are load-bearing. Violations break the model.
    always carries the **current shipping** version. The version advances when
    `development` merges to `main` — that is the *only* place it changes. The RC
    tag and the `release/<version>` merge never bump it; they ship whatever is on `main`.
+   After a release closes out, `/branch-hygiene` syncs `development` with `main` and
+   advances its `MARKETING_VERSION` to the next version so it leads `main` again.
    (Hard guard 2.)
 5. **Build numbers are monotonic _per ASC app_.** Each app's TestFlight and App
    Store builds have a strictly increasing build number, climbing past *that

@@ -195,6 +195,7 @@ ln -s "$(pwd)/skills/<skill-name>" .claude/skills/<skill-name>
 
 | Skill | Invocation | Description |
 |-------|-----------|-------------|
+| **branch-hygiene** | `/branch-hygiene` | Post-release branch hygiene shared by `/ship-swift-library` and `/ship-app` — syncs `development` onto `main` (squash-aware: resets + cherry-picks phantoms instead of merging), marks the next cycle (`X.Y.Z-dev` + sibling pattern for libraries, `MARKETING_VERSION` bump for apps), opens the draft `Development → Main` PR; `--sync-only` for preflight |
 | **dependency-purge** | `/dependency-purge` | Full nuclear clean for Xcode/SPM build issues — removes DerivedData, clears the global SPM cache, deletes `Package.resolved`, then bumps every `intrusive-memory/*` floor in `Package.swift` to the latest published release **before** resolution; optional `--rebuild` flag |
 | **fix-code-signing** | `/fix-code-signing` | Diagnoses and fixes code signing configuration issues for XCTest bundles in hardened runtime macOS apps |
 | **generate-episode-audio** | `/generate-episode-audio` | Generate podcast episode audio from Fountain or Highland screenplays using Produciesta CLI, wrap with intro/outro, and open in QuickTime |
@@ -206,7 +207,8 @@ ln -s "$(pwd)/skills/<skill-name>" .claude/skills/<skill-name>
 | **podcast-audio-plan** | `/podcast-audio-plan` | Generate audio and transcripts for podcast episodes from Fountain screenplays using Produciesta CLI — analyzes characters, assigns voices, writes PROJECT.md cast list, prepares transcripts for web deployment |
 | **podcast-validate** | `/podcast-validate` | Validate podcast CDN links and site integrity for intrusive-memory.productions — use after CDN upload, before deploy, or to debug broken links |
 | **release** | `/release` | Release a merged PR by tagging and creating a GitHub release |
-| **ship-swift-library** | `/ship-swift-library` | Ship and release Swift library versions — merge PR, bump version, tag, create GitHub release |
+| **ship-app** | `/ship-app` | Ship iOS/macOS App Store apps: `development → main` PR (auto-ships to TestFlight via Xcode Cloud), `<version>-rc<n>` tag merged into `release/<version>` (App Store upload), submission, then `/branch-hygiene` at close-out |
+| **ship-swift-library** | `/ship-swift-library` | Ship and release Swift library versions — bump version, merge PR, tag, create GitHub release, then `/branch-hygiene` for the next cycle |
 | **shortcuts-helper** | `/shortcuts-helper` | Create, run, and understand macOS Shortcuts workflows with CLI, URL schemes, and App Intents |
 | **spm-package-audit** | `/spm-package-audit` | Audit and auto-fix Swift Package Manager library packages — untracks `Package.resolved`, ensures sibling-dependency pattern via `/toggle-sibling-libraries`, bumps every `intrusive-memory/*` dep to latest release |
 | **toggle-sibling-libraries** | `/toggle-sibling-libraries` | Toggle `Package.swift` between the local-sibling-checkout development pattern and a clean remote-only release pattern; only `intrusive-memory/*` dependencies participate |

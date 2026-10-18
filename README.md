@@ -64,6 +64,7 @@ This repo also ships a set of [Claude Code](https://docs.claude.com/en/docs/clau
 
 | Skill | Summary |
 |-------|---------|
+| [branch-hygiene](skills/branch-hygiene/) | Post-release tail shared by the ship skills — sync `development` onto `main` (squash-aware), mark the next cycle (`-dev` for libraries, version bump for apps), open the draft next-cycle PR |
 | [create-pull-request](skills/create-pull-request/) | Finalize the current branch's draft PR — regenerate title/body from commits, fix the base branch, mark ready for review (creates a new PR only when none exists) |
 | [dependency-purge](skills/dependency-purge/) | Nuclear Xcode/SPM clean — wipes DerivedData, the global SPM cache, and `Package.resolved`, then bumps every `intrusive-memory/*` dep's floor in `Package.swift` to the latest published release before resolution |
 | [fix-code-signing](skills/fix-code-signing/) | Diagnose and fix XCTest bundle code-signing for hardened-runtime macOS apps |
@@ -76,6 +77,7 @@ This repo also ships a set of [Claude Code](https://docs.claude.com/en/docs/clau
 | [podcast-audio-plan](skills/podcast-audio-plan/) | Cast voices, generate audio, and prepare transcripts for Fountain-screenplay podcasts |
 | [podcast-validate](skills/podcast-validate/) | Validate podcast CDN links and site integrity for intrusive-memory.productions |
 | [release](skills/release/) | Tag and create a GitHub release for a merged PR |
+| [ship-app](skills/ship-app/) | Ship iOS/macOS apps through `development → main` (TestFlight), `<version>-rc<n>` → `release/<version>` (App Store), and submission; ends with `/branch-hygiene` |
 | [ship-swift-library](skills/ship-swift-library/) | Bump, merge, tag, and release a Swift library version end-to-end (accepts `patch`/`minor`/`major` or explicit semver for unattended runs) |
 | [shortcuts-helper](skills/shortcuts-helper/) | Create, run, and understand macOS Shortcuts (CLI, URL schemes, App Intents) |
 | [spm-package-audit](skills/spm-package-audit/) | Audit and auto-fix SPM library packages — untrack `Package.resolved`, apply the sibling-dependency pattern via `/toggle-sibling-libraries`, bump every `intrusive-memory/*` dep |

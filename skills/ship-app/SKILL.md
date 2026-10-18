@@ -245,7 +245,10 @@ fails, **stop** and surface the failure. Do not merge.
 
 ### A.4 — Merge
 
+The PR is normally still a draft — `/branch-hygiene` opened it that way at the previous close-out, and GitHub refuses to merge a draft. Mark it ready first:
+
 ```bash
+gh pr ready "$PR_NUMBER"
 gh pr merge "$PR_NUMBER" --merge --delete-branch=false   # match repo convention
 git checkout main && git pull origin main
 ```
@@ -489,8 +492,8 @@ tag the `release/<version>` tip with the **final** clean-semver tag `v<version>`
 RC tags `<version>-rc<n>` remain as history). **No merge-back to `main`** — the
 shipping version is already on `main` (it arrived via `development → main`), and
 `release/<version>` carries only release bookkeeping (the RC-tag merge commits), no
-unique product code. After the release ships, bump `development` to the **next**
-version so `development` again leads `main`.
+unique product code. After the release ships, `development` is bumped to the **next**
+version so it again leads `main` — D.3 does that via `/branch-hygiene`.
 
 ```bash
 git fetch origin "$RELEASE_BRANCH"
@@ -518,6 +521,13 @@ RELEASE_SHA=$(git rev-parse "origin/$RELEASE_BRANCH")
 
 ### D.3 — Close out
 
+- **Run branch hygiene.** The tail of every ship cycle is shared with `/ship-swift-library` and lives in its own skill:
+
+  ```
+  /branch-hygiene $VERSION --next patch
+  ```
+
+  For an app repo it (1) merges `main` into `development` — usually a fast-forward, but it picks up any hotfix PR that landed on `main` directly, and it is squash-aware if a repo ever merges that way; (2) advances every app's `MARKETING_VERSION` on `development` by `--next` (default `patch`; pass `minor`/`major`/`X.Y.Z` when the next release's shape is known) so `development` leads `main` again per invariant 4, leaving build numbers untouched; and (3) opens the draft `Development → Main` PR that collects the next cycle. A.4 of the next cycle marks that PR ready before merging.
 - Close the `Release <version>` GitHub milestone if one was opened for QA.
 - Leave `release/<version>` in place. It is the permanent record of what shipped as that version.
 - Report (see D.4).
@@ -530,6 +540,7 @@ Report (**per app**, plus the shared facts):
 - The tag(s) created (`v<version>` for lockstep, or per-app `<scheme>-v<version>`) + any GitHub release URLs
 - Per-app App Store Connect submission ID
 - Apps in the repo that were **not** shipped this cycle (no Xcode Cloud workflow for the stage) — call these out so coverage is explicit
+- Branch hygiene result: `development` synced with `main`, each app's next `MARKETING_VERSION` on `development`, and the draft next-cycle PR URL
 - Open follow-ups (e.g., deferred QA issues)
 
 ---
@@ -596,3 +607,4 @@ This skill orchestrates and calls others as needed:
 - `/asc-build-lifecycle` — locate builds, wait on processing
 - `/asc-testflight-orchestration` — distribute TestFlight builds to tester groups
 - `/organize-agent-docs` — at Phase D close-out, normalize repo docs
+- `/branch-hygiene` — at Phase D close-out, sync `development` with `main`, advance it to the next version, open the draft next-cycle PR (D.3)
