@@ -9,8 +9,8 @@
     "intrusive-memory"
   ],
   "formatVersion": "1.0",
-  "revision": 29,
-  "generatedAt": "2026-10-20T14:02:51Z",
+  "revision": 30,
+  "generatedAt": "2026-10-20T19:27:11Z",
   "generatedBy": {
     "name": "Intrusive Memory"
   },
@@ -1007,7 +1007,7 @@
       "readmeURL": "https://github.com/intrusive-memory/glosa-av/blob/main/README.md",
       "versions": [
         {
-          "version": "0.8.1",
+          "version": "0.9.0",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
@@ -1045,7 +1045,8 @@
           },
           "defaultToolsVersion": "6.2"
         }
-      ]
+      ],
+      "dependencies": {}
     },
     {
       "url": "https://github.com/intrusive-memory/glosa-tools.git",
