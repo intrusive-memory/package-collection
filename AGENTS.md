@@ -10,6 +10,28 @@ This is a Swift Package Collection for the **Intrusive Memory** organization. It
 
 ---
 
+## Repository Visibility
+
+By convention:
+
+- **Swift packages (`Swift*`, and the MLX ports under `pkg/`) are public.**
+  They come from an open-source heritage, and contributions here should add
+  to the whole. New packages are created public with an MIT `LICENSE`.
+- **Apps (`~/Projects/apps/*`) are private.** The apps are where the UI is
+  integrated and where we hope to innovate.
+- **Podcast projects (`~/Projects/podcasts/*`) are private.**
+
+Because packages are public, nothing from a private app or podcast goes
+into a package repository: no screenplays, character images, descriptions,
+CAST.md files or manifests in `Tests/` fixtures. Use synthetic fixtures, and
+check real projects with a local-only target (e.g. `make acceptance
+PROJECT=<path>`) that skips when the checkout is absent and never runs in CI.
+
+Format standards that packages implement (e.g. `dossier-format`,
+`vox-format`) are public as well.
+
+---
+
 ## Icon Generation Style Guide
 
 All package icons share a consistent Mid-Century Modern visual language:

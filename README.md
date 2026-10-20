@@ -2,6 +2,11 @@
 
 A [Swift Package Collection](https://swift.org/blog/package-collections/) for all libraries in the **intrusive-memory** organization. This collection powers the Produciesta ecosystem for transforming screenplays into audio performances.
 
+## Visibility
+
+Every package in this organization is public (MIT). The apps that integrate
+them are private. See [AGENTS.md](AGENTS.md#repository-visibility).
+
 ## Included Packages
 
 | Package | Description |
