@@ -1,6 +1,6 @@
 {
   "name": "Intrusive Memory Swift Packages",
-  "overview": "Screenplay visualization and audio generation libraries by Intrusive Memory. Powers the Produciesta ecosystem for transforming screenplays into audio performances.",
+  "overview": "Swift libraries by Intrusive Memory for turning screenplays into voices, images and timelines on Apple Silicon: parsing and editing scripts, casting and generating voices, generating storyboard images, and assembling the results.",
   "keywords": [
     "screenplay",
     "tts",
@@ -9,284 +9,12 @@
     "intrusive-memory"
   ],
   "formatVersion": "1.0",
-  "revision": 25,
-  "generatedAt": "2026-08-11T03:40:50Z",
+  "revision": 29,
+  "generatedAt": "2026-10-20T14:02:51Z",
   "generatedBy": {
     "name": "Intrusive Memory"
   },
   "packages": [
-    {
-      "url": "https://github.com/intrusive-memory/flux-2-swift-mlx.git",
-      "summary": "Swift/MLX port of the FLUX.2 image generation pipeline for Apple Silicon.",
-      "keywords": [
-        "image-generation",
-        "flux",
-        "mlx",
-        "diffusion",
-        "ai-models"
-      ],
-      "readmeURL": "https://github.com/intrusive-memory/flux-2-swift-mlx/blob/main/README.md",
-      "versions": [
-        {
-          "version": "3.1.0",
-          "manifests": {
-            "6.2": {
-              "toolsVersion": "6.2",
-              "packageName": "Flux2Swift",
-              "targets": [
-                {
-                  "name": "Flux2Core",
-                  "moduleName": "Flux2Core"
-                },
-                {
-                  "name": "FluxTextEncoders",
-                  "moduleName": "FluxTextEncoders"
-                }
-              ],
-              "products": [
-                {
-                  "name": "FluxTextEncoders",
-                  "type": {
-                    "library": [
-                      "automatic"
-                    ]
-                  },
-                  "targets": [
-                    "FluxTextEncoders"
-                  ]
-                },
-                {
-                  "name": "Flux2Core",
-                  "type": {
-                    "library": [
-                      "automatic"
-                    ]
-                  },
-                  "targets": [
-                    "Flux2Core"
-                  ]
-                }
-              ],
-              "minimumPlatformVersions": [
-                {
-                  "name": "macOS",
-                  "version": "26.0"
-                },
-                {
-                  "name": "iOS",
-                  "version": "26.0"
-                }
-              ]
-            }
-          },
-          "defaultToolsVersion": "6.2"
-        }
-      ],
-      "dependencies": {
-        "ml-explore/mlx-swift": "upToNextMajor: 0.31.3",
-        "apple/swift-argument-parser": "upToNextMajor: 1.7.1",
-        "DePasqualeOrg/swift-tokenizers": "upToNextMajor: 0.5.0",
-        "intrusive-memory/SwiftAcervo": "upToNextMajor: 0.12.0",
-        "marcprux/universal": "upToNextMajor: 5.3.0"
-      }
-    },
-    {
-      "url": "https://github.com/intrusive-memory/mlx-audio-swift.git",
-      "summary": "MLX-powered audio on Apple Silicon: TTS (Qwen3, Orpheus, Marvis), STT, and audio codecs (SNAC, Mimi, Vocos). Fork of Blaizzy/mlx-audio-swift.",
-      "keywords": [
-        "mlx",
-        "audio",
-        "tts",
-        "stt",
-        "qwen3",
-        "voice-cloning",
-        "apple-silicon"
-      ],
-      "readmeURL": "https://github.com/intrusive-memory/mlx-audio-swift/blob/main/README.md",
-      "versions": [
-        {
-          "version": "0.7.1",
-          "manifests": {
-            "6.2": {
-              "toolsVersion": "6.2",
-              "packageName": "MLXAudio",
-              "targets": [
-                {
-                  "name": "MLXAudioCodecs",
-                  "moduleName": "MLXAudioCodecs"
-                },
-                {
-                  "name": "MLXAudioCore",
-                  "moduleName": "MLXAudioCore"
-                },
-                {
-                  "name": "MLXAudioSTS",
-                  "moduleName": "MLXAudioSTS"
-                },
-                {
-                  "name": "MLXAudioSTT",
-                  "moduleName": "MLXAudioSTT"
-                },
-                {
-                  "name": "MLXAudioTTS",
-                  "moduleName": "MLXAudioTTS"
-                },
-                {
-                  "name": "MLXAudioUI",
-                  "moduleName": "MLXAudioUI"
-                }
-              ],
-              "products": [
-                {
-                  "name": "MLXAudioCore",
-                  "type": {
-                    "library": [
-                      "automatic"
-                    ]
-                  },
-                  "targets": [
-                    "MLXAudioCore"
-                  ]
-                },
-                {
-                  "name": "MLXAudioCodecs",
-                  "type": {
-                    "library": [
-                      "automatic"
-                    ]
-                  },
-                  "targets": [
-                    "MLXAudioCodecs"
-                  ]
-                },
-                {
-                  "name": "MLXAudioTTS",
-                  "type": {
-                    "library": [
-                      "automatic"
-                    ]
-                  },
-                  "targets": [
-                    "MLXAudioTTS"
-                  ]
-                },
-                {
-                  "name": "MLXAudioSTT",
-                  "type": {
-                    "library": [
-                      "automatic"
-                    ]
-                  },
-                  "targets": [
-                    "MLXAudioSTT"
-                  ]
-                },
-                {
-                  "name": "MLXAudioSTS",
-                  "type": {
-                    "library": [
-                      "automatic"
-                    ]
-                  },
-                  "targets": [
-                    "MLXAudioSTS"
-                  ]
-                },
-                {
-                  "name": "MLXAudioUI",
-                  "type": {
-                    "library": [
-                      "automatic"
-                    ]
-                  },
-                  "targets": [
-                    "MLXAudioUI"
-                  ]
-                }
-              ],
-              "minimumPlatformVersions": [
-                {
-                  "name": "macOS",
-                  "version": "26.0"
-                },
-                {
-                  "name": "iOS",
-                  "version": "26.0"
-                }
-              ]
-            }
-          },
-          "defaultToolsVersion": "6.2"
-        }
-      ],
-      "dependencies": {
-        "ml-explore/mlx-swift": "upToNextMajor: 0.31.3",
-        "ml-explore/mlx-swift-lm": "upToNextMajor: 3.31.3",
-        "DePasqualeOrg/swift-tokenizers": "upToNextMajor: 0.5.0",
-        "intrusive-memory/SwiftAcervo": "upToNextMajor: 0.12.0",
-        "apple/swift-numerics": "upToNextMajor: 1.1.1",
-        "apple/swift-collections": "upToNextMajor: 1.4.1",
-        "apple/swift-crypto": "upToNextMajor: 4.5.0",
-        "ibireme/yyjson": "upToNextMajor: 0.12.0"
-      }
-    },
-    {
-      "url": "https://github.com/intrusive-memory/pixart-swift-mlx.git",
-      "summary": "Swift/MLX port of the PixArt-Sigma DiT image generation backbone.",
-      "keywords": [
-        "image-generation",
-        "pixart",
-        "mlx",
-        "diffusion",
-        "dit"
-      ],
-      "readmeURL": "https://github.com/intrusive-memory/pixart-swift-mlx/blob/main/README.md",
-      "versions": [
-        {
-          "version": "0.6.0",
-          "manifests": {
-            "6.2": {
-              "toolsVersion": "6.2",
-              "packageName": "pixart-swift-mlx",
-              "targets": [
-                {
-                  "name": "pixart-swift-mlx",
-                  "moduleName": "pixart-swift-mlx"
-                }
-              ],
-              "products": [
-                {
-                  "name": "pixart-swift-mlx",
-                  "type": {
-                    "library": [
-                      "automatic"
-                    ]
-                  },
-                  "targets": [
-                    "pixart-swift-mlx"
-                  ]
-                }
-              ],
-              "minimumPlatformVersions": [
-                {
-                  "name": "macOS",
-                  "version": "26.0"
-                },
-                {
-                  "name": "iOS",
-                  "version": "26.0"
-                }
-              ]
-            }
-          },
-          "defaultToolsVersion": "6.2"
-        }
-      ],
-      "dependencies": {
-        "intrusive-memory/SwiftTuberia": "upToNextMajor: 0.6.5",
-        "intrusive-memory/SwiftAcervo": "upToNextMajor: 0.11.1"
-      }
-    },
     {
       "url": "https://github.com/intrusive-memory/SwiftAcervo.git",
       "summary": "Shared AI model discovery and management for HuggingFace models on Apple platforms.",
@@ -462,11 +190,13 @@
     },
     {
       "url": "https://github.com/intrusive-memory/SwiftEchada.git",
-      "summary": "Shared Swift utilities and extensions for the Intrusive Memory ecosystem.",
+      "summary": "AI-powered cast management for screenplay projects: designs on-device custom voices from text prompts (via SwiftVoxAlta) and keeps the cast in CAST.md (via SwiftReparto). Library plus the echada CLI.",
       "keywords": [
-        "utilities",
-        "extensions",
-        "swift"
+        "screenplay",
+        "cast",
+        "voice-design",
+        "tts",
+        "cli"
       ],
       "readmeURL": "https://github.com/intrusive-memory/SwiftEchada/blob/main/README.md",
       "versions": [
@@ -515,6 +245,60 @@
         "ml-explore/mlx-swift": "upToNextMajor: 0.31.3",
         "ml-explore/mlx-swift-lm": "upToNextMajor: 3.31.3"
       }
+    },
+    {
+      "url": "https://github.com/intrusive-memory/SwiftEscribo.git",
+      "summary": "A stylized SwiftUI text editor for Markdown and Fountain on macOS and iOS, and the collection's canonical Fountain scanner, so every tool parses a screenplay the same way.",
+      "keywords": [
+        "editor",
+        "swiftui",
+        "fountain",
+        "markdown",
+        "textkit",
+        "screenplay"
+      ],
+      "readmeURL": "https://github.com/intrusive-memory/SwiftEscribo/blob/main/README.md",
+      "versions": [
+        {
+          "version": "0.4.5",
+          "manifests": {
+            "6.2": {
+              "toolsVersion": "6.2",
+              "packageName": "SwiftEscribo",
+              "targets": [
+                {
+                  "name": "SwiftEscribo",
+                  "moduleName": "SwiftEscribo"
+                }
+              ],
+              "products": [
+                {
+                  "name": "SwiftEscribo",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "SwiftEscribo"
+                  ]
+                }
+              ],
+              "minimumPlatformVersions": [
+                {
+                  "name": "macOS",
+                  "version": "26.0"
+                },
+                {
+                  "name": "iOS",
+                  "version": "26.0"
+                }
+              ]
+            }
+          },
+          "defaultToolsVersion": "6.2"
+        }
+      ]
     },
     {
       "url": "https://github.com/intrusive-memory/SwiftFFMpeg.git",
@@ -782,8 +566,61 @@
       }
     },
     {
+      "url": "https://github.com/intrusive-memory/SwiftReparto.git",
+      "summary": "The cast list as a file: owns the CAST.md schema, parser and serializer, with a guarantee that nothing hand-written in the file is lost on a rewrite. Library plus the reparto CLI.",
+      "keywords": [
+        "screenplay",
+        "cast",
+        "markdown",
+        "parser",
+        "cli"
+      ],
+      "readmeURL": "https://github.com/intrusive-memory/SwiftReparto/blob/main/README.md",
+      "versions": [
+        {
+          "version": "0.1.0",
+          "manifests": {
+            "6.2": {
+              "toolsVersion": "6.2",
+              "packageName": "SwiftReparto",
+              "targets": [
+                {
+                  "name": "SwiftReparto",
+                  "moduleName": "SwiftReparto"
+                }
+              ],
+              "products": [
+                {
+                  "name": "SwiftReparto",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "SwiftReparto"
+                  ]
+                }
+              ],
+              "minimumPlatformVersions": [
+                {
+                  "name": "macOS",
+                  "version": "26.0"
+                },
+                {
+                  "name": "iOS",
+                  "version": "26.0"
+                }
+              ]
+            }
+          },
+          "defaultToolsVersion": "6.2"
+        }
+      ]
+    },
+    {
       "url": "https://github.com/intrusive-memory/SwiftRepositorio.git",
-      "summary": "libgit2 + libssh2 + OpenSSL for Apple platforms, wrapped in a Swift actor \u2014 clone, stage, commit, fetch, push with memory-only credentials and fail-closed host verification.",
+      "summary": "libgit2 + libssh2 + OpenSSL for Apple platforms, wrapped in a Swift actor — clone, stage, commit, fetch, push with memory-only credentials and fail-closed host verification.",
       "keywords": [
         "git",
         "libgit2",
@@ -960,7 +797,7 @@
     },
     {
       "url": "https://github.com/intrusive-memory/SwiftVinetas.git",
-      "summary": "Storyboard and comic panel generation orchestrator built on MLX diffusion engines.",
+      "summary": "Storyboard and comic-panel generation from text prompts: on-device FLUX.2 and PixArt-Sigma via SwiftTuberia, or cloud models (OpenAI, Google, Black Forest Labs, Stability) with reference images. Library, SwiftUI prompt panel, and the vinetas CLI.",
       "keywords": [
         "storyboard",
         "comic",
@@ -1079,6 +916,400 @@
         "intrusive-memory/SwiftTuberia": "upToNextMajor: 0.6.5",
         "apple/swift-argument-parser": "upToNextMajor: 1.7.1",
         "intrusive-memory/vox-format": "upToNextMajor: 0.3.1"
+      }
+    },
+    {
+      "url": "https://github.com/intrusive-memory/flux-2-swift-mlx.git",
+      "summary": "Swift/MLX port of the FLUX.2 image generation pipeline for Apple Silicon.",
+      "keywords": [
+        "image-generation",
+        "flux",
+        "mlx",
+        "diffusion",
+        "ai-models"
+      ],
+      "readmeURL": "https://github.com/intrusive-memory/flux-2-swift-mlx/blob/main/README.md",
+      "versions": [
+        {
+          "version": "3.1.0",
+          "manifests": {
+            "6.2": {
+              "toolsVersion": "6.2",
+              "packageName": "Flux2Swift",
+              "targets": [
+                {
+                  "name": "Flux2Core",
+                  "moduleName": "Flux2Core"
+                },
+                {
+                  "name": "FluxTextEncoders",
+                  "moduleName": "FluxTextEncoders"
+                }
+              ],
+              "products": [
+                {
+                  "name": "FluxTextEncoders",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "FluxTextEncoders"
+                  ]
+                },
+                {
+                  "name": "Flux2Core",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "Flux2Core"
+                  ]
+                }
+              ],
+              "minimumPlatformVersions": [
+                {
+                  "name": "macOS",
+                  "version": "26.0"
+                },
+                {
+                  "name": "iOS",
+                  "version": "26.0"
+                }
+              ]
+            }
+          },
+          "defaultToolsVersion": "6.2"
+        }
+      ],
+      "dependencies": {
+        "ml-explore/mlx-swift": "upToNextMajor: 0.31.3",
+        "apple/swift-argument-parser": "upToNextMajor: 1.7.1",
+        "DePasqualeOrg/swift-tokenizers": "upToNextMajor: 0.5.0",
+        "intrusive-memory/SwiftAcervo": "upToNextMajor: 0.12.0",
+        "marcprux/universal": "upToNextMajor: 5.3.0"
+      }
+    },
+    {
+      "url": "https://github.com/intrusive-memory/glosa-av.git",
+      "summary": "GLOSA performance notation for screenplays: a Foundation-only compiler that reads performance and storyboard directives out of Fountain notes and FDX, so voice and image pipelines can be steered from the script itself.",
+      "keywords": [
+        "screenplay",
+        "fountain",
+        "glosa",
+        "tts",
+        "storyboard",
+        "annotation"
+      ],
+      "readmeURL": "https://github.com/intrusive-memory/glosa-av/blob/main/README.md",
+      "versions": [
+        {
+          "version": "0.8.1",
+          "manifests": {
+            "6.2": {
+              "toolsVersion": "6.2",
+              "packageName": "glosa-av",
+              "targets": [
+                {
+                  "name": "GlosaCore",
+                  "moduleName": "GlosaCore"
+                }
+              ],
+              "products": [
+                {
+                  "name": "GlosaCore",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "GlosaCore"
+                  ]
+                }
+              ],
+              "minimumPlatformVersions": [
+                {
+                  "name": "macOS",
+                  "version": "26.0"
+                },
+                {
+                  "name": "iOS",
+                  "version": "26.0"
+                }
+              ]
+            }
+          },
+          "defaultToolsVersion": "6.2"
+        }
+      ]
+    },
+    {
+      "url": "https://github.com/intrusive-memory/glosa-tools.git",
+      "summary": "The glosa CLI and Stage Director tooling: generates and checks GLOSA annotations for a screenplay, on top of GlosaCore from glosa-av.",
+      "keywords": [
+        "screenplay",
+        "glosa",
+        "cli",
+        "annotation",
+        "tts"
+      ],
+      "readmeURL": "https://github.com/intrusive-memory/glosa-tools/blob/main/README.md",
+      "versions": [
+        {
+          "version": "0.5.2",
+          "manifests": {
+            "6.2": {
+              "toolsVersion": "6.2",
+              "packageName": "glosa-tools",
+              "targets": [
+                {
+                  "name": "GlosaAnnotation",
+                  "moduleName": "GlosaAnnotation"
+                },
+                {
+                  "name": "GlosaDirector",
+                  "moduleName": "GlosaDirector"
+                }
+              ],
+              "products": [
+                {
+                  "name": "GlosaAnnotation",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "GlosaAnnotation"
+                  ]
+                },
+                {
+                  "name": "GlosaDirector",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "GlosaDirector"
+                  ]
+                }
+              ],
+              "minimumPlatformVersions": [
+                {
+                  "name": "macOS",
+                  "version": "26.0"
+                },
+                {
+                  "name": "iOS",
+                  "version": "26.0"
+                }
+              ]
+            }
+          },
+          "defaultToolsVersion": "6.2"
+        }
+      ]
+    },
+    {
+      "url": "https://github.com/intrusive-memory/mlx-audio-swift.git",
+      "summary": "MLX-powered audio on Apple Silicon: TTS (Qwen3, Orpheus, Marvis), STT, and audio codecs (SNAC, Mimi, Vocos). Fork of Blaizzy/mlx-audio-swift.",
+      "keywords": [
+        "mlx",
+        "audio",
+        "tts",
+        "stt",
+        "qwen3",
+        "voice-cloning",
+        "apple-silicon"
+      ],
+      "readmeURL": "https://github.com/intrusive-memory/mlx-audio-swift/blob/main/README.md",
+      "versions": [
+        {
+          "version": "0.7.1",
+          "manifests": {
+            "6.2": {
+              "toolsVersion": "6.2",
+              "packageName": "MLXAudio",
+              "targets": [
+                {
+                  "name": "MLXAudioCodecs",
+                  "moduleName": "MLXAudioCodecs"
+                },
+                {
+                  "name": "MLXAudioCore",
+                  "moduleName": "MLXAudioCore"
+                },
+                {
+                  "name": "MLXAudioSTS",
+                  "moduleName": "MLXAudioSTS"
+                },
+                {
+                  "name": "MLXAudioSTT",
+                  "moduleName": "MLXAudioSTT"
+                },
+                {
+                  "name": "MLXAudioTTS",
+                  "moduleName": "MLXAudioTTS"
+                },
+                {
+                  "name": "MLXAudioUI",
+                  "moduleName": "MLXAudioUI"
+                }
+              ],
+              "products": [
+                {
+                  "name": "MLXAudioCore",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "MLXAudioCore"
+                  ]
+                },
+                {
+                  "name": "MLXAudioCodecs",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "MLXAudioCodecs"
+                  ]
+                },
+                {
+                  "name": "MLXAudioTTS",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "MLXAudioTTS"
+                  ]
+                },
+                {
+                  "name": "MLXAudioSTT",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "MLXAudioSTT"
+                  ]
+                },
+                {
+                  "name": "MLXAudioSTS",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "MLXAudioSTS"
+                  ]
+                },
+                {
+                  "name": "MLXAudioUI",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "MLXAudioUI"
+                  ]
+                }
+              ],
+              "minimumPlatformVersions": [
+                {
+                  "name": "macOS",
+                  "version": "26.0"
+                },
+                {
+                  "name": "iOS",
+                  "version": "26.0"
+                }
+              ]
+            }
+          },
+          "defaultToolsVersion": "6.2"
+        }
+      ],
+      "dependencies": {
+        "ml-explore/mlx-swift": "upToNextMajor: 0.31.3",
+        "ml-explore/mlx-swift-lm": "upToNextMajor: 3.31.3",
+        "DePasqualeOrg/swift-tokenizers": "upToNextMajor: 0.5.0",
+        "intrusive-memory/SwiftAcervo": "upToNextMajor: 0.12.0",
+        "apple/swift-numerics": "upToNextMajor: 1.1.1",
+        "apple/swift-collections": "upToNextMajor: 1.4.1",
+        "apple/swift-crypto": "upToNextMajor: 4.5.0",
+        "ibireme/yyjson": "upToNextMajor: 0.12.0"
+      }
+    },
+    {
+      "url": "https://github.com/intrusive-memory/pixart-swift-mlx.git",
+      "summary": "Swift/MLX port of the PixArt-Sigma DiT image generation backbone.",
+      "keywords": [
+        "image-generation",
+        "pixart",
+        "mlx",
+        "diffusion",
+        "dit"
+      ],
+      "readmeURL": "https://github.com/intrusive-memory/pixart-swift-mlx/blob/main/README.md",
+      "versions": [
+        {
+          "version": "0.6.0",
+          "manifests": {
+            "6.2": {
+              "toolsVersion": "6.2",
+              "packageName": "pixart-swift-mlx",
+              "targets": [
+                {
+                  "name": "pixart-swift-mlx",
+                  "moduleName": "pixart-swift-mlx"
+                }
+              ],
+              "products": [
+                {
+                  "name": "pixart-swift-mlx",
+                  "type": {
+                    "library": [
+                      "automatic"
+                    ]
+                  },
+                  "targets": [
+                    "pixart-swift-mlx"
+                  ]
+                }
+              ],
+              "minimumPlatformVersions": [
+                {
+                  "name": "macOS",
+                  "version": "26.0"
+                },
+                {
+                  "name": "iOS",
+                  "version": "26.0"
+                }
+              ]
+            }
+          },
+          "defaultToolsVersion": "6.2"
+        }
+      ],
+      "dependencies": {
+        "intrusive-memory/SwiftTuberia": "upToNextMajor: 0.6.5",
+        "intrusive-memory/SwiftAcervo": "upToNextMajor: 0.11.1"
       }
     },
     {

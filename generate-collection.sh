@@ -23,18 +23,24 @@ REPOS=(
   "intrusive-memory/SwiftBruja"
   "intrusive-memory/SwiftCompartido"
   "intrusive-memory/SwiftEchada"
+  "intrusive-memory/SwiftEscribo"
   "intrusive-memory/SwiftFFMpeg"
   "intrusive-memory/SwiftFijos"
   "intrusive-memory/SwiftHablare"
   "intrusive-memory/SwiftOnce"
   "intrusive-memory/SwiftProyecto"
+  "intrusive-memory/SwiftReparto"
+  "intrusive-memory/SwiftRepositorio"
   "intrusive-memory/SwiftSecuencia"
   "intrusive-memory/SwiftTuberia"
   "intrusive-memory/SwiftVinetas"
   "intrusive-memory/SwiftVoxAlta"
   "intrusive-memory/flux-2-swift-mlx"
+  "intrusive-memory/glosa-av"
+  "intrusive-memory/glosa-tools"
   "intrusive-memory/mlx-audio-swift"
   "intrusive-memory/pixart-swift-mlx"
+  "intrusive-memory/vox-format"
 )
 
 # Excluded repos (not Swift packages or deprecated):
@@ -48,38 +54,50 @@ declare -A SUMMARIES=(
   [SwiftAcervo]="Shared AI model discovery and management for HuggingFace models on Apple platforms."
   [SwiftBruja]="On-device LLM inference for Apple Silicon via MLX. One-line queries with auto-download."
   [SwiftCompartido]="Screenplay parsing, SwiftData models, and SwiftUI display components. Supports Fountain, FDX, PDF, Highland, and more."
-  [SwiftEchada]="Shared Swift utilities and extensions for the Intrusive Memory ecosystem."
+  [SwiftEchada]="AI-powered cast management for screenplay projects: designs on-device custom voices from text prompts (via SwiftVoxAlta) and keeps the cast in CAST.md (via SwiftReparto). Library plus the echada CLI."
+  [SwiftEscribo]="A stylized SwiftUI text editor for Markdown and Fountain on macOS and iOS, and the collection's canonical Fountain scanner, so every tool parses a screenplay the same way."
   [SwiftFFMpeg]="Swift wrapper for FFmpeg API for audio/video processing."
   [SwiftFijos]="Test fixture file discovery for Swift packages and Xcode projects."
   [SwiftHablare]="Voice generation library with Apple TTS, ElevenLabs, and Qwen TTS providers. SwiftUI components included."
   [SwiftOnce]="Swift wrapper for the ElevenLabs TTS REST API with voice discovery, voice design, streaming, and audio caching."
   [SwiftProyecto]="Project metadata management, file discovery, and PROJECT.md parsing for screenplay projects."
+  [SwiftReparto]="The cast list as a file: owns the CAST.md schema, parser and serializer, with a guarantee that nothing hand-written in the file is lost on a rewrite. Library plus the reparto CLI."
+  [SwiftRepositorio]="libgit2 + libssh2 + OpenSSL for Apple platforms, wrapped in a Swift actor — clone, stage, commit, fetch, push with memory-only credentials and fail-closed host verification."
   [SwiftSecuencia]="FCPXML timeline generation and audio export for Final Cut Pro X integration."
-  [SwiftTuberia]="Componentized MLX diffusion pipeline infrastructure with protocols, schedulers, and model-agnostic generation."
-  [SwiftVinetas]="Image generation orchestration with FLUX.2 and PixArt-Sigma backends via SwiftTuberia pipelines."
+  [SwiftTuberia]="Componentized generation pipeline for MLX inference. Typed pipe segments, diffusion compositor, and shared component catalog."
+  [SwiftVinetas]="Storyboard and comic-panel generation from text prompts: on-device FLUX.2 and PixArt-Sigma via SwiftTuberia, or cloud models (OpenAI, Google, Black Forest Labs, Stability) with reference images. Library, SwiftUI prompt panel, and the vinetas CLI."
   [SwiftVoxAlta]="On-device Qwen3-TTS voice design and cloning for SwiftHablare. Character voice pipeline with VoiceDesign, Base model cloning, and diga CLI."
-  [flux-2-swift-mlx]="FLUX.2 text-to-image generation on Apple Silicon via MLX. Includes text encoders, transformer backbone, and VAE decoder."
-  [mlx-audio-swift]="On-device audio inference via MLX — text-to-speech, speech-to-text, speech-to-speech, and codec models."
-  [pixart-swift-mlx]="PixArt-Sigma DiT backbone plugin for SwiftTuberia diffusion pipelines."
+  [flux-2-swift-mlx]="Swift/MLX port of the FLUX.2 image generation pipeline for Apple Silicon."
+  [glosa-av]="GLOSA performance notation for screenplays: a Foundation-only compiler that reads performance and storyboard directives out of Fountain notes and FDX, so voice and image pipelines can be steered from the script itself."
+  [glosa-tools]="The glosa CLI and Stage Director tooling: generates and checks GLOSA annotations for a screenplay, on top of GlosaCore from glosa-av."
+  [mlx-audio-swift]="MLX-powered audio on Apple Silicon: TTS (Qwen3, Orpheus, Marvis), STT, and audio codecs (SNAC, Mimi, Vocos). Fork of Blaizzy/mlx-audio-swift."
+  [pixart-swift-mlx]="Swift/MLX port of the PixArt-Sigma DiT image generation backbone."
+  [vox-format]="Open vendor-neutral file format (.vox) for persisting voice identities across TTS engines."
 )
 
 declare -A KEYWORDS=(
   [SwiftAcervo]='["ai-models","huggingface","model-management","caching"]'
   [SwiftBruja]='["llm","mlx","ai","apple-silicon"]'
   [SwiftCompartido]='["screenplay","fountain","parser","swiftui","swiftdata"]'
-  [SwiftEchada]='["utilities","extensions","swift"]'
+  [SwiftEchada]='["screenplay","cast","voice-design","tts","cli"]'
+  [SwiftEscribo]='["editor","swiftui","fountain","markdown","textkit","screenplay"]'
   [SwiftFFMpeg]='["ffmpeg","audio","video","media"]'
   [SwiftFijos]='["testing","fixtures","test-utilities"]'
   [SwiftHablare]='["tts","voice","audio","speech-synthesis","elevenlabs"]'
   [SwiftOnce]='["elevenlabs","tts","voice-design","streaming","audio"]'
   [SwiftProyecto]='["project","metadata","file-discovery","yaml"]'
+  [SwiftReparto]='["screenplay","cast","markdown","parser","cli"]'
+  [SwiftRepositorio]='["git","libgit2","libssh2","openssl","version-control"]'
   [SwiftSecuencia]='["fcpxml","final-cut-pro","timeline","audio-export"]'
-  [SwiftTuberia]='["mlx","diffusion","pipeline","image-generation","apple-silicon"]'
-  [SwiftVinetas]='["image-generation","flux","pixart","diffusion","mlx"]'
+  [SwiftTuberia]='["mlx","pipeline","diffusion","generation","components"]'
+  [SwiftVinetas]='["storyboard","comic","image-generation","diffusion","orchestrator"]'
   [SwiftVoxAlta]='["tts","qwen3","voice-cloning","voice-design","on-device","mlx"]'
-  [flux-2-swift-mlx]='["flux","image-generation","mlx","text-to-image","apple-silicon"]'
-  [mlx-audio-swift]='["audio","tts","stt","mlx","speech","apple-silicon"]'
-  [pixart-swift-mlx]='["pixart","dit","diffusion","mlx","image-generation"]'
+  [flux-2-swift-mlx]='["image-generation","flux","mlx","diffusion","ai-models"]'
+  [glosa-av]='["screenplay","fountain","glosa","tts","storyboard","annotation"]'
+  [glosa-tools]='["screenplay","glosa","cli","annotation","tts"]'
+  [mlx-audio-swift]='["mlx","audio","tts","stt","qwen3","voice-cloning","apple-silicon"]'
+  [pixart-swift-mlx]='["image-generation","pixart","mlx","diffusion","dit"]'
+  [vox-format]='["voice","tts","file-format","voice-identity","portability"]'
 )
 
 # Get latest version tag for a repo. Tries releases first, falls back to tags.
@@ -288,7 +306,7 @@ NEW_REVISION=$((EXISTING_REVISION + 1))
 
 jq -n \
   --arg name "Intrusive Memory Swift Packages" \
-  --arg overview "Screenplay visualization and audio generation libraries by Intrusive Memory. Powers the Produciesta ecosystem for transforming screenplays into audio performances." \
+  --arg overview "Swift libraries by Intrusive Memory for turning screenplays into voices, images and timelines on Apple Silicon: parsing and editing scripts, casting and generating voices, generating storyboard images, and assembling the results." \
   --argjson revision "$NEW_REVISION" \
   --arg generatedAt "$GENERATED_AT" \
   --argjson packages "$PACKAGES_JSON" \

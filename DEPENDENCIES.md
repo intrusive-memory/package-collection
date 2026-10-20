@@ -4,8 +4,8 @@ Visual dependency map for the Intrusive Memory Swift Package Collection.
 Derived from `collection.json` (revision 17, generated 2026-04-21).
 
 Low-level foundational libraries are at the top. Data flows downward toward
-the two ultimate destination apps — **Produciesta** (screenplay → audio
-pipeline) and **SwiftVinetas** (image generation orchestration).
+the highest-level library, **SwiftVinetas** (image generation orchestration).
+Applications that consume these packages are private and not shown.
 
 > **Action required:** edges and nodes marked red have outstanding issues
 > tracked in [REQUIREMENTS.md](REQUIREMENTS.md). Every red item in this
@@ -57,8 +57,7 @@ graph TD
     %% ============ Level 5 ============
     SwiftEchada[SwiftEchada<br/>v0.10.3]
 
-    %% ============ Consumer apps (inferred) ============
-    Produciesta{{Produciesta}}
+    %% ============ Inferred consumers ============
     SwiftVinetas{{SwiftVinetas}}
 
     %% ============ External / untracked ============
@@ -88,14 +87,7 @@ graph TD
     MLXAudioSwift -->|branch:main| SwiftEchada
     VoxFormat -->|branch:main| SwiftEchada
 
-    %% ============ Edges — inferred app consumers (indices 22..30) ============
-    SwiftCompartido -.->|inferred| Produciesta
-    SwiftHablare -.->|inferred| Produciesta
-    SwiftVoxAlta -.->|inferred| Produciesta
-    SwiftSecuencia -.->|inferred| Produciesta
-    SwiftProyecto -.->|inferred| Produciesta
-    SwiftFFMpeg -.->|inferred| Produciesta
-    SwiftEchada -.->|inferred| Produciesta
+    %% ============ Edges — inferred consumers (indices 22..23) ============
     SwiftTuberia -.->|inferred| SwiftVinetas
     SwiftAcervo -.->|inferred| SwiftVinetas
 
@@ -107,7 +99,7 @@ graph TD
 
     class SwiftAcervo,SwiftFijos,SwiftOnce,SwiftFFMpeg,VoxFormat,SwiftBruja,MLXAudioSwift,SwiftTuberia,SwiftProyecto healthy
     class SwiftCompartido,SwiftSecuencia,SwiftHablare,SwiftVoxAlta,SwiftEchada broken
-    class Produciesta,SwiftVinetas app
+    class SwiftVinetas app
     class PipelineNeo external
 
     %% ============ Edge styling — red for broken intra-org edges ============
@@ -182,15 +174,10 @@ Additional upstream pin (not graphed — external repo):
 
 ## Inferred edges — caveat
 
-The nine blue dashed edges feeding **Produciesta** and **SwiftVinetas** are
-**inferred from each library's stated purpose**, not read from those apps'
-`Package.swift` files. They show the *intended* ecosystem shape but have
-not been verified.
-
-If accuracy matters for these two nodes, either:
-1. Add Produciesta and SwiftVinetas to `collection.json` so their deps are
-   tracked the same way library deps are, or
-2. Manually audit each app's `Package.swift` and update this graph.
+The two blue dashed edges feeding **SwiftVinetas** are **inferred from each
+library's stated purpose**, not read from its `Package.swift`. SwiftVinetas is
+now in `collection.json`, so the next re-audit should replace them with its
+declared dependencies.
 
 ---
 

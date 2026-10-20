@@ -10,6 +10,32 @@ This is a Swift Package Collection for the **Intrusive Memory** organization. It
 
 ---
 
+## Repository Visibility
+
+By convention:
+
+- **Swift packages (`Swift*`, and the MLX ports under `pkg/`) are public.**
+  They come from an open-source heritage, and contributions here should add
+  to the whole. New packages are created public with an MIT `LICENSE`.
+- **Apps (`~/Projects/apps/*`) are private.** The apps are where the UI is
+  integrated and where we hope to innovate.
+- **Podcast projects (`~/Projects/podcasts/*`) are private.**
+
+Because packages are public, nothing from a private app or podcast goes
+into a package repository: no screenplays, character images, descriptions,
+CAST.md files or manifests in `Tests/` fixtures. Use synthetic fixtures, and
+check real projects with a local-only target (e.g. `make acceptance
+PROJECT=<path>`) that skips when the checkout is absent and never runs in CI.
+
+**This repository is public too.** Don't name or describe the private apps or
+podcasts here — not in the README, `collection.json`, the dependency graph or
+planning docs. Cross-repo plans that involve an app live in a private repo.
+
+Format standards that packages implement (e.g. `dossier-format`,
+`vox-format`) are public as well.
+
+---
+
 ## Icon Generation Style Guide
 
 All package icons share a consistent Mid-Century Modern visual language:
@@ -198,13 +224,13 @@ ln -s "$(pwd)/skills/<skill-name>" .claude/skills/<skill-name>
 | **branch-hygiene** | `/branch-hygiene` | Post-release branch hygiene shared by `/ship-swift-library` and `/ship-app` — syncs `development` onto `main` (squash-aware: resets + cherry-picks phantoms instead of merging), marks the next cycle (`X.Y.Z-dev` + sibling pattern for libraries, `MARKETING_VERSION` bump for apps), opens the draft `Development → Main` PR; `--sync-only` for preflight |
 | **dependency-purge** | `/dependency-purge` | Full nuclear clean for Xcode/SPM build issues — removes DerivedData, clears the global SPM cache, deletes `Package.resolved`, then bumps every `intrusive-memory/*` floor in `Package.swift` to the latest published release **before** resolution; optional `--rebuild` flag |
 | **fix-code-signing** | `/fix-code-signing` | Diagnoses and fixes code signing configuration issues for XCTest bundles in hardened runtime macOS apps |
-| **generate-episode-audio** | `/generate-episode-audio` | Generate podcast episode audio from Fountain or Highland screenplays using Produciesta CLI, wrap with intro/outro, and open in QuickTime |
+| **generate-episode-audio** | `/generate-episode-audio` | Generate podcast episode audio from Fountain or Highland screenplays, wrap with intro/outro, and open in QuickTime |
 | **macos-say** | `/macos-say` | Use macOS text-to-speech via the `say` command for voice feedback, audio narration, and spoken output |
 | **mission-supervisor** | `/mission-supervisor` | Plan and execute missions as sorties. Pre-execution: `recon` verifies every assumption the requirements make about existing code — resolving each dependency to its local checkout under `~/Projects` and checking against the revision the build actually resolves — and hard-stops on a false premise; `breakdown` generates the plan; `refine` performs 5 passes (blocking questions, atomicity, priority, parallelism, vague-criteria cleanup). Then `start/resume/status/stop/killall` orchestrate sortie agents, with an artifact-only pre-build clean on `start` for Swift/Xcode projects. Post-mission `test-cleanup` → `brief` → `clean` chains automatically |
 | **mission-supervisor-report** | `/mission-supervisor-report` | Generate a voiced mission debrief video composition for a podcast episode — scripts "The General" character narrating mission status, builds Motion title templates and compositions for Final Cut Pro |
 | **organize-agent-docs** | `/organize-agent-docs` | Gold-standard markdown organization — sorts every markdown file into FOUNDATIONAL (root), MISSION (`docs/<complete\|incomplete>/<mission>/`), or EXTRANEOUS (`docs/`), maintains links, stamps `updated:` dates |
 | **package-iterator** | `/package-iterator` | Fan out a skill across every library (or a subset) in a JSON package collection in dependency order; same-level siblings run in parallel, failures auto-escalate to a diagnostic agent before flagging for follow-up |
-| **podcast-audio-plan** | `/podcast-audio-plan` | Generate audio and transcripts for podcast episodes from Fountain screenplays using Produciesta CLI — analyzes characters, assigns voices, writes PROJECT.md cast list, prepares transcripts for web deployment |
+| **podcast-audio-plan** | `/podcast-audio-plan` | Generate audio and transcripts for podcast episodes from Fountain screenplays — analyzes characters, assigns voices, writes PROJECT.md cast list, prepares transcripts for web deployment |
 | **podcast-validate** | `/podcast-validate` | Validate podcast CDN links and site integrity for intrusive-memory.productions — use after CDN upload, before deploy, or to debug broken links |
 | **release** | `/release` | Release a merged PR by tagging and creating a GitHub release |
 | **ship-app** | `/ship-app` | Ship iOS/macOS App Store apps: `development → main` PR (auto-ships to TestFlight via Xcode Cloud), `<version>-rc<n>` tag merged into `release/<version>` (App Store upload), submission, then `/branch-hygiene` at close-out |
