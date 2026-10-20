@@ -50,11 +50,39 @@ REPO=$(gh repo view --json nameWithOwner --jq '.nameWithOwner')
 
 if PROTECTION=$(gh api "repos/${REPO}/branches/development/protection" 2>/dev/null); then
   IS_PROTECTED=1
-  CHECKS_JSON=$(jq -c '[.required_status_checks.checks[]?.context]' <<<"$PROTECTION")
-  echo "development IS protected. Required status checks: ${CHECKS_JSON}"
+  # Save the protection EXACTLY as it is, and convert the GET shape into the PUT shape
+  # once. Unlock and restore are both derived from this copy, so every setting —
+  # strict, the PR-review requirement, admin enforcement, restrictions, linear
+  # history, deletions — comes back as it was. Never hand-write a protection body:
+  # an earlier version of this skill did, and silently dropped the PR requirement
+  # and forced `strict: true` on every repo it touched.
+  PROTECTION_FILE=$(mktemp -t protection-before)
+  printf '%s' "$PROTECTION" > "$PROTECTION_FILE"
+  PUT_BODY=$(jq -c '{
+    required_status_checks: (if .required_status_checks then
+      {strict: .required_status_checks.strict,
+       contexts: [.required_status_checks.contexts[]?]} else null end),
+    enforce_admins: (.enforce_admins.enabled // false),
+    required_pull_request_reviews: (if .required_pull_request_reviews then
+      {dismiss_stale_reviews: (.required_pull_request_reviews.dismiss_stale_reviews // false),
+       require_code_owner_reviews: (.required_pull_request_reviews.require_code_owner_reviews // false),
+       required_approving_review_count: (.required_pull_request_reviews.required_approving_review_count // 0),
+       require_last_push_approval: (.required_pull_request_reviews.require_last_push_approval // false)}
+      else null end),
+    restrictions: (if .restrictions then
+      {users: [.restrictions.users[]?.login], teams: [.restrictions.teams[]?.slug],
+       apps: [.restrictions.apps[]?.slug]} else null end),
+    required_linear_history: (.required_linear_history.enabled // false),
+    allow_force_pushes: (.allow_force_pushes.enabled // false),
+    allow_deletions: (.allow_deletions.enabled // false),
+    block_creations: (.block_creations.enabled // false),
+    required_conversation_resolution: (.required_conversation_resolution.enabled // false),
+    lock_branch: (.lock_branch.enabled // false),
+    allow_fork_syncing: (.allow_fork_syncing.enabled // false)
+  }' <<<"$PROTECTION")
+  echo "development IS protected. Saved to ${PROTECTION_FILE}."
 else
   IS_PROTECTED=0
-  CHECKS_JSON='[]'
   echo "development is NOT protected — no toggle needed, force-push directly."
 fi
 ```
@@ -96,17 +124,12 @@ done
 Anything in the net diff not produced by a kept commit means your set is wrong — widen it before proceeding.
 
 ```bash
-# Step 5: Unlock force-push — ONLY if the branch is protected
+# Step 5: Unlock force-push — ONLY if the branch is protected.
+# Same body as saved, with exactly one change: allow_force_pushes = true.
+# From here on, Step 8 (restore) MUST run even if a later step fails.
 if [ "$IS_PROTECTED" = "1" ]; then
-  gh api --method PUT "repos/${REPO}/branches/development/protection" --input - <<JSON
-{
-  "required_status_checks": {"strict": true, "contexts": ${CHECKS_JSON}},
-  "enforce_admins": false,
-  "required_pull_request_reviews": null,
-  "restrictions": null,
-  "allow_force_pushes": true
-}
-JSON
+  jq -c '.allow_force_pushes = true' <<<"$PUT_BODY" |
+    gh api --method PUT "repos/${REPO}/branches/development/protection" --input -
 fi
 
 # Step 6: Reset development to main's tip, cherry-pick any genuinely new commits
@@ -148,18 +171,19 @@ Empty output means the rebase changed history but not content. Non-empty means y
 # Step 7: Force-push the clean development branch
 git push origin development --force-with-lease
 
-# Step 8: Restore branch protection — ONLY if you unlocked it in Step 5
+# Step 8: Restore branch protection — ONLY if you unlocked it in Step 5.
+# Run this even if Steps 6–7 failed. Restore the saved body unchanged, then prove it.
 if [ "$IS_PROTECTED" = "1" ]; then
-  gh api --method PUT "repos/${REPO}/branches/development/protection" --input - <<JSON
-{
-  "required_status_checks": {"strict": true, "contexts": ${CHECKS_JSON}},
-  "enforce_admins": false,
-  "required_pull_request_reviews": null,
-  "restrictions": null,
-  "allow_force_pushes": false
-}
-JSON
-  echo "Force-push protection restored."
+  printf '%s' "$PUT_BODY" |
+    gh api --method PUT "repos/${REPO}/branches/development/protection" --input -
+  NORMALIZE='del(.. | .url?, .contexts_url?) | del(.required_status_checks.checks)'
+  if diff <(jq -S "$NORMALIZE" "$PROTECTION_FILE") \
+          <(gh api "repos/${REPO}/branches/development/protection" | jq -S "$NORMALIZE"); then
+    echo "Protection restored exactly as saved."
+  else
+    echo "PROTECTION DIFFERS FROM THE SAVED STATE — stop and report; do not continue." >&2
+    exit 1
+  fi
 else
   echo "Branch was never protected — nothing to restore."
 fi
