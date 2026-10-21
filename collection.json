@@ -9,8 +9,8 @@
     "intrusive-memory"
   ],
   "formatVersion": "1.0",
-  "revision": 33,
-  "generatedAt": "2026-10-21T01:57:43Z",
+  "revision": 34,
+  "generatedAt": "2026-10-21T05:54:00Z",
   "generatedBy": {
     "name": "Intrusive Memory"
   },
@@ -262,7 +262,7 @@
       "readmeURL": "https://github.com/intrusive-memory/SwiftEscribo/blob/main/README.md",
       "versions": [
         {
-          "version": "0.4.5",
+          "version": "0.5.0",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
@@ -300,7 +300,10 @@
           },
           "defaultToolsVersion": "6.2"
         }
-      ]
+      ],
+      "dependencies": {
+        "swiftlang/swift-markdown": "upToNextMajor: 0.8.0"
+      }
     },
     {
       "url": "https://github.com/intrusive-memory/SwiftFFMpeg.git",
