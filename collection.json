@@ -9,8 +9,8 @@
     "intrusive-memory"
   ],
   "formatVersion": "1.0",
-  "revision": 32,
-  "generatedAt": "2026-10-21T00:00:07Z",
+  "revision": 33,
+  "generatedAt": "2026-10-21T01:57:43Z",
   "generatedBy": {
     "name": "Intrusive Memory"
   },
@@ -810,7 +810,7 @@
       "readmeURL": "https://github.com/intrusive-memory/SwiftVinetas/blob/main/README.md",
       "versions": [
         {
-          "version": "0.25.0",
+          "version": "0.26.0",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
@@ -854,8 +854,8 @@
         "intrusive-memory/SwiftAcervo": "upToNextMajor: 0.25.0",
         "intrusive-memory/SwiftTuberia": "upToNextMajor: 0.9.0",
         "intrusive-memory/pixart-swift-mlx": "upToNextMajor: 0.8.2",
-        "intrusive-memory/glosa-av": "upToNextMajor: 0.8.1",
-        "intrusive-memory/SwiftCompartido": "upToNextMajor: 7.3.1",
+        "intrusive-memory/glosa-av": "upToNextMajor: 0.9.0",
+        "intrusive-memory/SwiftCompartido": "upToNextMajor: 7.4.0",
         "marcprux/universal": "from: 5.3.0",
         "apple/swift-argument-parser": "from: 1.7.1",
         "DePasqualeOrg/swift-tokenizers": "upToNextMinor: 0.7.1",
