@@ -9,8 +9,8 @@
     "intrusive-memory"
   ],
   "formatVersion": "1.0",
-  "revision": 31,
-  "generatedAt": "2026-10-20T20:26:43Z",
+  "revision": 32,
+  "generatedAt": "2026-10-21T00:00:07Z",
   "generatedBy": {
     "name": "Intrusive Memory"
   },
@@ -143,7 +143,7 @@
       "readmeURL": "https://github.com/intrusive-memory/SwiftCompartido/blob/main/README.md",
       "versions": [
         {
-          "version": "7.0.4",
+          "version": "7.4.0",
           "manifests": {
             "6.2": {
               "toolsVersion": "6.2",
@@ -185,6 +185,8 @@
       "dependencies": {
         "mcritz/TextBundle": "from: 1.0.0",
         "weichsel/ZIPFoundation": "from: 0.9.0",
+        "intrusive-memory/SwiftFijos": "upToNextMajor: 1.4.1",
+        "intrusive-memory/glosa-av": "upToNextMajor: 0.9.0",
         "swiftlang/swift-markdown": "from: 0.7.0"
       }
     },
