@@ -124,6 +124,7 @@ This repo also ships a set of [Claude Code](https://docs.claude.com/en/docs/clau
 | [ship-swift-library](skills/ship-swift-library/) | Bump, merge, tag, and release a Swift library version end-to-end (accepts `patch`/`minor`/`major` or explicit semver for unattended runs) |
 | [shortcuts-helper](skills/shortcuts-helper/) | Create, run, and understand macOS Shortcuts (CLI, URL schemes, App Intents) |
 | [spm-package-audit](skills/spm-package-audit/) | Audit and auto-fix SPM library packages — untrack `Package.resolved`, apply the sibling-dependency pattern via `/toggle-sibling-libraries`, bump every `intrusive-memory/*` dep |
+| [storyboard-flipbook](skills/storyboard-flipbook/) | Scene prompts → N on-model storyboard frames from the cast's `.dossier` reference portraits, bound into an HTML flipbook |
 | [toggle-sibling-libraries](skills/toggle-sibling-libraries/) | Flip `Package.swift` between the local-sibling dev pattern and the remote-only release pattern (only `intrusive-memory/*` deps participate) |
 | [ui-ux-pro-max](skills/ui-ux-pro-max/) | UI/UX design intelligence — styles, palettes, font pairings, charts, and framework stacks |
 | [update-package-library](skills/update-package-library/) | Refresh `collection.json` against the latest published GitHub releases for every tracked package (sub-commands: `update`, `update-deps`, `list`, `diff`, `verify`, `add-package`, `remove-package`) |
