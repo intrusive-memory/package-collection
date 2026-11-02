@@ -164,7 +164,7 @@ re-render. Frames that haven't rendered show as placeholders.
 
 **The layout is three panes, like a macOS document app:** a slide sorter down the left, the frame and its controls in the middle, and the frame's caption and notes on the right.
 
-**The navigation bar sits under the frame, in a fixed order.** First is at the far left and Last is at the far right. Prev, Play and Next sit together in the center, in that order. Keep this placement in every flipbook; `assets/flipbook.html` implements it. The audio sequence view from a project's `scripts/build-flipbook.py` has different controls and doesn't follow this layout yet.
+**The navigation bar sits under the frame, in a fixed order.** First is at the far left and Last is at the far right. Prev, Play and Next sit together in the center, in that order. Keep this placement in every flipbook, including the audio sequence view from a project's `scripts/build-flipbook.py` and its published page. `assets/flipbook.html` implements it here. Captions in the audio view sit on their own row below the bar.
 
 **The flipbook never wraps.** Next, Play and clicking the picture stop on the last frame, and Prev stops on the first. First and Last jump to each end. First and Prev are disabled on the first frame. Last, Next and Play are disabled on the last frame.
 
