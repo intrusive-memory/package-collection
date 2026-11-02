@@ -1,0 +1,272 @@
+---
+layout: null
+title: __YAML_TITLE__
+noindex: true
+sitemap: false
+---
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>__TITLE__</title>
+<meta property="og:type" content="website">
+<meta property="og:title" content="__TITLE__">
+<meta property="og:description" content="__DESCRIPTION__">
+<meta property="og:image" content="{{ site.cdn_url }}/flipbooks/__PATH__/__OG_IMAGE__">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" sizes="32x32" href="{{ site.cdn_url }}/favicon-32x32.png">
+<style>
+  :root { color-scheme: dark; --accent: #d4a853; --ink: #f1ece2; --dim: #a39d91; --bg: #111; --panel: #1b1b1b; --line: #333; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink);
+    font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; }
+  body { display: flex; flex-direction: column; height: 100dvh; }
+  header { display: flex; align-items: baseline; gap: 14px; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+  h1 { margin: 0; font-size: 15px; font-weight: 600; }
+  header span { color: var(--dim); font-size: 12px; }
+  header a { margin-left: auto; color: var(--accent); font-size: 12px; text-decoration: none; }
+  header a:hover { text-decoration: underline; }
+  .app { flex: 1; min-height: 0; display: grid; grid-template-columns: 210px minmax(0, 1fr); }
+  .sorter { overflow-y: auto; padding: 10px; background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+  .thumb { display: block; flex: none; width: 100%; padding: 4px; text-align: left; background: none; border: 2px solid transparent; border-radius: 7px; color: var(--dim); font: inherit; font-size: 11px; cursor: pointer; }
+  .thumb:hover { background: #262626; }
+  .thumb:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .thumb.on { border-color: var(--accent); color: var(--ink); background: #2a2415; }
+  .thumb img { display: block; width: 100%; aspect-ratio: __ASPECT__; object-fit: cover; border-radius: 3px; background: #000; }
+  .thumb .label { display: flex; gap: 5px; margin-top: 3px; align-items: baseline; }
+  .thumb .num { font-variant-numeric: tabular-nums; flex: none; }
+  .thumb .name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .detail { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; }
+  .stageWrap { flex: 1; min-height: 0; display: flex; justify-content: center; align-items: center; }
+  .stage { position: relative; width: 100%; max-height: 100%; aspect-ratio: __ASPECT__; background: #000; border-radius: 6px; overflow: hidden; cursor: pointer; }
+  .stage > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0; }
+  .stage > img.on { opacity: 1; }
+  .slate { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center;
+    background: #000; text-align: center; font-family: Georgia, "Times New Roman", serif; padding: 0 5%; }
+  .slate.on { display: flex; }
+  .slate b { font-size: clamp(20px, 3.4vw, 48px); font-weight: 400; letter-spacing: .04em; }
+  .slate i { font-size: clamp(12px, 1.5vw, 22px); color: var(--dim); margin-top: 8px; }
+  .slate em { font: 13px -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; color: var(--accent); margin-top: 22px; }
+  .count { position: absolute; top: 10px; left: 10px; background: #000a; border-radius: 999px; padding: 3px 11px; font-size: 12px; }
+  .caption { position: absolute; left: 50%; bottom: 4%; transform: translateX(-50%); width: min(90%, 820px); text-align: center; pointer-events: none; }
+  .caption div { display: inline; padding: .18em .5em; background: #000c; font-size: clamp(13px, 1.45vw, 20px); line-height: 1.6;
+    -webkit-box-decoration-break: clone; box-decoration-break: clone; border-radius: 3px; }
+  .caption .who { color: var(--accent); font-weight: 600; margin-right: .4em; }
+  .caption.off { display: none; }
+  .about { flex: none; min-height: 2.6em; text-align: center; }
+  .about b { font-weight: 600; }
+  .about span { color: var(--dim); }
+  audio { width: 100%; height: 36px; flex: none; }
+  .row { display: flex; align-items: center; justify-content: center; gap: 10px; flex: none; }
+  .controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex: none; }
+  button.ctl:disabled, button.ctl:disabled:hover { opacity: .35; cursor: default; background: #222; }
+  button.ctl { background: #222; color: var(--ink); border: 1px solid #444; border-radius: 6px; padding: 5px 13px; font: inherit; cursor: pointer; }
+  button.ctl:hover { background: #2d2d2d; }
+  button.ctl:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button.ctl[aria-pressed="false"] { color: var(--dim); }
+  .help { text-align: center; color: var(--dim); font-size: 11px; flex: none; }
+  .warn { color: #e2654f; }
+  @media (max-width: 900px) {
+    html, body { height: auto; }
+    body { min-height: 100dvh; }
+    header { flex-wrap: wrap; gap: 2px 14px; }
+    h1 { flex: 1; min-width: 0; }
+    header a { margin-left: 0; }
+    header span { order: 3; width: 100%; }
+    .app { display: flex; flex-direction: column; }
+    .detail { order: 1; }
+    .sorter { order: 2; flex-direction: row; overflow-x: auto; border-right: 0; border-top: 1px solid var(--line); }
+    .thumb { flex: 0 0 130px; width: 130px; }
+    .help { display: none; }
+  }
+</style>
+</head>
+<body>
+<header><h1>__TITLE__</h1><span id="sub"></span><a href="/">Vinetas</a></header>
+<div class="app">
+  <nav class="sorter" id="dots" aria-label="Frames"></nav>
+  <main class="detail">
+    <div class="stageWrap">
+      <div class="stage" id="stage" title="Click to play or pause">
+        <div class="slate on" id="slate"><b id="slateTitle"></b><i id="slateSub"></i><em id="slateHint"></em></div>
+        <div class="count" id="count"></div>
+        <div class="caption" id="caption" aria-live="off"><div id="capText"></div></div>
+      </div>
+    </div>
+    <div class="about"><b id="title"></b> <span id="frameCap"></span></div>
+    <audio id="audio" controls preload="metadata"></audio>
+    <div class="controls">
+      <button class="ctl" id="first" aria-label="First frame">First</button>
+      <div class="row">
+        <button class="ctl" id="prev" aria-label="Previous frame">◀ Prev</button>
+        <button class="ctl" id="play" aria-pressed="false">Play</button>
+        <button class="ctl" id="next" aria-label="Next frame">Next ▶</button>
+      </div>
+      <button class="ctl" id="last" aria-label="Last frame">Last</button>
+    </div>
+    <div class="row"><button class="ctl" id="cc" aria-pressed="true">Captions</button></div>
+    <div class="help" id="help"></div>
+  </main>
+</div>
+<script>
+const BASE = "{{ site.cdn_url }}/flipbooks/__PATH__/";
+const DATA = {% raw %}__DATA__{% endraw %};
+const F = DATA.frames, C = DATA.cues;
+const $ = id => document.getElementById(id);
+const audio = $("audio"), stage = $("stage");
+const SILENT = !DATA.audio;
+let manual = 0;
+const credit = DATA.credit ? " · " + DATA.credit : "";
+$("sub").textContent = F.length + " frames" + credit;
+$("slateTitle").textContent = DATA.slate.title;
+if (SILENT) {
+  audio.style.display = "none";
+  $("cc").style.display = "none";
+  $("help").textContent = "← → change frame · click the picture to advance";
+} else {
+  audio.src = BASE + DATA.audio;
+  $("help").textContent = "space to play or pause · ← → change frame · C toggles captions · frames follow the audio";
+}
+
+// Full-size frames load as they are needed, so opening the page doesn't pull the whole book.
+const imgs = F.map(f => {
+  const im = new Image();
+  im.alt = f.title;
+  stage.insertBefore(im, $("slate"));
+  return im;
+});
+function need(i) { if (F[i] && !imgs[i].src) imgs[i].src = BASE + F[i].file; }
+const dots = F.map((f, i) => {
+  const b = document.createElement("button");
+  b.className = "thumb";
+  b.setAttribute("aria-label", "Frame " + (i + 1) + ": " + f.title);
+  const pic = new Image();
+  pic.loading = "lazy"; pic.alt = ""; pic.src = BASE + f.thumb;
+  const label = document.createElement("div");
+  label.className = "label";
+  const num = document.createElement("span");
+  num.className = "num"; num.textContent = i + 1;
+  const name = document.createElement("span");
+  name.className = "name"; name.textContent = f.title;
+  label.append(num, name);
+  b.append(pic, label);
+  b.onclick = () => go(i);
+  $("dots").appendChild(b);
+  return b;
+});
+
+let shown = -2;
+function frameAt(t) {
+  if (SILENT) return manual;
+  if (DATA.endSlate !== null && t >= DATA.endSlate) return -1;
+  let i = -1;
+  for (let n = 0; n < F.length; n++) { if (F[n].start <= t + 0.01) i = n; else break; }
+  return i;
+}
+function show(i) {
+  if (i === shown) return;
+  shown = i;
+  need(i); need(i + 1);
+  imgs.forEach((im, n) => im.classList.toggle("on", n === i));
+  dots.forEach((d, n) => d.classList.toggle("on", n === i));
+  if (i >= 0) dots[i].scrollIntoView({ block: "nearest", inline: "nearest" });
+  $("slate").classList.toggle("on", i < 0);
+  const end = i < 0 && F[0] && audio.currentTime > F[0].start;
+  $("slateSub").textContent = end ? DATA.slate.end : DATA.slate.sub;
+  $("slateHint").textContent = end || SILENT ? "" : "Click to play";
+  $("count").textContent = i < 0 ? "" : (i + 1) + " / " + F.length;
+  $("count").style.display = i < 0 ? "none" : "";
+  $("title").textContent = i < 0 ? "" : (i + 1) + ". " + F[i].title;
+  $("frameCap").textContent = i < 0 ? "" : F[i].caption;
+}
+let capAt = -2;
+function caption(t) {
+  if (SILENT) { $("capText").style.display = "none"; return; }
+  let at = -1;
+  for (let n = 0; n < C.length; n++) {
+    if (C[n].start > t) break;
+    if (t < C[n].end) { at = n; break; }
+  }
+  if (at === capAt) return;
+  capAt = at;
+  const box = $("capText");
+  box.textContent = "";
+  if (at < 0) { box.style.display = "none"; return; }
+  box.style.display = "";
+  if (C[at].speaker && C[at].speaker !== "NARRATOR") {
+    const who = document.createElement("span");
+    who.className = "who"; who.textContent = C[at].speaker;
+    box.appendChild(who);
+  }
+  box.appendChild(document.createTextNode(C[at].text));
+}
+function sync() { const t = audio.currentTime; show(frameAt(t)); caption(t); nav(); }
+function tick() { sync(); if (!audio.paused) requestAnimationFrame(tick); }
+function seek(t) { audio.currentTime = t + 0.01; sync(); }
+function go(i) {
+  if (SILENT) { manual = Math.max(0, Math.min(i, F.length - 1)); sync(); }
+  else seek(F[i].start);
+}
+function step(d) {
+  if (SILENT) return go(manual + d);
+  const t = audio.currentTime, i = frameAt(t);
+  if (d > 0) {
+    const nextI = i < 0 ? (t < F[0].start ? 0 : -1) : i + 1;
+    if (nextI >= 0 && nextI < F.length) seek(F[nextI].start);
+  } else if (i < 0) {
+    if (t >= F[0].start) seek(F[F.length - 1].start);
+  } else if (i > 0) {
+    seek(F[i - 1].start);
+  } else {
+    seek(0);
+  }
+}
+let timer = null;
+function stopSilent() { clearInterval(timer); timer = null; }
+function toggle() {
+  if (SILENT) {
+    if (timer) stopSilent();
+    else if (manual < F.length - 1) timer = setInterval(() => { step(1); if (manual >= F.length - 1) stopSilent(); nav(); }, 3500);
+    return nav();
+  }
+  if (audio.ended) return; // the book stops at the end: First goes back
+  audio.paused ? audio.play() : audio.pause();
+}
+function nav() {
+  const t = SILENT ? 0 : audio.currentTime, i = frameAt(t);
+  const atFirst = SILENT ? manual === 0 : (i === 0 || (i < 0 && t < F[0].start));
+  const atLast = SILENT ? manual === F.length - 1 : (i === F.length - 1 || (i < 0 && t >= F[0].start));
+  $("first").disabled = $("prev").disabled = atFirst;
+  $("last").disabled = $("next").disabled = atLast;
+  const running = SILENT ? !!timer : !audio.paused;
+  $("play").disabled = SILENT ? atLast && !timer : audio.ended;
+  $("play").textContent = running ? "Pause" : "Play";
+  $("play").setAttribute("aria-pressed", String(running));
+}
+audio.addEventListener("play", () => requestAnimationFrame(tick));
+audio.addEventListener("error", () => { if (!SILENT) { $("help").textContent = "The audio file didn't load."; $("help").className = "help warn"; } });
+["seeked", "seeking", "timeupdate", "play", "pause", "ended", "loadedmetadata"].forEach(e => audio.addEventListener(e, sync));
+stage.onclick = () => { SILENT ? step(1) : toggle(); };
+$("prev").onclick = () => step(-1);
+$("next").onclick = () => step(1);
+$("play").onclick = toggle;
+$("first").onclick = () => { if (SILENT) stopSilent(); go(0); };
+$("last").onclick = () => { if (SILENT) stopSilent(); go(F.length - 1); };
+function cc() {
+  const off = $("caption").classList.toggle("off");
+  $("cc").setAttribute("aria-pressed", String(!off));
+}
+$("cc").onclick = cc;
+document.addEventListener("keydown", e => {
+  if (e.key === " " && (e.target.tagName === "BUTTON" || e.target.tagName === "AUDIO")) return;
+  if (e.key === " ") { e.preventDefault(); toggle(); }
+  else if (e.key === "ArrowRight") { e.preventDefault(); step(1); }
+  else if (e.key === "ArrowLeft") { e.preventDefault(); step(-1); }
+  else if (e.key === "c" || e.key === "C") cc();
+});
+sync();
+</script>
+</body>
+</html>

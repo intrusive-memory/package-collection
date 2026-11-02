@@ -120,6 +120,7 @@ This repo also ships a set of [Claude Code](https://docs.claude.com/en/docs/clau
 | [package-iterator](skills/package-iterator/) | Fan out any skill across every library in `collection.json` in dependency order — same-level siblings run in parallel |
 | [podcast-audio-plan](skills/podcast-audio-plan/) | Cast voices, generate audio, and prepare transcripts for Fountain-screenplay podcasts |
 | [podcast-validate](skills/podcast-validate/) | Validate podcast CDN links and site integrity for intrusive-memory.productions |
+| [publish-flipbook](skills/publish-flipbook/) | Publish an audio-synced storyboard flipbook to vinetas.app as an unlisted, noindex page, with its art and audio on the CDN |
 | [release](skills/release/) | Tag and create a GitHub release for a merged PR |
 | [ship-app](skills/ship-app/) | Ship iOS/macOS apps through `development → main` (TestFlight), `<version>-rc<n>` → `release/<version>` (App Store), and submission; ends with `/branch-hygiene` |
 | [ship-swift-library](skills/ship-swift-library/) | Bump, merge, tag, and release a Swift library version end-to-end (accepts `patch`/`minor`/`major` or explicit semver for unattended runs) |
