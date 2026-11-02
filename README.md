@@ -110,6 +110,7 @@ This repo also ships a set of [Claude Code](https://docs.claude.com/en/docs/clau
 | [branch-hygiene](skills/branch-hygiene/) | Post-release tail shared by the ship skills — sync `development` onto `main` (squash-aware), mark the next cycle (`-dev` for libraries, version bump for apps), open the draft next-cycle PR |
 | [create-pull-request](skills/create-pull-request/) | Finalize the current branch's draft PR — regenerate title/body from commits, fix the base branch, mark ready for review (creates a new PR only when none exists) |
 | [dependency-purge](skills/dependency-purge/) | Nuclear Xcode/SPM clean — wipes DerivedData, the global SPM cache, and `Package.resolved`, then bumps every `intrusive-memory/*` dep's floor in `Package.swift` to the latest published release before resolution |
+| [dossier-editor](skills/dossier-editor/) | Local editing page for `.dossier` characters: add or delete looks by description, switch image provider, edit a voice prompt and pick from 3 voice takes |
 | [fix-code-signing](skills/fix-code-signing/) | Diagnose and fix XCTest bundle code-signing for hardened-runtime macOS apps |
 | [generate-episode-audio](skills/generate-episode-audio/) | Render a podcast episode's audio from a Fountain or Highland screenplay, wrap with intro/outro, open in QuickTime |
 | [macos-say](skills/macos-say/) | Speak text aloud via the macOS `say` command |

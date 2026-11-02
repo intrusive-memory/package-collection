@@ -1,0 +1,264 @@
+<!-- Added to the dossier page by tools/dossier_server.py. Never written into the bundle: see DOSSIER-FORMAT §11. -->
+<style>
+.look-editor{display:block;margin:0 0 14px}
+.look-editor textarea{width:100%;box-sizing:border-box;min-height:84px;padding:10px;font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;resize:vertical}
+.look-editor .row{display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.look-editor select{font:inherit;padding:5px 8px;max-width:100%;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:7px}
+.voice-edit[hidden],.voice-busy[hidden],.voice-takes[hidden],.voice-error[hidden]{display:none}
+.voice-takes{margin:16px 0}
+.voice-take{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:8px 0}
+.voice-take strong{min-width:84px}
+.voice-take audio{height:36px;flex:1 1 260px}
+.voice-prompt{cursor:text;border-radius:6px;white-space:pre-wrap}
+.voice-prompt:empty::before{content:"No voice prompt yet. Click to write one.";color:var(--muted,#888)}
+.voice-prompt:hover{outline:1px dashed var(--accent);outline-offset:4px}
+.voice-prompt[contenteditable]{outline:2px solid var(--accent);outline-offset:4px}
+.voice-edit{margin:14px 0}
+.voice-edit .row{display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.voice-busy{display:flex;gap:12px;align-items:center;padding:12px;background:var(--ph);border-radius:8px}
+.voice-error{padding:10px;margin-bottom:8px;background:var(--bad-bg);border:1px solid var(--bad-line);border-radius:8px}
+.look-btn{font:inherit;padding:6px 12px;border-radius:7px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.look-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.look-btn.danger{color:#b3362b;border-color:#d9867a}
+.look-btn:disabled{opacity:.5;cursor:default}
+.looks figure .look-actions{margin-top:8px}
+.look-pending{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:10px;aspect-ratio:9/16;padding:12px;box-sizing:border-box;text-align:center;background:var(--ph);border-radius:8px}
+.look-failed{background:var(--bad-bg);border:1px solid var(--bad-line)}
+.look-spinner{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:look-spin 1s linear infinite}
+@keyframes look-spin{to{transform:rotate(360deg)}}
+</style>
+<script>
+(() => {
+  const NAME = __CHARACTER__;
+  const API = `/api/${encodeURIComponent(NAME)}/looks`;
+  const WORDS = {queued: "Waiting", generating: "Generating", adding: "Adding to the dossier"};
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
+
+  let section = document.querySelector("[data-looks]");
+  if (!section) {
+    section = el("div"); section.dataset.looks = "";
+    section.append(el("h3", "", "More looks"));
+    document.querySelector(".look").after(section);
+  }
+  let grid = section.querySelector(".looks");
+  if (!grid) { grid = el("div", "looks"); section.append(grid); }
+
+  const adder = el("div", "look-editor");
+  const open = el("button", "look-btn primary", "Add a look");
+  const form = el("div"); form.hidden = true;
+  const box = el("textarea"); box.placeholder = "Describe the look. Clothes, fabric, colors, attitude."; box.maxLength = 2000;
+  const row = el("div", "row");
+  const go = el("button", "look-btn primary", "Generate");
+  const cancel = el("button", "look-btn", "Cancel");
+  const msg = el("span", "muted");
+  const providerRow = el("div", "row");
+  const providerLabel = el("label", "", "Provider ");
+  const provider = el("select");
+  providerLabel.append(provider); providerRow.append(providerLabel);
+  row.append(go, cancel, msg); form.append(box, providerRow, row); adder.append(open, form);
+  section.querySelector("h3").after(adder);
+
+  async function loadProviders() {
+    const {current, models} = await (await fetch("/api/models")).json();
+    provider.replaceChildren(...models.map(m => {
+      const o = el("option", "", `${m.name} (${m.provider}${m.price ? ", " + m.price : ""})${m.why ? ": " + m.why : ""}`);
+      o.value = m.model; o.disabled = !m.usable; o.selected = m.model === current; o.dataset.price = m.price;
+      return o;
+    }));
+    showPrice();
+  }
+  function showPrice() {
+    const o = provider.selectedOptions[0];
+    msg.textContent = o ? `One image, ${o.dataset.price}. Saved in IMAGE_PROVIDER.md.` : "";
+  }
+  provider.onchange = async () => {
+    const r = await fetch("/api/models", {method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify({model: provider.value})});
+    if (r.ok) showPrice(); else { msg.textContent = (await r.json().catch(() => ({}))).error || `Failed: ${r.status}`; loadProviders(); }
+  };
+  loadProviders();
+
+  open.onclick = () => { open.hidden = true; form.hidden = false; box.focus(); };
+  cancel.onclick = () => { form.hidden = true; open.hidden = false; };
+  go.onclick = async () => {
+    const description = box.value.trim();
+    if (!description) { box.focus(); return; }
+    go.disabled = true;
+    const r = await fetch(API, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({description})});
+    go.disabled = false;
+    if (!r.ok) { msg.textContent = (await r.json().catch(() => ({}))).error || `Failed: ${r.status}`; return; }
+    box.value = ""; form.hidden = true; open.hidden = false;
+    refresh();
+  };
+
+  function card(look) {
+    const f = el("figure", "slot");
+    const img = el("img"); img.src = look.image; img.alt = `${NAME}: ${look.title}`; img.loading = "lazy";
+    const cap = el("figcaption", "", look.title);
+    f.append(img, cap);
+    if (look.description) f.append(el("p", "muted", look.description));
+    const actions = el("div", "look-actions");
+    const del = el("button", "look-btn danger", "Delete");
+    del.onclick = async () => {
+      if (del.dataset.armed !== "1") {
+        del.dataset.armed = "1"; del.textContent = "Really delete?";
+        setTimeout(() => { del.dataset.armed = ""; del.textContent = "Delete"; }, 4000);
+        return;
+      }
+      del.disabled = true; del.textContent = "Deleting";
+      await fetch(`${API}/${encodeURIComponent(look.variant)}`, {method: "DELETE"});
+      refresh();
+    };
+    actions.append(del); f.append(actions);
+    return f;
+  }
+
+  function pending(job) {
+    const f = el("figure", "slot");
+    const failed = job.state === "failed";
+    const box = el("div", "look-pending" + (failed ? " look-failed" : ""));
+    if (failed) {
+      box.append(el("strong", "", "Not generated"), el("span", "", job.error || ""), el("span", "muted", job.description));
+      const b = el("button", "look-btn", "Dismiss");
+      b.onclick = async () => { await fetch(`/api/jobs/${job.id}`, {method: "DELETE"}); refresh(); };
+      box.append(b);
+    } else {
+      box.append(el("div", "look-spinner"), el("strong", "", WORDS[job.state] || job.state), el("span", "muted", job.description));
+    }
+    f.append(box);
+    return f;
+  }
+
+  let timer;
+  async function refresh() {
+    clearTimeout(timer);
+    const data = await (await fetch(API)).json();
+    grid.replaceChildren(...data.looks.map(card), ...data.jobs.map(pending));
+    if (data.jobs.some(j => j.state !== "failed")) timer = setTimeout(refresh, 2000);
+  }
+  refresh();
+
+  // The voice prompt: click it, edit it, get takes, pick one.
+  const voiceApi = `/api/${encodeURIComponent(NAME)}/voice`;
+  const voiceSection = [...document.querySelectorAll("h2")].find(h => h.textContent.trim() === "Voice")?.closest("section");
+  const written = voiceSection?.querySelector("blockquote");
+  const list = voiceSection?.querySelector(".samples");
+  if (list) {
+    // A plain paragraph under the samples: click it and type. A character with no voice asset in its
+    // bundle has no quote on the page, so poll() fills this from CAST.md through the API.
+    const quote = el("p", "voice-prompt", written ? written.textContent.trim() : "");
+    written?.remove();
+    list.after(quote);
+    const post = (path, body) => fetch(voiceApi + path, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+
+    const failure = el("div", "voice-error"); failure.hidden = true;
+    const editor = el("div", "voice-edit"); editor.hidden = true;
+    const buttons = el("div", "row");
+    const make = el("button", "look-btn primary", "Generate 3 takes");
+    const back = el("button", "look-btn", "Cancel");
+    buttons.append(make, back, el("span", "muted", "Runs on this Mac, free. The current voice stays until you pick a take."));
+    editor.append(buttons);
+    const busy = el("div", "voice-busy"); busy.hidden = true;
+    const busyText = el("strong");
+    busy.append(el("div", "look-spinner"), busyText);
+    const takesBox = el("div", "voice-takes"); takesBox.hidden = true;
+    const historyBox = el("div", "voice-takes"); historyBox.hidden = true;
+    quote.after(failure, editor, busy, takesBox, historyBox);
+
+    let hasTakes = false, watching = false, saved = quote.textContent, asked = null;
+    function show(mode) {
+      if (mode === "edit") quote.setAttribute("contenteditable", "plaintext-only"); else quote.removeAttribute("contenteditable");
+      editor.hidden = mode !== "edit";
+      busy.hidden = mode !== "busy";
+      takesBox.hidden = !hasTakes || mode !== "read";
+      historyBox.hidden = !historyBox.childElementCount || mode !== "read";
+    }
+    function player(label, audio, note) {
+      const row = el("div", "voice-take");
+      row.append(el("strong", "", label));
+      const a = el("audio"); a.controls = true; a.preload = "metadata"; if (audio) a.src = audio;
+      row.append(a);
+      if (note) row.append(note);
+      return row;
+    }
+    async function act(button, path, body) {
+      button.disabled = true;
+      failure.hidden = true;
+      const r = await post(path, body);
+      button.disabled = false;
+      if (!r.ok) { failure.textContent = (await r.json().catch(() => ({}))).error || `Failed: ${r.status}`; failure.hidden = false; return; }
+      watching = true;
+      poll();
+    }
+    function renderTakes(set, current) {
+      hasTakes = !!set;
+      takesBox.replaceChildren();
+      if (!set) return;
+      takesBox.append(el("h3", "", "New takes"), el("p", "muted", `“${set.line}”`), el("p", "muted", set.prompt));
+      if (current) takesBox.append(player("Current", current));
+      for (const t of set.takes) {
+        const use = el("button", "look-btn primary", "Use this voice");
+        use.onclick = () => act(use, "/use", {take: t.take});
+        takesBox.append(player(`Take ${t.take}`, t.audio, use));
+      }
+      const row = el("div", "row");
+      const again = el("button", "look-btn", "Try again");
+      again.onclick = () => edit(set.prompt);
+      const toss = el("button", "look-btn", "Discard takes");
+      toss.onclick = async () => { await fetch(`${voiceApi}/takes`, {method: "DELETE"}); poll(); };
+      row.append(again, toss, el("span", "muted", "Trying again replaces these takes."));
+      takesBox.append(row);
+    }
+    function renderHistory(items) {
+      historyBox.replaceChildren();
+      if (!items?.length) return;
+      historyBox.append(el("h3", "", "Previous voices"));
+      for (const h of items) {
+        const restore = el("button", "look-btn", "Restore");
+        restore.onclick = () => act(restore, "/restore", {stamp: h.stamp});
+        const stamp = `${h.stamp.slice(4, 6)}/${h.stamp.slice(6, 8)} ${h.stamp.slice(9, 11)}:${h.stamp.slice(11, 13)}`;
+        historyBox.append(player(stamp, h.audio, restore), el("p", "muted", h.prompt));
+      }
+    }
+    let shownSet;
+    async function poll() {
+      const data = await (await fetch(voiceApi)).json();
+      const job = data.job;
+      const running = job && !["done", "failed"].includes(job.state);
+      if (running) {
+        watching = true;
+        busyText.textContent = job.kind === "install" ? `Replacing the voice: ${job.state}` : `New voice: ${job.state}`;
+        show("busy");
+        setTimeout(poll, 3000);
+        return;
+      }
+      if (watching && job?.state === "done" && job.kind === "install") { location.reload(); return; }
+      const failed = watching && job?.state === "failed";
+      if (failed) { failure.textContent = job.error; failure.hidden = false; }
+      watching = false;
+      saved = data.prompt;
+      quote.textContent = saved;
+      const setId = data.takes?.id || "";
+      if (setId !== shownSet) { renderTakes(data.takes, data.current); shownSet = setId; }
+      renderHistory(data.history);
+      show("read");
+      if (failed && asked) edit(asked);  // keep what they typed
+      asked = null;
+    }
+    function edit(value) {
+      quote.textContent = value;
+      show("edit");
+      quote.focus();
+    }
+    quote.onclick = () => {
+      if (quote.isContentEditable || !busy.hidden) return;
+      failure.hidden = true;
+      edit(quote.textContent);
+    };
+    const cancelEdit = () => { quote.textContent = saved; failure.hidden = true; show("read"); };
+    back.onclick = cancelEdit;
+    quote.onkeydown = (e) => { if (e.key === "Escape") { e.preventDefault(); cancelEdit(); quote.blur(); } };
+    make.onclick = () => { asked = quote.textContent.trim(); act(make, "", {prompt: asked}); };
+    poll();
+  }
+})();
+</script>
