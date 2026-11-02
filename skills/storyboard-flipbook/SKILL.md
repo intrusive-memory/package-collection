@@ -158,8 +158,21 @@ wrong. Never claim a frame is clean that you haven't looked at.
 python3 "$S/bin/flipbook.py" "$PLAN"
 ```
 
-Writes and opens `flipbook.html` beside the frames. Re-run it after any
+Writes `flipbook.html` beside the frames and opens it through a local notes
+server (`bin/flipbook_server.py`), started automatically. Re-run it after any
 re-render. Frames that haven't rendered show as placeholders.
+
+**The layout is three panes, like a macOS document app:** a slide sorter down the left, the frame and its controls in the middle, and the frame's caption and notes on the right.
+
+**The navigation bar sits under the frame, in a fixed order.** First is at the far left and Last is at the far right. Prev, Play and Next sit together in the center, in that order. Keep this placement in every flipbook; `assets/flipbook.html` implements it. The audio sequence view from a project's `scripts/build-flipbook.py` has different controls and doesn't follow this layout yet.
+
+**The flipbook never wraps.** Next, Play and clicking the picture stop on the last frame, and Prev stops on the first. First and Last jump to each end. First and Prev are disabled on the first frame. Last, Next and Play are disabled on the last frame.
+
+**Every flipbook has a notes box per frame.** Notes autosave to `notes.json`
+beside the frames, keyed by frame id (`frame-01`, or the frame's `id` in the
+plan), and survive rebuilds and re-renders. Read that file when the user says
+they've left notes. Hand over the `http://127.0.0.1` URL, not the `.html` file:
+opened from disk, notes stay in that browser and the page warns about it.
 
 ### 8. Report
 
