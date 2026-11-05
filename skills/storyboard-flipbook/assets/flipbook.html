@@ -107,15 +107,17 @@
 // Written by flipbook.py from the storyboard plan. Files sit next to this page.
 const FRAMES = __FRAMES__;
 const SECONDS = 3.5;
+// Re-rendered frames keep their file names, so each address carries a hash of the image to skip a cached copy.
+const frameUrl = f => f.v ? f.file + "?v=" + f.v : f.file;
 
 const frame = document.getElementById("frame"), dots = document.getElementById("dots");
 const imgs = FRAMES.map((f, i) => {
   const im = f.file ? new Image() : document.createElement("div");
-  if (f.file) { im.src = f.file; im.alt = f.title; } else { im.className = "missing"; im.textContent = f.title; }
+  if (f.file) { im.src = frameUrl(f); im.alt = f.title; } else { im.className = "missing"; im.textContent = f.title; }
   frame.prepend(im);
   const d = document.createElement("button"); d.className = "thumb"; d.setAttribute("aria-label", "Frame " + (i + 1) + ": " + f.title);
   const pic = f.file ? new Image() : document.createElement("div");
-  if (f.file) { pic.src = f.file; pic.alt = ""; pic.loading = "lazy"; } else { pic.className = "blank"; }
+  if (f.file) { pic.src = frameUrl(f); pic.alt = ""; pic.loading = "lazy"; } else { pic.className = "blank"; }
   const label = document.createElement("div"); label.className = "label";
   const num = document.createElement("span"); num.className = "num"; num.textContent = i + 1;
   const name = document.createElement("span"); name.className = "name"; name.textContent = f.title;

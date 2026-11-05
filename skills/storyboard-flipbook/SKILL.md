@@ -162,6 +162,21 @@ Writes `flipbook.html` beside the frames and opens it through a local notes
 server (`bin/flipbook_server.py`), started automatically. Re-run it after any
 re-render. Frames that haven't rendered show as placeholders.
 
+**Re-rendered frames must show up without a hard reload.** A re-render keeps the
+frame's file name, so browsers would keep the cached old image. `flipbook.py`
+puts a hash of each image on its address (`frame-02.png?v=1a2b3c4d`), and the
+notes server sends `Cache-Control: no-cache`. Keep both in any flipbook you
+build, including a project's audio sequence view: put a `v` hash on each frame
+and load it as `file + "?v=" + v`. The server also answers Range requests, which
+the audio view needs to seek, and takes `--notes <file>` when notes live
+somewhere other than beside the frames.
+
+**Spotting in the audio view.** A project's `scripts/build-flipbook.py` puts each
+frame up on the transcript line that starts talking about it. A spot that begins
+with `...` (`"...sounds of movement somewhere."`) goes up partway through a
+line instead. There are no word timings, so the time is estimated from where
+those words fall in the line, and it must still come after the previous frame.
+
 **The layout is three panes, like a macOS document app:** a slide sorter down the left, the frame and its controls in the middle, and the frame's caption and notes on the right.
 
 **The navigation bar sits under the frame, in a fixed order.** First is at the far left and Last is at the far right. Prev, Play and Next sit together in the center, in that order. Keep this placement in every flipbook, including the audio sequence view from a project's `scripts/build-flipbook.py` and its published page. `assets/flipbook.html` implements it here. Captions in the audio view sit on their own row below the bar.
