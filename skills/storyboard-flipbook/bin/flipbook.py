@@ -6,6 +6,7 @@
 Frames that haven't rendered yet appear as a labelled placeholder. Every frame has a notes box; notes
 save to notes.json beside the frames, keyed by frame id. --no-open only builds the page.
 """
+import hashlib
 import json
 import os
 import subprocess
@@ -13,6 +14,12 @@ import sys
 import time
 import urllib.request
 import zlib
+
+
+def fingerprint(path):
+    """The first 8 hex digits of the image's SHA-256, so the page's image address changes whenever the frame does."""
+    with open(path, "rb") as f:
+        return hashlib.sha256(f.read()).hexdigest()[:8]
 
 
 def serve(folder, here):
@@ -46,6 +53,7 @@ def main():
         frames.append({
             "id": frame.get("id") or f"frame-{number:02d}",
             "file": frame["file"] if present else None,
+            "v": fingerprint(os.path.join(gen, frame["file"])) if present else "",
             "title": frame.get("title", f"Frame {number}"),
             "text": frame.get("caption", ""),
             "note": frame.get("note") or (None if present else "not rendered yet"),

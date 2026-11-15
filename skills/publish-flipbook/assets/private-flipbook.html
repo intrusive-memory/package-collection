@@ -1,9 +1,3 @@
----
-layout: null
-title: __YAML_TITLE__
-noindex: true
-sitemap: false
----
 <!doctype html>
 <html lang="en">
 <head>
@@ -14,9 +8,8 @@ sitemap: false
 <meta property="og:type" content="website">
 <meta property="og:title" content="__TITLE__">
 <meta property="og:description" content="__DESCRIPTION__">
-<meta property="og:image" content="{{ site.cdn_url }}/flipbooks/__PATH__/__OG_IMAGE__">
+<meta property="og:image" content="/__PATH__/__OG_IMAGE__">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="icon" type="image/png" sizes="32x32" href="{{ site.cdn_url }}/favicon-32x32.png">
 <style>
   :root { color-scheme: dark; --accent: #d4a853; --ink: #f1ece2; --dim: #a39d91; --bg: #111; --panel: #1b1b1b; --line: #333; }
   * { box-sizing: border-box; }
@@ -111,8 +104,8 @@ sitemap: false
   </main>
 </div>
 <script>
-const BASE = "{{ site.cdn_url }}/flipbooks/__PATH__/";
-const DATA = {% raw %}__DATA__{% endraw %};
+const BASE = "/__PATH__/";
+const DATA = __DATA__;
 const F = DATA.frames, C = DATA.cues;
 const $ = id => document.getElementById(id);
 const audio = $("audio"), stage = $("stage");
