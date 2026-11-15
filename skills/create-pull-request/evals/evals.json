@@ -61,7 +61,7 @@
       "id": 2,
       "name": "create-new-pr-fallback-on-fix-branch",
       "prompt": "open a PR for this",
-      "expected_output": "No existing PR — skill should fall through to create path: push -u origin fix/some-bug, then `gh pr create --draft --base development --head fix/some-bug --title 'Fix off-by-one in chunker' --body '<Summary+Test plan>'`, then `gh pr ready <new>`. Must route to `development`, not `main`.",
+      "expected_output": "No existing PR — skill should fall through to create path: push -u origin fix/some-bug, then `gh pr create --base development --head fix/some-bug --title 'Fix off-by-one in chunker' --body '<Summary+Test plan>'` with NO `--draft` and NO follow-up `gh pr ready` (draft-then-ready races the CI concurrency group). Then Step 2f: check the runs for the head commit and confirm CI started. Must route to `development`, not `main`.",
       "files": [],
       "simulated_state": {
         "current_branch": "fix/some-bug",

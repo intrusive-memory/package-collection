@@ -69,7 +69,7 @@ jq -c '(.apps // [{name:(.app//.appId), xcconfig:.xcconfig, infoPlist:.infoPlist
 
 ## Commit
 
-One commit, on `development`:
+One commit, on the chore branch:
 
 ```bash
 git add -A
@@ -80,4 +80,4 @@ Advance MARKETING_VERSION on development (--next ${NEXT_BUMP}) so
 development leads main again. Build numbers unchanged."
 ```
 
-Push it (or open the chore PR into `development` if the branch requires PRs — see SKILL.md Step 2).
+Do not push to `development`. The commit sits on the `chore/next-cycle-v<released>` branch and lands through the chore PR (SKILL.md, "Land the chore branch").

@@ -51,7 +51,14 @@ asc builds list --app "$APP_NAME" --limit 5
 ```
 
 The build's `processingState` should be `VALID` and at least one beta group
-should be attached (`/asc-testflight-orchestration` distributes it).
+should be attached. SKILL.md **A.7** (`distribute-testflight.sh`) does both the
+attachment and the **What to Test** notes automatically, and scopes the notes:
+a re-roll of a version already in candidacy lists only what changed since the
+previous `<version>-rc<n>` tag; the first candidate of a new version lists
+everything since the last shipped release. Testers should read the notes as the
+test plan's "focus here" list for that build — the full test plan still applies
+to a new version's first candidate. `/asc-testflight-orchestration` covers
+tester/group management and external beta-review submission beyond that.
 
 ## Bug-filing convention
 

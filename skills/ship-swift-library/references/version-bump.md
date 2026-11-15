@@ -4,13 +4,17 @@ type: reference
 
 # Step 3: Bump Version, Update Dependencies, Audit Documentation, and Audit CI Workflows
 
-This is the heaviest step in the ship flow. Sections 1–7 below all land in a **single commit on `development`** that ships as part of the PR merge (section 6.1's codemap lands as its own adjacent commit).
+This is the heaviest step in the ship flow. Sections 1–7 below all land in a **single commit on a `release/prep-vX.Y.Z` branch** (section 6.1's codemap lands as its own adjacent commit). Section 8 opens a PR from that branch into `development` and waits for it to merge, so the bump reaches the release PR without anything being pushed to `development` directly.
 
-Make sure you're on the `development` branch first:
+**Never push to `development`.** It is protected on most repos (PRs required). Pushing there with admin rights bypasses the required checks, which is the hole this procedure closes.
+
+Start the prep branch from an up-to-date `development`:
 
 ```bash
 git checkout development
-git pull origin development
+git pull --ff-only origin development
+PREP_BRANCH="release/prep-v${NEW_VERSION}"
+git checkout -b "$PREP_BRANCH"
 ```
 
 ## 0. Check which sub-steps actually apply
@@ -35,29 +39,27 @@ Before any manual changes, run the spm-package-audit skill to automatically fix 
 
 This will:
 - Remove Package.resolved from git tracking (libraries should not check this in)
-- Add/update the sibling dependency pattern for intrusive-memory/* dependencies
-- Update intrusive-memory/* dependency versions to latest GitHub releases
-- Validate the sibling helper function is correct
+- Strip any leftover sibling scaffolding (the pattern is retired)
+- Raise intrusive-memory/* floors to the latest release within the current major
 
-## 2. Flip Package.swift to Remote-Only Mode
+## 2. Confirm Package.swift Is Remote-Only
 
-Development branches use the `sibling(...)` helper that prefers a `../<name>` checkout when present. That convenience must NOT ship in a tagged release — a fresh-clone CI build would still resolve correctly (the helper has a remote fallback), but the released `Package.swift` would carry developmental scaffolding that has no business in a published library.
-
-Run the toggle:
+The sibling pattern is retired (2026-11-04): `development` already carries plain remote pins, so this is
+normally a no-op. If `sibling(...)` scaffolding is present anyway, strip it **keeping the existing
+floors** (step 1's audit already raised them within each major; the toggle's default would jump majors):
 
 ```
-/toggle-sibling-libraries --to remote
+/toggle-sibling-libraries --to remote --no-resolve
 ```
 
-What this does:
-- Resolves the latest published GitHub release of every `intrusive-memory/*` dep and pins each one with `.upToNextMajor(from: "<latest>")` — explicitly, the dev-branch `from:` value is NOT carried forward; ship time pins to whatever is actually released.
-- Strips the `useLocalSiblings` constant, both `sibling(...)` helper functions, and `import Foundation` (if no longer referenced).
-- If any dep was on the `branch:` variant of `sibling`, converts it to the same `.upToNextMajor(from: "<latest>")` form AND emits a loud warning. **If you see that warning, stop and verify the upstream has actually released the changes the branch was tracking** — otherwise tests that passed in dev may not exercise the same code at release.
+Any intrusive-memory/* `branch:` pin must become `.upToNextMajor(from: "<latest release>")` before
+tagging. SwiftPM refuses to resolve a version-pinned package whose own `Package.swift` has a `branch:`
+dependency, so shipping one makes the release unusable downstream.
 
-Verify the result still resolves cleanly before continuing:
+Verify it still resolves:
 
 ```bash
-swift package resolve 2>&1 | tail -10
+make resolve 2>&1 | tail -10   # never `swift package resolve`
 ```
 
 ## 3. Edit the Version File and Strip Any `-dev` Suffix
@@ -150,8 +152,8 @@ flow into `graphify-out/`. Run the skill:
 `/codemap` regenerates the graph incrementally (only files changed since the last
 build are re-extracted), enforces the gitignore split so machine-specific scratch and
 the absolute-path manifest never ship, **ensures AGENTS.md references the codemap**,
-and lands the portable map as its own `chore(codemap)` commit on `development`. That
-commit rides along in the release PR next to the version-bump commit.
+and lands the portable map as its own `chore(codemap)` commit on the prep branch. That
+commit rides along in the prep PR next to the version-bump commit.
 
 To eyeball what this release changed before regenerating (optional — graphify detects
 changed files itself):
@@ -162,7 +164,7 @@ git diff main...development --stat -- 'Sources/**' 'Package.swift'
 
 Use that to sanity-check that new/changed public API actually shows up in the
 regenerated `graphify-out/GRAPH_REPORT.md`. Do **not** pass `push` to `/codemap` here
-— the section 8 push carries the codemap commit up along with the version-bump commit.
+— the section 8 prep PR carries the codemap commit up along with the version-bump commit.
 
 ## 7. Audit CI Workflows for Outdated GitHub Actions
 
@@ -262,7 +264,7 @@ It owns tarball production (Step 9 of the main flow). If its actions were stale,
 
 **It should NOT contain a Homebrew step.** Source repos no longer dispatch `formula-update` — the org `DEPLOY_TOKEN` PAT expired and was deleted in July 2026, and the tap now pulls on a 6-hour cron instead (`reconcile-formulas.yml`). If you find a `peter-evans/repository-dispatch` step targeting `intrusive-memory/homebrew-tap` still in this workflow, **delete it**: it references a secret that no longer exists and fails on every release run.
 
-## 8. Single Commit and Push
+## 8. Single Commit, Prep PR into `development`, Wait for the Merge
 
 Commit everything together — version bump + SPM audit fixes + sibling-to-remote toggle + lint fixes + doc updates + workflow updates — in a single commit:
 
@@ -282,7 +284,36 @@ Package.swift flipped to remote-only release shape:
 CI workflows updated:
 - All GitHub Actions bumped to latest major (eliminates Node 16/20 deprecation warnings)
 - Action inputs/env vars reconciled for new majors"
-git push origin development
 ```
 
-**Important**: The version bump, SPM audit fixes, sibling-to-remote toggle, doc changes, and CI workflow updates are now part of the PR diff and will be included when the PR is merged. The post-release `/branch-hygiene` step (Step 11 of the main flow) flips Package.swift back to sibling mode for the next development cycle.
+**Open the PR with `/create-pull-request`.** Do not hand-roll `gh pr create` here. That skill pushes the branch, routes `release/prep-*` to `development`, creates the PR ready for review, confirms CI actually started, and queues auto-merge (merge commit) for a `development` base. Branch protection still gates the merge.
+
+```
+/create-pull-request
+```
+
+Then wait until the PR has **actually merged**. Green checks are not enough: auto-merge can still be blocked by a required review or a stale-branch rule.
+
+```bash
+PREP_PR=$(gh pr list --head "$PREP_BRANCH" --base development --state all --json number --jq '.[0].number')
+test -n "$PREP_PR" || { echo "ABORT: /create-pull-request opened no PR for ${PREP_BRANCH}"; exit 1; }
+
+gh pr checks "$PREP_PR" --watch --fail-fast \
+  || { echo "ABORT: prep PR #${PREP_PR} checks failed. Fix on ${PREP_BRANCH}; do not bypass."; exit 1; }
+
+for i in $(seq 1 40); do                     # up to ~20 min after checks go green
+  STATE=$(gh pr view "$PREP_PR" --json state --jq '.state')
+  [ "$STATE" = MERGED ] && break
+  [ "$STATE" = CLOSED ] && { echo "ABORT: prep PR #${PREP_PR} closed without merging."; exit 1; }
+  sleep 30
+done
+[ "$STATE" = MERGED ] || {
+  echo "ABORT: prep PR #${PREP_PR} is green but not merged. Check: gh pr view ${PREP_PR} --json mergeStateStatus,reviewDecision"
+  exit 1; }
+
+git checkout development && git pull --ff-only origin development
+```
+
+If `gh pr checks` reports `no checks reported`, the repo's workflow does not trigger on PRs into `development`. Do not merge around it. Stop, and report that the repo needs `/draft-pr-ci-gate`.
+
+**Important:** after this PR merges, the version bump, SPM audit fixes, doc changes and CI workflow updates are on `development`, so they are part of the `development → main` release PR diff. `Package.swift` stays remote-only on every branch. The sibling pattern is retired.

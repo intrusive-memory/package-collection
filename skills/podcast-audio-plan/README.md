@@ -1,16 +1,20 @@
+---
+type: doc
+---
+
 # Podcast Audio Plan Skill
 
 Claude Code skill for generating podcast audio from Fountain screenplays using Produciesta CLI.
 
 ## Overview
 
-This skill provides guidance for using **Claude-assisted voice casting** combined with the **Produciesta CLI** to generate professional podcast audio from Fountain screenplay files. Claude handles character analysis and voice assignment by writing directly to PROJECT.md, while Produciesta handles audio generation.
+This skill provides guidance for using **Claude-assisted voice casting** combined with the **Produciesta CLI** to generate professional podcast audio from Fountain screenplay files. Claude handles character analysis and voice assignment by writing the cast roster — **CAST.md** beside PROJECT.md (echada ≥ 1.0.0), or the legacy `cast:` block in PROJECT.md on older binaries; probe by grepping `echada --help` for the `verify` verb (see SKILL.md, "Cast source") — while Produciesta handles audio generation.
 
 ## What This Skill Does
 
 - **Analyzes Fountain files** to extract character lists (Claude)
 - **Matches characters to voices** intelligently based on traits (Claude)
-- **Writes PROJECT.md** with proper YAML cast list (Claude)
+- **Writes the cast roster** — CAST.md, or legacy PROJECT.md `cast:` (Claude)
 - **Generates audio** using Produciesta CLI
 - **Provides templates** for execution plans and project documentation
 - **Documents best practices** for Fountain screenplay writing
@@ -25,7 +29,7 @@ This skill provides guidance for using **Claude-assisted voice casting** combine
 - Required SwiftHablare, SwiftOnce coordination
 
 ### New Approach (Current)
-- **Claude-assisted casting**: Analyzes characters, assigns voices, writes PROJECT.md
+- **Claude-assisted casting**: Analyzes characters, assigns voices, writes the cast roster (CAST.md; legacy PROJECT.md `cast:`)
 - **Single CLI tool**: Produciesta handles audio generation
 - **No autocast needed**: Claude provides better control than Produciesta's autocast (currently not working)
 - **Integrated pipeline**: Analysis by Claude, generation by Produciesta
@@ -56,11 +60,12 @@ When invoked by Claude Code, this skill:
 
 ### First-Time Project Setup
 
-**Step 1: Claude analyzes and creates PROJECT.md**
+**Step 1: Claude analyzes and creates PROJECT.md + the cast roster**
 1. User asks: "Cast voices for my podcast project"
-2. Claude reads Fountain files from `episodes/`
-3. Claude queries available voices (`say -v '?'` or ElevenLabs MCP)
-4. Claude writes PROJECT.md with cast list
+2. Claude probes the binary — `echada --help` listing the `verify` verb means the roster is CAST.md; otherwise it is a legacy binary that keeps `cast:` in PROJECT.md
+3. Claude reads Fountain files from `episodes/`
+4. Claude queries available voices (`say -v '?'` or ElevenLabs MCP)
+5. Claude writes PROJECT.md (config) and the cast roster (CAST.md, or legacy PROJECT.md `cast:`)
 
 **Step 2: Generate audio**
 ```bash
@@ -71,7 +76,7 @@ produciesta /path/to/podcast --format m4a --verbose
 ### Generate with Existing Cast
 
 ```bash
-# Use existing PROJECT.md cast list
+# Use the existing cast roster (CAST.md; legacy PROJECT.md cast:)
 produciesta /path/to/podcast --format m4a
 ```
 
@@ -88,6 +93,7 @@ produciesta /path/to/podcast --dry-run
 - **Swift 6.2+** (for building Produciesta)
 - **Xcode 16+** (macOS)
 - **PROJECT.md** with YAML front matter (auto-generated if missing)
+- **Cast roster** — CAST.md beside PROJECT.md (legacy binaries: `cast:` in PROJECT.md front matter)
 - **Fountain files** in standard format
 
 ## Voice Providers
@@ -109,7 +115,7 @@ Intelligent character analysis and voice matching:
 - Claude reads Fountain files
 - Analyzes character traits from dialogue
 - Queries available voices
-- Writes PROJECT.md with cast list
+- Writes the cast roster (CAST.md; legacy PROJECT.md `cast:`)
 
 ### Batch Processing
 Handle large projects with resume capability:
@@ -155,8 +161,8 @@ produciesta . --quiet --json --fail-fast > log.jsonl
 If you were using the old Python-based workflow:
 
 1. **Remove Python scripts** - No longer needed
-2. **Use Claude for casting** - Ask Claude to analyze and create PROJECT.md cast list
-3. **Update PROJECT.md** - Use new voice URI format (see below)
+2. **Use Claude for casting** - Ask Claude to analyze and create the cast roster (CAST.md; legacy PROJECT.md `cast:`)
+3. **Update the cast roster** - Use new voice URI format (see below)
 4. **Use Produciesta CLI** - For audio generation only (not casting)
 
 ### Old Voice URI Format (Don't Use)

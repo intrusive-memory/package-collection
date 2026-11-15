@@ -1,6 +1,18 @@
+---
+type: reference
+---
+
 # Produciesta CLI Reference
 
 Complete reference for the Produciesta command-line tool.
+
+> **Cast source note:** the cast roster now lives in a standalone **CAST.md**
+> beside PROJECT.md (SwiftReparto schema, echada ≥ 1.0.0). The `cast:` blocks
+> shown in this reference describe the **legacy** surface still read by older
+> binaries — including the signed `produciesta`/`echada` embedded in shipped
+> `Produciesta.app` bundles. Probe by grepping `echada --help` for the
+> `verify` verb and see SKILL.md ("Cast source") for the capability branch. All casting is done with
+> `echada`; produciesta's `--autocast` is deprecated.
 
 ## Installation & Build
 
@@ -125,15 +137,21 @@ elevenlabs://21m00Tcm4TlvDq8ikWAM
 | `--default-voice <uri>` | Voice for unassigned characters | `--default-voice "apple://..."` |
 | `--no-cast-list` | Ignore cast list, use default voice | `--no-cast-list --default-voice "..."` |
 
-### AUTO-CAST Options (Phase 0)
+### AUTO-CAST Options (DEPRECATED - Use `echada` instead)
+
+**NOTE**: All casting operations (character extraction and voice generation) should use the `echada` CLI tool:
+- `echada extract` - Extract characters from screenplays
+- `echada cast` - Generate .vox voice files
+
+The following produciesta flags are deprecated:
 
 | Flag | Description |
 |------|-------------|
-| `--autocast` | Enable LLM-based character extraction and voice matching |
-| `--provider <provider>` | Voice provider (apple, elevenlabs) |
-| `--no-cast-extraction` | Skip character extraction (use existing cast) |
-| `--no-voice-matching` | Skip voice matching (extract characters only) |
-| `--force-regenerate` | Force regenerate cast and voices in PROJECT.md |
+| `--autocast` | **DEPRECATED** - Use `echada extract` + `echada cast` instead |
+| `--provider <provider>` | Voice provider (apple, elevenlabs, voxalta) |
+| `--no-cast-extraction` | **DEPRECATED** - Use `echada extract` instead |
+| `--no-voice-matching` | **DEPRECATED** - Use `echada cast` instead |
+| `--force-regenerate` | **DEPRECATED** - Use `echada cast --force-regenerate` instead |
 
 ### Help
 
@@ -159,10 +177,10 @@ produciesta /path/to/project --autocast --provider apple
 **What happens:**
 1. Validates or creates PROJECT.md
 2. Updates episode count if changed
-3. With `--autocast`:
+3. With `--autocast` (deprecated — use `echada`; legacy binaries only):
    - Extracts character list from .fountain files (LLM)
    - Matches voices to characters for specified provider (LLM)
-   - Updates cast section in PROJECT.md
+   - Updates the legacy cast section in PROJECT.md (autocast predates CAST.md)
 
 ### Phases 1-6: Audio Generation
 
@@ -387,7 +405,9 @@ produciesta ~/my-podcast --dry-run --autocast --provider apple
 
 ## PROJECT.md Structure
 
-Produciesta auto-generates and validates PROJECT.md:
+Produciesta auto-generates and validates PROJECT.md. The `cast:` block below
+is the **legacy** placement — on a CAST.md-capable toolchain the cast array
+lives in CAST.md instead (see the cast source note at the top of this file):
 
 ```yaml
 ---
@@ -449,7 +469,7 @@ Option 1: Auto-cast
 produciesta /path/to/project --autocast --provider apple
 ```
 
-Option 2: Manual addition to PROJECT.md
+Option 2: Manual addition to the cast roster (CAST.md; legacy PROJECT.md `cast:`)
 ```yaml
 cast:
   - character: NEW_CHARACTER
@@ -477,7 +497,7 @@ produciesta /path/to/project \
 ## Best Practices
 
 1. **Always use `--dry-run` first** to validate configuration
-2. **Commit PROJECT.md** to version control for team collaboration
+2. **Commit PROJECT.md and CAST.md** to version control for team collaboration
 3. **Test with one episode** before batch processing
 4. **Use `--skip-existing`** for incremental updates
 5. **Enable `--verbose`** when debugging

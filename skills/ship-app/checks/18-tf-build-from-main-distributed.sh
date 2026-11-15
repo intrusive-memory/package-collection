@@ -37,9 +37,16 @@ while IFS= read -r app; do
   if [ -z "$build_id" ]; then info "$label: run $latest_run completed but produced no build"; agg_add 1; continue; fi
   info "$label: build id $build_id"
 
-  # Enumerate beta groups for the build; the exact subcommand varies by asc version.
+  # Enumerate beta groups for the build. The reliable form is the builds list
+  # with the betaGroups relationship included — `asc testflight groups list
+  # --build-id` returns nothing for groups that auto-receive every build
+  # (hasAccessToAllBuilds) even though the relationship exists.
   groups=""
-  for cmd in \
+  inc=$(asc builds list --app "$appid" --include betaGroups --paginate --output json 2>/dev/null \
+    | jq -c --arg id "$build_id" '(.data // []) | map(select(.id == $id)) | .[0].relationships.betaGroups.data // empty' 2>/dev/null)
+  if [ -n "$inc" ] && echo "$inc" | jq -e 'type == "array"' >/dev/null 2>&1; then groups="$inc"; fi
+  [ -n "$groups" ] || for cmd in \
+    "asc testflight groups list --build-id $build_id --output json" \
     "asc builds beta-groups --id $build_id --output json" \
     "asc beta-groups list --build-id $build_id --output json" \
     "asc builds view --id $build_id --output json"

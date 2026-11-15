@@ -1,6 +1,7 @@
 ---
+type: skill
 name: podcast-audio-plan
-description: Generate audio and transcripts for podcast episodes from Fountain screenplays using Produciesta CLI. When asked to "generate podcast audio", "create audio plan", "cast voices", "prepare transcripts", or working with podcast projects that have episodes/*.fountain files, this skill analyzes characters, assigns voices, writes PROJECT.md cast list, generates audio, and prepares transcripts for web deployment.
+description: Generate audio and transcripts for podcast episodes from Fountain screenplays using Produciesta CLI. When asked to "generate podcast audio", "create audio plan", "cast voices", "prepare transcripts", or working with podcast projects that have episodes/*.fountain files, this skill analyzes characters, assigns voices, writes the CAST.md cast roster (legacy PROJECT.md cast: on older echada binaries), generates audio, and prepares transcripts for web deployment.
 ---
 
 # Podcast Audio Generation with Produciesta
@@ -13,7 +14,8 @@ Use this skill when:
 
 - User asks to generate audio for a podcast project
 - Project has episode scripts in Fountain format (`episodes/*.fountain`)
-- User wants to create or update a cast list in PROJECT.md
+- User wants to create or update a cast list in CAST.md (or the legacy
+  `cast:` block in PROJECT.md when working with an older echada)
 - User asks to "cast voices", "assign voices", "plan audio generation"
 - User wants to generate audio from screenplays
 
@@ -24,7 +26,8 @@ This skill provides a **Claude-assisted workflow** for podcast audio generation 
 1. **Analyze Fountain files** to extract character list
 2. **Query available voices** from Apple TTS or ElevenLabs
 3. **Match characters to voices** based on character traits and voice characteristics
-4. **Write PROJECT.md** with proper YAML front matter and cast list
+4. **Write PROJECT.md** (project config) and **CAST.md** (the cast roster —
+   see "Cast source" below; legacy binaries keep cast in PROJECT.md)
 5. **Generate audio** using Produciesta CLI
 6. **Commit audio to Git LFS** and verify CDN availability
 7. **Copy transcripts** to website episodes directory
@@ -47,6 +50,7 @@ This skill provides a **Claude-assisted workflow** for podcast audio generation 
 ```
 ~/podcast-daily-dao/
 ├── PROJECT.md              # Project configuration (Claude creates this)
+├── CAST.md                 # Cast roster (capable echada; legacy binaries keep cast: in PROJECT.md)
 ├── episodes/               # Fountain screenplay files (source)
 │   ├── chapter-01.fountain
 │   ├── chapter-02.fountain
@@ -78,108 +82,183 @@ This skill provides a **Claude-assisted workflow** for podcast audio generation 
 - **Website repo**: Where podcast page lives and references CDN URLs
 - **CDN**: Cloudflare R2 serves audio via `https://pub-8e049ed02be340cbb18f921765fd24f3.r2.dev/`
 
-## Voice Casting Workflow (Claude-Assisted)
+## Cast source: CAST.md, with a probed PROJECT.md fallback
 
-**IMPORTANT**: Produciesta's `--autocast` feature is currently not working. Instead, use Claude to create the cast list manually.
+The cast roster lives in a standalone **`CAST.md`** (`type: cast` front
+matter plus a `cast:` array — schema owned by SwiftReparto) that always sits
+in the project directory beside `PROJECT.md`. `PROJECT.md` keeps only project
+configuration (`title`, `episodesDir`, `filePattern`, `tts`, …). Older
+`echada` binaries (≤ 0.17.0 — the Homebrew build, and the signed binary
+embedded in shipped `Produciesta.app` bundles) predate CAST.md and still
+read/write the legacy `cast:` block in `PROJECT.md`'s front matter.
 
-### Step 1: Discover Episodes and Extract Characters
-
-```bash
-# List all Fountain files
-ls episodes/*.fountain
-
-# Read a sample episode to understand characters
-cat episodes/chapter-01.fountain
-```
-
-**Claude will:**
-1. Read Fountain files to identify all CHARACTER names
-2. Analyze dialogue to understand character traits (age, gender, personality)
-3. Build a comprehensive character list
-
-### Step 2: Query Available Voices
-
-**For Apple TTS:**
-```bash
-say -v '?'
-```
-
-**For ElevenLabs:**
-```bash
-# List available voices (if using ElevenLabs MCP)
-# Or use: https://elevenlabs.io/docs/voices/voice-library
-```
-
-**Claude will:**
-1. Parse available voices and their characteristics
-2. Note voice IDs, names, languages, and qualities
-
-### Step 3: Match Characters to Voices
-
-**Claude will:**
-1. Consider character traits from dialogue analysis
-2. Match each character to the most appropriate voice
-3. Provide primary and fallback voice options
-4. Explain the reasoning for each assignment
-
-### Step 4: Create or Update PROJECT.md
-
-**Claude will:**
-1. Create PROJECT.md with proper YAML front matter
-2. Write the cast list with voice URIs
-3. Include episode count and configuration
-4. Add production notes for documentation
-
-**Example PROJECT.md:**
-```yaml
----
-type: project
-title: My Podcast Series
-author: Author Name
-description: Description of the podcast
-episodesDir: episodes
-audioDir: audio
-filePattern: "*.fountain"
-exportFormat: m4a
-cast:
-  - character: NARRATOR
-    voices:
-      - apple://com.apple.voice.premium.en-US.Aaron
-  - character: ALICE
-    voices:
-      - apple://com.apple.voice.premium.en-US.Ava
-  - character: BOB
-    voices:
-      - apple://com.apple.voice.premium.en-US.Daniel
----
-
-## Production Notes
-
-### Voice Casting
-- NARRATOR: Aaron (mature, authoritative voice)
-- ALICE: Ava (young female, clear diction)
-- BOB: Daniel (British accent, professional tone)
-
-### Project Structure
-- 10 episodes in Fountain format
-- Generated audio saved to `audio/` directory
-- Format: M4A (Apple AAC)
-```
-
-### Step 5: Generate Audio with Produciesta
+**Always probe the installed binary before deciding where cast lives** —
+check the major version, falling back to the verbs in the `SUBCOMMANDS:`
+section of `echada --help` (`migrate` and `sample` mean 3.0). Do NOT rely on
+the `verify` verb: only echada 1.x had it (2.0.0 removed it). Don't probe
+with `echada <verb> --help` either; ArgumentParser prints root help and
+exits 0 for any `--help`.
 
 ```bash
-# Generate audio using the cast list
-produciesta /path/to/project --format m4a --verbose
+MAJOR="$(echada --version 2>/dev/null | head -n1 | grep -oE '^[0-9]+' || echo 0)"
+VERBS="$(echada --help 2>/dev/null | awk '/^SUBCOMMANDS:/{f=1;next} f&&/^[^[:space:]]/{f=0} f&&NF{print $1}')"
+V3=0; { [ "$MAJOR" -ge 3 ] || grep -qxE 'migrate|sample' <<<"$VERBS"; } && V3=1
+if [ "$MAJOR" -ge 1 ] || [ "$V3" -eq 1 ]; then
+  echo "CAST.md-capable (echada >= 1.0.0): cast roster is CAST.md"
+  # echada 1.x seeds CAST.md from a legacy PROJECT.md cast: block and leaves
+  # PROJECT.md alone.
+  # echada >= 2.0.0: any generate stage MIGRATES a legacy project — roster
+  # -> CAST.md, original -> PROJECT.md.bak, cast: block removed,
+  # schemaVersion: 5. A Produciesta that still reads cast from PROJECT.md
+  # then shows every character unassigned.
+  # echada >= 3.0.0 ($V3): no character discovery (use `personaje
+  # cast-discover`); .vox files live in character records (see "Where .vox
+  # files live" below).
+  # `--cast <filename>` renames the roster file (bare filename only).
+else
+  echo "legacy echada (< 1.0.0): cast lives in PROJECT.md's cast: front matter"
+  # No CAST.md surface. Read/write the cast: block in PROJECT.md, exactly as
+  # this skill's legacy examples show.
+fi
+```
+
+Migration helpers: echada 1.x had explicit `echada verify cast` (report-only)
+and `echada prune cast` (removes the legacy block once verify passes). echada
+2.0.0 removed both; migration happens automatically, with `PROJECT.md.bak` as
+the undo.
+
+### Where .vox files live
+
+**The member's `voices.voxalta` pointer in CAST.md is the authority** —
+always read it, never assume a folder. Paths are relative to CAST.md's
+directory and may contain spaces, so quote them.
+
+- **echada ≥ 3.0.0:** beside the member's `manifest:`
+  (`<bundle>/voice/<NAME>.vox`), else the existing `voices.voxalta` path
+  (regenerated in place — never moved silently), else
+  `characters/<NAME>.dossier/voice/<NAME>.vox`. The file name is the exact
+  canonical name with spaces kept: `THE PRACTITIONER.vox`, not
+  `THE_PRACTITIONER.vox`. A non-canonical name fails for that member; fix
+  CAST.md with `reparto canonicalize`.
+- **echada ≤ 2.x:** `<project>/voices/<NAME>.vox` (spaces → underscores).
+
+Projects that haven't migrated keep working: their `voices/X.vox` pointers
+still resolve. To move them into the character records:
+
+```bash
+echada migrate voices --project PROJECT.md           # dry run: the plan, plus unclaimed voices/ files
+echada migrate voices --project PROJECT.md --apply   # copy + SHA-256 check, rewrite pointers, remove old files
+```
+
+`echada sample "<CHARACTER>"` (3.0) writes a playable
+`<character dir>/voice/sample-neutral.m4a` from the `.vox`'s embedded sample;
+`--variant <name>`, `--all-variants` and `--json` are also available.
+
+## Voice Casting Workflow (using `echada`)
+
+**IMPORTANT**: All casting (character extraction and voice generation) is done using the `echada` CLI tool. Do NOT use produciesta `--autocast` or manual Claude-assisted casting.
+
+### Step 1: Extract Characters from Screenplays
+
+```bash
+# echada >= 3.0.0 (probe first — see "Cast source" above). echada no longer
+# discovers characters; SwiftPersonaje does:
+personaje cast-discover --project .            # add every speaking character → CAST.md
+personaje cast-discover --project . --dry-run  # preview the members it would add
+echada generate prompt --project PROJECT.md    # write voicePrompts into CAST.md
+
+# echada 1.x / 2.x only (`generate cast` was removed in 3.0.0):
+echada generate cast --project PROJECT.md      # discover characters → CAST.md
+
+# Legacy echada (< 1.0.0):
+echada extract --project PROJECT.md            # updates the cast: block in PROJECT.md
+echada extract --project PROJECT.md --dry-run  # preview without modifying PROJECT.md
 ```
 
 **What happens:**
-- ✅ Produciesta reads PROJECT.md cast list
-- ✅ Parses Fountain files and resolves character voices
-- ✅ Generates audio for all episodes
-- ✅ Saves M4A files to `audio/` directory
+- Reads all screenplay files matched by `filePattern` in PROJECT.md
+- `personaje cast-discover` adds each speaking character's **name only**;
+  it never changes, reorders or removes an existing member. `--project`
+  takes the project **directory**.
+- `echada generate prompt` uses a language model (on-device by default) to
+  write each member's voicePrompt
+- **Legacy `cast:` block, no CAST.md:** `personaje cast-discover` refuses to
+  run. Migrate first with `echada cast --project PROJECT.md --dry-run` (the
+  dry run still migrates the roster to CAST.md) or `reparto import`, then
+  discover.
+- Hand-edited names must be canonical for echada 3.0; run
+  `reparto canonicalize` if they aren't
+
+### Step 2: Generate Voice Files (.vox)
+
+```bash
+# Generate .vox files for all cast members
+echada cast --project PROJECT.md
+
+# Force regenerate all voices (even if .vox files exist)
+echada cast --project PROJECT.md --force-regenerate
+
+# Preview without writing files (3.0 stops on an empty roster with the
+# `personaje cast-discover` advice)
+echada cast --project PROJECT.md --dry-run
+echada generate vox --project PROJECT.md --dry-run   # 3.0: prints each member's .vox destination
+```
+
+**What happens:**
+- Reads cast entries from the roster (each with a `voicePrompt`) —
+  CAST.md on a capable binary, PROJECT.md's `cast:` on a legacy one
+- Uses VoxAlta + local LLM to generate custom .vox voice files
+- Saves each .vox where "Where .vox files live" says (3.0: the character's
+  `.dossier/voice/` folder or its existing pointer; ≤ 2.x: `voices/`) and
+  records the path in the roster's `voices.voxalta` field
+- For multi-model (1.7b + 0.6b) voices, use the `cast-voices` skill's driver
+
+### Step 3: Generate Audio with Produciesta
+
+```bash
+# Generate audio using the cast roster and .vox voices
+produciesta /path/to/project --provider voxalta --format m4a --verbose
+```
+
+**What happens:**
+- Produciesta resolves the cast roster (current tooling reads CAST.md;
+  older shipped produciesta binaries read PROJECT.md's `cast:` — keep the
+  roster wherever your probed toolchain expects it)
+- Resolves character voices via .vox files
+- Parses Fountain files and generates audio for all episodes
+- Saves M4A files to `audio/` directory
 
 ## Voice Providers
+
+### VoxAlta with echada (Primary - On-Device Custom Voices)
+
+**Advantages:**
+- Fully on-device, no API key required
+- Custom AI-generated voices tailored to each character
+- Uses voicePrompts from the cast roster (CAST.md; legacy PROJECT.md `cast:`)
+  to design unique voices
+- .vox files are portable and reusable
+
+**Best for:** Multi-character podcasts, custom voice design, privacy-sensitive projects
+
+**Casting workflow:**
+```bash
+# Discover characters into CAST.md, then generate voicePrompts
+# (echada 1.x/2.x: `echada generate cast` instead of personaje;
+#  legacy < 1.0.0: `echada extract --project PROJECT.md`)
+personaje cast-discover --project .
+echada generate prompt --project PROJECT.md
+
+# Generate .vox voice files
+echada cast --project PROJECT.md
+
+# Regenerate all voices from scratch
+echada cast --project PROJECT.md --force-regenerate
+```
+
+**Voice file format:** `.vox` bundles at each member's `voices.voxalta`
+path — `characters/<NAME>.dossier/voice/<NAME>.vox` on echada 3.0, `voices/`
+on older binaries and unmigrated projects
 
 ### Apple Neural TTS (Free)
 
@@ -189,7 +268,7 @@ produciesta /path/to/project --format m4a --verbose
 - Fast, local processing
 - No per-character costs
 
-**Best for:** English podcasts, quick testing, budget projects
+**Best for:** Simple single-narrator podcasts, quick testing
 
 **Query voices:**
 ```bash
@@ -200,14 +279,6 @@ say -v '?'
 ```
 apple://com.apple.voice.premium.en-US.Aaron
 ```
-
-**Popular voices:**
-- **Aaron** - Mature male, US accent
-- **Ava** - Young female, US accent, clear
-- **Daniel** - Male, British accent
-- **Samantha** - Female, US accent, warm
-- **Fred** - Male, novelty voice
-- **Zoe** - Female, US accent, professional
 
 ### ElevenLabs (Paid)
 
@@ -281,7 +352,9 @@ say -v '?'
 Claude selects:
 - **NARRATOR** → Aaron (mature, contemplative tone)
 
-**Step 3: Create PROJECT.md**
+**Step 3: Create PROJECT.md and CAST.md**
+
+`PROJECT.md` — project configuration only:
 
 ```yaml
 ---
@@ -293,21 +366,35 @@ episodesDir: episodes
 audioDir: audio
 filePattern: "*.fountain"
 exportFormat: m4a
+---
+
+## Production Notes
+
+### Project Details
+- Episodes 1-5 of the Tao Te Ching
+- Each episode: ~4-6 minutes
+```
+
+`CAST.md` — the cast roster, beside PROJECT.md (`type: cast` and the `cast:`
+array are BOTH required for the file to be accepted):
+
+```yaml
+---
+type: cast
 cast:
   - character: NARRATOR
     voices:
       - apple://com.apple.voice.premium.en-US.Aaron
 ---
 
-## Production Notes
-
-### Voice Casting
+## Voice Casting
 - NARRATOR: Aaron - Mature, authoritative voice appropriate for philosophical content
-
-### Project Details
-- Episodes 1-5 of the Tao Te Ching
-- Each episode: ~4-6 minutes
 ```
+
+**Legacy fallback:** if the capability probe (see "Cast source" above) shows
+an older toolchain — echada < 1.0.0, or a shipped
+`Produciesta.app` binary — put the same `cast:` array into `PROJECT.md`'s
+front matter instead; those binaries only read cast from there.
 
 **Step 4: Generate Audio Files**
 
@@ -317,7 +404,7 @@ produciesta . --format m4a --verbose
 
 **Output:**
 ```
-✓ Project directory: /Users/stovak/podcast-daily-dao
+✓ Project directory: ~/podcast-daily-dao
 ✓ Found 5 episodes
 ✓ Cast list loaded: 1 character
 ✓ Starting generation...
@@ -602,7 +689,7 @@ Visit live site: `https://intrusive-memory.productions/podcasts/daily-dao/`
 ┌─────────────────────────────────────────┐
 │ PHASE 1: Audio Generation               │
 │  - Analyze .fountain files              │
-│  - Create PROJECT.md with cast          │
+│  - Create PROJECT.md + CAST.md          │
 │  - Generate audio with Produciesta      │
 │  - Verify playback locally              │
 └──────────────┬──────────────────────────┘
@@ -648,97 +735,32 @@ Visit live site: `https://intrusive-memory.productions/podcasts/daily-dao/`
 - Deployment: 5-10 minutes
 - **Total for 5 episodes: ~45-60 minutes**
 
-## Character Analysis Guidelines
+## Character Analysis & Casting
 
-When analyzing Fountain files to extract characters, Claude should:
+Character extraction and voice generation are handled entirely by `echada`. Claude's role is:
 
-### 1. Identify All Characters
+1. **Probe the binary** (check `echada --version` is >= 1.0.0, and >= 3.0.0
+   or a `migrate`/`sample` verb for 3.0 — see "Cast source" above) to learn
+   whether the cast roster is CAST.md or the legacy PROJECT.md `cast:` block,
+   and where `.vox` files go
+2. **Ensure PROJECT.md exists** with correct `episodesDir`, `filePattern`, and `tts` settings
+3. **Run the extraction stage** to populate the roster with characters and
+   voicePrompts — `personaje cast-discover` + `echada generate prompt`
+   (echada 3.0), `echada generate cast` + `echada generate prompt`
+   (1.x/2.x), or `echada extract` (legacy)
+4. **Review/edit voicePrompts** in the roster if the user wants adjustments
+5. **Run `echada cast`** to generate .vox voice files from the prompts
+6. **Run `produciesta`** to generate audio using the cast voices
 
-Parse Fountain dialogue blocks:
-```fountain
-NARRATOR
-This is the narrator speaking.
+### Manual voicePrompt Editing
 
-ALICE
-Hello, I'm Alice!
+If the user wants to refine a character's voice, edit the `voicePrompt` field in the cast roster (CAST.md; legacy PROJECT.md `cast:`) and re-run `echada cast --character "<NAME>" --force-regenerate` for that character. On echada 3.0 the voice is rebuilt at its existing `voices.voxalta` path; nothing moves.
 
-BOB (V.O.)
-And I'm Bob, off screen.
-```
-
-Extract: `NARRATOR`, `ALICE`, `BOB`
-
-**Note:** Character name variations map to same character:
-- `BOB`, `BOB (V.O.)`, `BOB (O.S.)`, `BOB (CONT'D)` → all = `BOB`
-
-### 2. Analyze Character Traits
-
-From dialogue and context, determine:
-- **Age range** (child, young adult, middle-aged, elderly)
-- **Gender** (male, female, neutral)
-- **Personality** (authoritative, friendly, serious, playful)
-- **Role** (narrator, protagonist, antagonist, supporting)
-- **Accent/dialect** (if specified or implied)
-
-### 3. Consider Dialogue Volume
-
-Note how much each character speaks:
-- **Primary characters** (lots of dialogue) → assign premium voices
-- **Supporting characters** (moderate dialogue) → standard voices
-- **Minor characters** (few lines) → can share voices or use default
-
-### 4. Document Casting Rationale
-
-In PROJECT.md production notes, explain:
-- Why each voice was selected
-- Character traits that influenced the choice
-- Any special considerations
-
-## Voice Matching Guidelines
-
-When matching characters to voices:
-
-### For Narrators
-
-**Ideal characteristics:**
-- Clear articulation
-- Moderate pace
-- Authoritative but not harsh
-- Easy to listen to for extended periods
-
-**Recommended Apple voices:**
-- Aaron (US male, mature)
-- Ava (US female, clear)
-- Daniel (UK male, professional)
-
-### For Conversational Characters
-
-**Ideal characteristics:**
-- Natural, warm tone
-- Expressive (can convey emotion)
-- Distinct from other characters
-
-**Recommended Apple voices:**
-- Samantha (US female, friendly)
-- Fred (US male, character voice)
-- Zoe (US female, professional)
-
-### For ElevenLabs
-
-**Advantages:**
-- More emotional range
-- Better for character voices
-- Multilingual support
-
-**When to use:**
-- Professional productions
-- Non-English content
-- Need multiple distinct character voices
-- Budget allows for API costs
-
-## PROJECT.md Structure
+## PROJECT.md + CAST.md Structure
 
 ### Minimal Configuration
+
+`PROJECT.md`:
 
 ```yaml
 ---
@@ -748,6 +770,15 @@ episodesDir: episodes
 audioDir: audio
 filePattern: "*.fountain"
 exportFormat: m4a
+---
+```
+
+`CAST.md` (beside PROJECT.md; on a legacy toolchain fold this `cast:` array
+into PROJECT.md's front matter instead):
+
+```yaml
+---
+type: cast
 cast:
   - character: CHARACTER_NAME
     voices:
@@ -756,6 +787,8 @@ cast:
 ```
 
 ### Complete Configuration
+
+`PROJECT.md`:
 
 ```yaml
 ---
@@ -767,8 +800,21 @@ episodesDir: episodes
 audioDir: audio
 filePattern: "*.fountain"
 exportFormat: m4a
+---
+
+## Production Notes
+
+[Optional markdown content documenting the project]
+```
+
+`CAST.md`:
+
+```yaml
+---
+type: cast
 cast:
   - character: NARRATOR
+    voicePrompt: "Mature, authoritative narrator. Calm and clear."
     voices:
       - apple://com.apple.voice.premium.en-US.Aaron   # Primary
       - apple://com.apple.voice.premium.en-GB.Daniel  # Fallback
@@ -777,12 +823,10 @@ cast:
       - elevenlabs://21m00Tcm4TlvDq8ikWAM
 ---
 
-## Production Notes
-
-[Optional markdown content documenting the project]
+[Optional markdown body: character summaries — preserved byte-for-byte by echada]
 ```
 
-### Required Fields
+### Required Fields — PROJECT.md
 
 - `type: project` - Always required
 - `title` - Podcast title
@@ -790,7 +834,19 @@ cast:
 - `audioDir` - Relative path for output (default: `audio`)
 - `filePattern` - Glob pattern for episode files (default: `"*.fountain"`)
 - `exportFormat` - Audio format: `m4a`, `aiff`, `wav`, `caf`, `mp3`
-- `cast` - Array of character-to-voice mappings
+
+### Required Fields — CAST.md
+
+- `type: cast` - Required; a `type:`-only file is not a valid roster
+- `cast` - Array of character-to-voice mappings (`character` required per
+  entry; `voicePrompt` — legacy alias `voiceDescription` — `actor`,
+  `gender`, `language`, `voices`, `appearance`, `manifest` optional). Paths
+  (`voices.voxalta`, `manifest`) are relative to the directory containing
+  CAST.md. echada 3.0 requires `character` to be canonical
+  (`reparto canonicalize`).
+
+On a **legacy** toolchain there is no CAST.md: `cast` is instead a required
+field of PROJECT.md's front matter.
 
 ### Optional Fields
 
@@ -1085,9 +1141,10 @@ That section provides a step-by-step walkthrough with all commands, validation s
 
 ### Error: "Character not found in cast list"
 
-**Cause:** Fountain file contains a character not in PROJECT.md cast section.
+**Cause:** Fountain file contains a character not in the cast roster
+(CAST.md; legacy PROJECT.md `cast:`).
 
-**Solution 1:** Add character to PROJECT.md
+**Solution 1:** Add the character to the roster
 ```yaml
 cast:
   - character: MISSING_CHARACTER
@@ -1102,7 +1159,7 @@ produciesta /path/to/project \
 ```
 
 **Solution 3:** Re-analyze with Claude
-Ask Claude to re-read Fountain files and update PROJECT.md cast list.
+Ask Claude to re-read Fountain files and update the cast roster.
 
 ### Error: "Voice provider unavailable"
 
@@ -1137,7 +1194,7 @@ filePattern: "*.fountain"  # or "chapter-*.fountain", etc.
 - ElevenLabs: Has stability/similarity controls
 
 **Wrong voice:**
-- Update voice URI in PROJECT.md
+- Update voice URI in the cast roster (CAST.md; legacy PROJECT.md `cast:`)
 - Regenerate: `produciesta /path/to/project --regenerate`
 
 ## Advanced: Hooks for Automation (macOS Only)
@@ -1206,9 +1263,10 @@ Recommended casting:
 - ALICE → Ava (young female, expressive)
 - BOB → Daniel (British accent, professional)
 
-## Step 3: PROJECT.md Creation
+## Step 3: PROJECT.md + CAST.md Creation
 
-[Claude creates/updates PROJECT.md with cast list]
+[Claude creates/updates PROJECT.md (config) and the cast roster — CAST.md,
+or PROJECT.md's cast: block if the probe found a legacy toolchain]
 
 ## Step 4: Audio Generation
 
@@ -1228,7 +1286,7 @@ produciesta . --format m4a --verbose
 
 - Character analysis: 5 minutes
 - Voice matching: 5 minutes
-- PROJECT.md creation: 2 minutes
+- PROJECT.md + CAST.md creation: 2 minutes
 - Audio generation: ~2 minutes per episode
 - Quality check: 10 minutes
 - **Total**: [Estimated based on episode count]
@@ -1237,11 +1295,11 @@ produciesta . --format m4a --verbose
 ## Best Practices
 
 1. **Always analyze all episodes** before assigning voices (characters may appear later)
-2. **Document casting rationale** in PROJECT.md production notes
+2. **Document casting rationale** in CAST.md's markdown body (echada preserves it verbatim)
 3. **Test with one episode first** before batch processing
 4. **Use premium voices for primary characters** (more dialogue = more important)
 5. **Consider voice distinctiveness** to avoid confusion between characters
-6. **Commit PROJECT.md to git** for version control and team collaboration
+6. **Commit PROJECT.md and CAST.md to git** for version control and team collaboration
 7. **Use dry-run mode** to validate configuration before generating
 
 ## Related Tools and Resources
@@ -1342,7 +1400,9 @@ Before starting audio generation:
 **Source Repository:**
 - [ ] Produciesta CLI installed and working: `produciesta --version`
 - [ ] All .fountain files present in `episodes/`
-- [ ] PROJECT.md exists with cast list
+- [ ] PROJECT.md exists (project config)
+- [ ] Cast roster present — CAST.md, or the legacy PROJECT.md `cast:` block
+      if `echada --version` is below 1.0.0 (older binary)
 - [ ] Git LFS configured: `git lfs version`
 - [ ] `.gitattributes` has `*.m4a` LFS tracking
 
@@ -1386,14 +1446,14 @@ After pushing to production:
 
 ### Issue: Audio generation fails with "Character not found"
 
-**Cause:** Fountain file has character not in PROJECT.md cast.
+**Cause:** Fountain file has a character missing from the cast roster (CAST.md; legacy PROJECT.md `cast:`).
 
 **Solution:**
 ```bash
 # Re-analyze fountain files
 grep "^[A-Z][A-Z ]*$" episodes/*.fountain | sort -u
 
-# Add missing characters to PROJECT.md cast section
+# Add missing characters to the cast roster (CAST.md; legacy PROJECT.md cast:)
 ```
 
 ### Issue: CDN returns 404 for audio files
@@ -1449,10 +1509,11 @@ bundle exec jekyll build --verbose
 
 ## Notes
 
-- **Do NOT use `--autocast` flag** - it's currently not working
-- Claude-assisted casting provides better control and understanding
-- Always verify voice URIs are correct format before generation
-- Produciesta handles all audio generation - Claude only creates cast list
+- **Use `personaje` + `echada` for all casting** - character discovery (`personaje cast-discover` on echada 3.0; `echada generate cast` on 1.x/2.x; `echada extract` on legacy binaries), voicePrompts (`echada generate prompt`) and voice generation (`echada cast`)
+- **Cast lives in CAST.md** (SwiftReparto schema) on echada ≥ 1.0.0; probe `echada --version` (>= 1.0.0) and fall back to PROJECT.md's `cast:` block on older binaries
+- **`.vox` paths come from CAST.md `voices.voxalta`**, never from a folder convention. echada 3.0 writes them into character records (`characters/<NAME>.dossier/voice/`); `echada migrate voices` moves an old `voices/` layout
+- **Do NOT use produciesta `--autocast`** - it is deprecated in favor of echada
+- Produciesta handles audio generation only - echada handles all casting
 - Error logs saved to `GENERATION_ERRORS.md` in project root
 - **Audio files are in Git LFS** - not regular git blobs
 - **CDN serves audio** - website only references CDN URLs

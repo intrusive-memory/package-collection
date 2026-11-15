@@ -40,6 +40,8 @@ FOUNDATIONAL_NAMES = {
     "CODEX.md": "codex",
     "README.md": "readme",
     "CHANGELOG.md": "changelog",
+    "CONTRIBUTING.md": "contributing",
+    "UPGRADING.md": "upgrading",
     "LICENSE": "license",
     "LICENSE.md": "license",
     "LICENSE.txt": "license",

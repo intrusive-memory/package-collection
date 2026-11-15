@@ -16,7 +16,7 @@ Default URLs:
 ## 2. Change to Project Directory
 
 ```bash
-cd /Users/stovak/Projects/intrusive-memory.github.com
+cd ~/Projects/intrusive-memory.github.com
 ```
 
 ## 3. Run Validation

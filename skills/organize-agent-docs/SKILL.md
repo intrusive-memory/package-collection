@@ -21,7 +21,7 @@ Mission-supervisor's old `clean` command delegates here. Sortie *creation* durin
 
 | Category | What it is | Where it lives |
 |----------|------------|----------------|
-| **FOUNDATIONAL** | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `CURSOR.md`, `COPILOT.md`, `CODEX.md`, `README.md`, `CHANGELOG.md`, `LICENSE`, `LICENSE.md` | Project root only |
+| **FOUNDATIONAL** | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `CURSOR.md`, `COPILOT.md`, `CODEX.md`, `README.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `UPGRADING.md`, `LICENSE`, `LICENSE.md` | Project root only |
 | **MISSION** | Files Mission Supervisor creates (`EXECUTION_PLAN.md`, `SUPERVISOR_STATE.md`, `COMPLETE_*.md`, `*_BRIEF.md`, `sortie-*.{md,txt,fcpxml}`, `SORTIE-*.md`) | Root if `state: current`; `docs/complete/<mission>/` if `state: completed`; `docs/incomplete/<mission>/` if `state: incomplete` |
 | **EXTRANEOUS** | Any other markdown file at the repo root (notes, design docs, ROADMAP.md, etc.) | `docs/` |
 

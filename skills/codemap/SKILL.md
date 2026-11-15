@@ -31,10 +31,27 @@ that's the read path. `/codemap` is the write/commit path.
 ## Prerequisites
 
 - `graphify` CLI installed and configured (it makes LLM calls; a full build of a
-  ~70-file repo costs roughly ~270k input / ~120k output tokens — `--update` is far
-  cheaper because it only re-extracts changed files).
+  ~70-file repo costs roughly ~270k input / ~120k output tokens — incremental
+  re-runs are far cheaper because only changed files are re-extracted).
 - Run from the repo root (where you want `graphify-out/` to live).
 - A git repository (`git rev-parse --git-dir` succeeds).
+- The `claude` CLI on `PATH`. `/codemap` always runs graphify with
+  `--backend claude-cli`, so the host Claude session is the LLM backend and **no
+  API key is required** — see "Backend" below.
+
+## Backend — always `claude-cli` (no API key)
+
+`/codemap` is invoked from inside a Claude session, so every graphify command it
+runs passes `--backend claude-cli`. That routes semantic extraction and community
+labeling through the local `claude` CLI ($0, no env keys), instead of graphify's
+default "auto-detect an API key" behavior.
+
+This is the fix for the old failure mode: a bare `graphify .` on a corpus with any
+doc/markdown/image file aborts with `error: no LLM API key found ... or pass
+--backend`, and `cluster-only` silently keeps `Community N` placeholders. Pinning
+`--backend claude-cli` makes both work key-free. **Never drop the
+`--backend claude-cli` flag** from the commands below, and do not prompt the user
+for `ANTHROPIC_API_KEY`/`GEMINI_API_KEY` — the claude CLI is the backend.
 
 ## The portable / scratch split (the whole point)
 
@@ -78,21 +95,37 @@ permission prompt).
 
 ### Step 2 — Generate or update the graph
 
-If `graphify-out/graph.json` already exists and the user did NOT pass `full`, do an
-incremental update (cheap — only changed files re-extracted):
+All commands pass `--backend claude-cli` (see "Backend" above) so they never need an
+API key.
+
+`graphify .` (which maps to `graphify extract .`) is incremental-aware on its own: if
+a graph already exists it re-extracts only changed files. So the default/update path
+is just:
 
 ```bash
-graphify . --update
+graphify . --backend claude-cli
 ```
 
-Otherwise do a full build:
+If the user passed `full`, force a complete re-extraction by clearing the incremental
+manifest and cache first, then build:
 
 ```bash
-graphify .
+rm -f graphify-out/manifest.json && rm -rf graphify-out/cache
+graphify . --backend claude-cli
+```
+
+`graphify extract` writes `graph.json` and the analysis, but **not**
+`GRAPH_REPORT.md`. Generate the report and name the communities (also key-free via
+the same backend) — Step 6 reads node/edge counts from this report:
+
+```bash
+graphify cluster-only . --backend claude-cli
 ```
 
 Let graphify print its own progress. If `graphify` is missing, fall back to the
-install logic documented in the `/graphify` skill (Step 1 there), then retry.
+install logic documented in the `/graphify` skill (Step 1 there), then retry. If any
+graphify command still complains about a missing API key, the `--backend claude-cli`
+flag was dropped — re-add it rather than setting a key.
 
 ### Step 3 — Enforce the .gitignore block (idempotent)
 
@@ -152,7 +185,8 @@ graphify explain "SomeType"        # plain-language node explanation
 ` ` `
 
 Human-readable summary: [`graphify-out/GRAPH_REPORT.md`](graphify-out/GRAPH_REPORT.md).
-Refresh after significant changes with `/codemap` (or `graphify . --update`).
+Refresh after significant changes with `/codemap` (or
+`graphify . --backend claude-cli`).
 ```
 
 (Collapse the escaped ``` ` ` ` ``` fences back to real triple backticks when you

@@ -2,9 +2,9 @@
 type: reference
 ---
 
-# Libraries: Mark Development with `-dev` and Restore the Sibling Pattern
+# Libraries: Mark Development with `-dev`
 
-After the sync (`/branch-hygiene` Step 1), development is bit-identical to main and carries the just-shipped clean version (e.g. `1.4.3`). Stamp it with the `-dev` marker so the branch is unambiguously distinguishable from the release.
+After the sync (`/branch-hygiene` Step 1), the chore branch is at main's content and carries the just-shipped clean version (e.g. `1.4.3`). Stamp it with the `-dev` marker so the branch is unambiguously distinguishable from the release.
 
 ## Why this exists
 
@@ -41,24 +41,18 @@ Use the `Edit` tool to change each occurrence from `X.Y.Z` to `X.Y.Z-dev`. Typic
 - The CHANGELOG, release notes, or anything that records the historical release as `X.Y.Z`
 - Any reference to other libraries' versions
 
-## Flip Package.swift back to the sibling pattern
+## Package.swift stays remote-only
 
-`development` shipped with a remote-only `Package.swift` (`/ship-swift-library` Step 3 stripped the `sibling(...)` helpers before commit). Now that we're back in dev mode, restore the sibling pattern so cross-library development against `../<name>` checkouts works again:
+**Do not restore the sibling pattern.** Retired 2026-11-04: every intrusive-memory/* dependency is a
+plain `.package(url: "https://github.com/intrusive-memory/<repo>.git", .upToNextMajor(from: "X.Y.Z"))`
+on every branch, `development` included. Never run `/toggle-sibling-libraries --to sibling`, and never
+add `sibling(...)`, `useLocalSiblings`, `.package(path:)`, or `branch:` pins for intrusive-memory deps.
 
-```
-/toggle-sibling-libraries --to sibling
-```
+Why: the sibling helper made this machine and CI build different source. It hid real floor bugs
+(e.g. SwiftBruja 1.11.0 needing mlx-swift-lm 3.32 while its floor allowed 3.31) until a consumer
+without the sibling checkout broke. Cross-library work goes through tagged releases instead.
 
-What this does:
-- Detects every `.package(url: "https://github.com/intrusive-memory/<repo>.git", .upToNextMajor(from: "X.Y.Z"))` and rewrites it to `sibling("<repo>", remote: "...", from: "X.Y.Z")`.
-- Re-introduces `import Foundation`, the `useLocalSiblings` constant, and both `sibling(...)` helper functions in the canonical positions.
-- Leaves every non-intrusive-memory dep untouched.
-
-The `from:` values are preserved verbatim from the just-shipped release. The next ship cycle's `--to remote` flip will resolve them to whatever is then-current.
-
-If you flipped to a `branch:` variant manually during the previous dev cycle (because you needed an unreleased upstream change), this skill won't reconstruct that — you'll need to hand-edit the relevant `sibling(... from:)` to `sibling(... branch: "...")` after the toggle. That's intentional: branch deps are an explicit choice the developer makes, not a default state.
-
-## Verify, then commit and push
+## Verify, then commit (on the chore branch)
 
 ```bash
 # Confirm every file holding the bare released version has been updated
@@ -66,19 +60,17 @@ grep -rln --exclude-dir=.git --exclude-dir=.build "${RELEASED//./\\.}" . | \
   xargs grep -L "${DEV_MARKER}" 2>/dev/null \
   || echo "All occurrences updated to ${DEV_MARKER}."
 
-# Confirm Package.swift is back in sibling mode
-grep -q 'func sibling(' Package.swift \
-  && echo "Package.swift restored to sibling mode." \
-  || echo "WARNING: Package.swift does NOT have sibling helpers — toggle may have failed."
+# Confirm Package.swift has no sibling scaffolding
+grep -qE 'func sibling\(|useLocalSiblings' Package.swift \
+  && echo "FAIL: sibling scaffolding present — remove it; dependencies stay remote-only." \
+  || echo "Package.swift is remote-only."
 
 git add -A
 git diff --cached --stat
-git commit -m "Mark development as ${DEV_MARKER}, restore sibling pattern
+git commit -m "Mark development as ${DEV_MARKER}
 
 Post-release dev marker. The -dev suffix will be stripped at the
-next ship cycle.
-
-Package.swift flipped back to sibling mode so coordinated cross-library
-development against ../<name> checkouts works again."
-git push origin development
+next ship cycle."
 ```
+
+Do not push to `development`. This commit sits on the `chore/next-cycle-v<released>` branch and lands through the chore PR (SKILL.md, "Land the chore branch").

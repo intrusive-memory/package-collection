@@ -6,6 +6,12 @@ allowed-tools: Bash, Read, Edit, Write
 
 # Toggle Sibling Libraries
 
+> **`--to sibling` is RETIRED (2026-11-04).** intrusive-memory/* dependencies are plain remote
+> `.upToNextMajor(from:)` pins on every branch. Use this skill only with `--to remote --no-resolve`
+> to strip leftover scaffolding. If asked to restore the sibling pattern, push back and confirm with
+> the user first: it made local and CI builds compile different source and hid floor bugs.
+
+
 This skill rewrites `Package.swift` between two states.
 
 **Sibling state (development branches):** intrusive-memory/* dependencies are routed through a `sibling(_:remote:from:)` helper that prefers a `../<name>` checkout when present and falls back to the remote pin. Lets a developer make coordinated changes across several intrusive-memory packages without publishing intermediate releases.
@@ -83,8 +89,9 @@ The reason for the warning: a development build that depended on an unreleased f
 
 Remove:
 - The `let useLocalSiblings = ...` line and any explanatory comment block above it.
+- Every preceding scaffold-let that the helper depends on. The canonical block declares `let manifestDir = ...`, `let isSPMCheckout = ...` (multi-line), and `let isCI = ...` above `useLocalSiblings`. All of these are dead code without the helper — strip them too, including the multi-line continuation of `isSPMCheckout`. (`scripts/toggle.py` recognises this whole set via `SCAFFOLD_LET_NAMES`.)
 - Both `func sibling(...)` definitions.
-- The `import Foundation` line **only if** no other code in the file references `Foundation`/`FileManager`/`ProcessInfo`. (Almost always safe to remove; double-check.)
+- The `import Foundation` line **only if** no other code in the file references `Foundation`/`FileManager`/`ProcessInfo`/`NSString`. (Almost always safe to remove; double-check.)
 
 The resulting file should look like a stock `Package.swift`: `swift-tools-version` line, `import PackageDescription`, the `let package = Package(...)` block, and that's it.
 
@@ -121,7 +128,18 @@ import Foundation
 // at ../<name> if present so in-flight changes can be exercised end-to-end
 // without publishing a release. Falls back to the remote pin if the sibling
 // directory is missing, so fresh clones still build.
-let useLocalSiblings = ProcessInfo.processInfo.environment["CI"] != "true"
+//
+// When this manifest is evaluated as a transitive dependency inside Xcode's
+// `SourcePackages/checkouts/` or SwiftPM's `.build/checkouts/`, every other
+// dependency lives as a sibling in the same directory. Treating those as
+// in-development local paths produces conflicting package identities, so we
+// must skip the sibling shortcut in that context.
+let manifestDir = (#filePath as NSString).deletingLastPathComponent
+let isSPMCheckout =
+  manifestDir.contains("/SourcePackages/checkouts/")
+  || manifestDir.contains("/.build/checkouts/")
+let isCI = ProcessInfo.processInfo.environment["CI"] == "true"
+let useLocalSiblings = !isCI && !isSPMCheckout
 
 func sibling(_ name: String, remote: String, from version: Version) -> Package.Dependency {
   let localPath = "../\(name)"
@@ -145,6 +163,8 @@ func sibling(_ name: String, remote: String, branch: String) -> Package.Dependen
 ```
 
 If `import Foundation` is already present, don't duplicate it.
+
+**Why the SPM-checkout guard matters.** A naive `useLocalSiblings = !CI` falsely activates when this manifest is evaluated as a transitive dependency inside `DerivedData/.../SourcePackages/checkouts/` — every other dependency lives as a sibling in the same directory there, so the existence check succeeds for every dep and the helper switches them all to unversioned `.package(path: ...)` references. Those collide with the same identities pulled in via remote URLs elsewhere in the graph and abort resolution with `Conflicting identity for ...`. The `manifestDir` / `isSPMCheckout` check disables the shortcut in that context. Don't ship a sibling helper without this guard.
 
 ### 3. Rewrite each intrusive-memory dep
 
