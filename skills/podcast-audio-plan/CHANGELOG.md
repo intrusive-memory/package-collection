@@ -1,4 +1,27 @@
+---
+type: doc
+---
+
 # Changelog - Podcast Audio Plan Skill
+
+## [2.1.0] - 2026-08-03
+
+### Cast roster moves to CAST.md (with probed legacy fallback)
+
+- **Cast source**: the cast list now lives in a standalone `CAST.md` beside
+  `PROJECT.md` (schema owned by SwiftReparto; `type: cast` + `cast:` array
+  both required). `PROJECT.md` keeps project config only.
+- **Runtime capability detection**: grep `echada --help` for the `verify`
+  verb — present means CAST.md-capable (echada ≥ 1.0.0); absent means a
+  legacy binary (≤ 0.17.0, incl. the signed binary embedded in shipped
+  Produciesta.app) that still reads/writes `PROJECT.md`'s `cast:` block.
+  (`echada verify cast --help` alone is NOT a valid probe — ArgumentParser
+  exits 0 on `--help` even for unknown verbs.)
+- **New commands documented**: `echada generate cast|prompt|vox`,
+  `echada verify cast` (report-only divergence check), `echada prune cast`
+  (explicit legacy-block removal), and the `--cast <filename>` override.
+- All PROJECT.md-cast instructions in SKILL.md, README.md, and references/
+  repointed to the roster with the documented PROJECT.md fallback.
 
 ## [2.0.0] - 2026-02-11
 

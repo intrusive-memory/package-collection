@@ -89,6 +89,8 @@ Break each requirement into atomic tasks. An atomic task has:
 | Requirement spans >3 files | Split by logical grouping (types, logic, tests, config) |
 | Implicit test work | Separate "Write tests for X" task unless trivial |
 
+**Secrets.** When a task needs a secret, token, API key or key pair, write two steps into the sortie, in this order: (1) check whether it already exists (Keychain item by name, `gh secret list --org intrusive-memory`, `cf workers secrets list`), and (2) only if it doesn't, create it with the `api-secrets` skill. Name the Keychain item and the target secret names in the task, so the check is concrete. Setting it on GitHub or Cloudflare is outward-facing, so the sortie's entry criteria record the user's approval. A value someone else must issue (a third-party key, a GitHub App key) becomes an `OQ-<N>` or a `deferred` entry criterion. See skill.md § Secrets and Keys.
+
 ## 4. Identify Work Units
 
 Group atomic tasks into work units based on document structure:

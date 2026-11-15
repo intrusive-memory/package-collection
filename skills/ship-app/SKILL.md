@@ -104,7 +104,7 @@ matches the current state. Run the validation phase first whenever you're unsure
 | Phase | When | Outcome |
 |---|---|---|
 | **0. Validate CI** | First time / before any release work | Confirms Xcode Cloud + GitHub Actions are wired correctly. |
-| **A. Land development → main (ship TestFlight)** | A development cycle has accumulated changes ready for beta | PR opened, CI clears, PR merged. `main` advances and Xcode Cloud auto-ships the build to TestFlight. |
+| **A. Land development → main (ship TestFlight)** | A development cycle has accumulated changes ready for beta | PR opened, CI clears, PR merged. `main` advances and Xcode Cloud auto-ships the build to TestFlight; A.7 attaches it to the QA group(s) and writes What to Test. |
 | **B. Promote to App Store** | A TestFlight build has passed QA and is ready for production | The `main` commit is tagged `<version>-rc<n>` and that tag is merged into `release/<version>`; the merge triggers the App Store archive + upload. |
 | **C. Re-roll a candidate** | App Review or final QA rejected the current candidate | A fix lands on `main` (→ TestFlight), then a fresh `<version>-rc<n+1>` tag carries it into the same `release/<version>`. |
 | **D. Submit & finalize** | The App Store build is processed and ready | Drive App Review submission, tag `v<version>` on the accepted `release/<version>` commit, close out. |
@@ -289,10 +289,51 @@ done
 Each app's build `processingState` should reach `VALID`. **Watch for build-number
 collisions** (invariant 5): if a `processingState` goes `INVALID` with a
 duplicate build-number error, bump that app's `CURRENT_PROJECT_VERSION` and
-re-ship. Notify beta testers once builds are `VALID`.
+re-ship.
+
+### A.7 — Distribute to TestFlight and write "What to Test" (per app)
+
+A `VALID` build is uploaded, not yet *handed to testers*. This step attaches each
+app's build to its QA group(s) and writes the TestFlight **What to Test** notes
+(the `betaBuildLocalizations.whatsNew` field) from the git history the build
+carries. Run it as soon as A.6 reports `VALID`; it is idempotent.
+
+```bash
+# All apps, build resolved from the Xcode Cloud run for origin/main:
+~/.claude/skills/ship-app/distribute-testflight.sh
+# Preview first (prints the notes, touches nothing):
+~/.claude/skills/ship-app/distribute-testflight.sh --dry-run
+# Pin a build / commit / scope explicitly:
+~/.claude/skills/ship-app/distribute-testflight.sh --app "MyApp macOS" --build-number 42 --kind rc --since 1.2.0-rc1
+```
+
+**Note scoping (load-bearing):**
+
+| The build is… | Detected by | Notes cover |
+|---|---|---|
+| A **re-roll** of a version already in candidacy (`1.2.0-rc2` exists; this build will be `1.2.0-rc3`) | an earlier `<version>-rc<n>` tag is an ancestor of the commit | **only** what landed since that previous RC tag — testers already saw the rest |
+| The **first candidate of a new version** (no `<version>-rc*` tag yet) | no prior RC tag for this version | **everything** since the last shipped release: the newest `v<X.Y.Z>` tag, else the previous version's newest RC tag, else all history (capped) |
+
+Override with `--kind rc|release` or an explicit `--since <ref>`; hand-write the
+notes with `--notes-file`. The text is built from conventional-commit subjects
+(`feat:` → New, `fix:` → Fixed, everything else incl. `chore:` dependency bumps → Changed;
+`test:`/`docs:`/`ci:`/`style:` and merge commits are dropped, PR numbers stripped)
+and truncated to App Store Connect's 4000-character limit.
+
+**Groups:** `.asc.json` may name them —
+
+```json
+{ "testflight": { "groups": ["internal", "QA"], "locale": "en-US" } }
+```
+
+(top-level, or per app inside `apps[]`). With nothing configured the build goes
+to every **internal** group. External groups are attached but **never submitted
+for beta review** here (`--submit` is deliberately not used) — external beta
+review is a separate, deliberate act via `/asc-testflight-orchestration`.
 
 **Phase A is complete** when every shipping app's build is in TestFlight with
-`processingState=VALID`.
+`processingState=VALID`, attached to its QA group(s), with What to Test notes
+written.
 
 ---
 
@@ -605,6 +646,7 @@ This skill orchestrates and calls others as needed:
 - `/asc-release-flow` — App Store submission mechanics (Phase D.1)
 - `/asc-submission-health` — preflight checks before submission
 - `/asc-build-lifecycle` — locate builds, wait on processing
-- `/asc-testflight-orchestration` — distribute TestFlight builds to tester groups
+- `distribute-testflight.sh` (this skill) — Phase A.7: attach the `main` build to its TestFlight group(s) and write scoped What to Test notes
+- `/asc-testflight-orchestration` — tester/group management and external beta-review submission beyond what A.7 does
 - `/organize-agent-docs` — at Phase D close-out, normalize repo docs
 - `/branch-hygiene` — at Phase D close-out, sync `development` with `main`, advance it to the next version, open the draft next-cycle PR (D.3)

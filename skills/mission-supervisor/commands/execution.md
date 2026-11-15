@@ -534,6 +534,14 @@ EXIT CRITERIA (verify before declaring done):
 IMPORTANT:
 - Do NOT start the next sortie. Your scope ends after this sortie.
 - Do NOT modify EXECUTION_PLAN.md.
+<For sorties that need a secret, token, API key or key pair:>
+- Before creating any secret, check whether it already exists: the Keychain
+  (`security find-generic-password -s <name> >/dev/null 2>&1 && echo exists`),
+  `gh secret list --org intrusive-memory`, `cf workers secrets list --worker <worker>`.
+  Reuse it if it does. Only if it doesn't, create it with the api-secrets skill
+  (~/.claude/skills/api-secrets/SKILL.md). Never print a value. If the value must
+  come from someone else (a third-party API key, a GitHub App key), stop and report
+  the steps the user must take.
 <For background tasks:>
 - This sortie is complete once the process is confirmed running. Do NOT wait for it to finish.
 <For deferred tasks:>

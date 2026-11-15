@@ -272,12 +272,25 @@ Store the resolved project root as `$PROJECT_ROOT` for use throughout this sessi
 
 ---
 
+## Secrets and Keys
+
+Any sortie, or any supervisor step, that needs a new secret, API key, token, password or key pair follows one order:
+
+1. **Check whether it already exists.** Look in the macOS Keychain by name (`security find-generic-password -s <name> >/dev/null 2>&1 && echo exists`), and where it will be used: `gh secret list --org intrusive-memory` for GitHub, `cf workers secrets list --worker <worker>` for a Cloudflare Worker. Also look in the project's notes (e.g. `PLATFORM_NOTES.md`) for a recorded name. Reuse an existing secret; never mint a second one for the same purpose.
+2. **Only if it doesn't exist, create it with the [api-secrets](../api-secrets/SKILL.md) skill** (`/api-secrets`). It generates the value without printing it, stores it in the Keychain, and sets it on GitHub (an `intrusive-memory` org secret, scoped to the repo that needs it) or Cloudflare by piping from the Keychain. Follow its naming, scoping and checklist.
+3. **Values someone else issues** (third-party API keys, a GitHub App's private key, a dashboard token) can't be generated. The sortie stops and reports what the user must do, using the api-secrets skill's steps for those. Treat it as a `deferred` condition, not a failure.
+
+Setting a secret on GitHub or Cloudflare is outward-facing: the plan's entry criteria must record the user's approval for it, as for deploys. Sortie prompts carry this rule (see `commands/execution.md` § 4d, Part 4), and `breakdown` writes it into any sortie that needs a secret (`commands/breakdown.md` § 3).
+
+---
+
 ## What You Must NOT Do
 
 - **Run `breakdown` without a fresh `RECON_REPORT.md`** — `breakdown` auto-invokes `recon` when the report is missing or stale (see `commands/recon.md` § Freshness). Planning on unverified premises is what `REPLAN` exists to catch late and expensively.
 - **Treat a recon `UNVERIFIABLE` finding as true** — it becomes an Open Question or an explicit verification step in the first dependent sortie's entry criteria, never a silent assumption
 - **Let `recon` repair what it finds** — it writes `RECON_REPORT.md` and nothing else. It never bumps a pin, edits the requirements, resolves a package, or reaches the network
 - **Verify an assumption against a local dependency checkout that differs from the revision the build resolves** — that false confirmation is the specific failure `recon` exists to prevent
+- **Create a secret, token or key without first checking it exists**, or by any route other than the `api-secrets` skill (see § Secrets and Keys). Never print a secret's value, and never ask the user to paste one into the chat
 - Write production code (source files, scripts, configs that the plan says to create)
 - Write test code
 - Override the dependency graph defined in the execution plan

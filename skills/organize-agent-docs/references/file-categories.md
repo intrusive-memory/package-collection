@@ -20,6 +20,10 @@ The three categories every markdown (and a few non-markdown) file in a repositor
 | `CODEX.md` | Codex-specific instructions | yes |
 | `README.md` | Human-facing project intro | yes |
 | `CHANGELOG.md` | Version history | yes |
+| `CONTRIBUTING.md` | Contributor guide | yes |
+| `UPGRADING.md` | Version-to-version upgrade notes | yes |
+| `BUILD.md` | Build instructions | yes |
+| `USAGE.md` | Usage documentation | yes |
 | `LICENSE` | Legal license text (no extension) | no |
 | `LICENSE.md` / `LICENSE.txt` | Same, with extension | no |
 

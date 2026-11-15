@@ -28,7 +28,18 @@ CANONICAL_HELPER_BLOCK = """
 // at ../<name> if present so in-flight changes can be exercised end-to-end
 // without publishing a release. Falls back to the remote pin if the sibling
 // directory is missing, so fresh clones still build.
-let useLocalSiblings = ProcessInfo.processInfo.environment["CI"] != "true"
+//
+// When this manifest is evaluated as a transitive dependency inside Xcode's
+// `SourcePackages/checkouts/` or SwiftPM's `.build/checkouts/`, every other
+// dependency lives as a sibling in the same directory. Treating those as
+// in-development local paths produces conflicting package identities, so we
+// must skip the sibling shortcut in that context.
+let manifestDir = (#filePath as NSString).deletingLastPathComponent
+let isSPMCheckout =
+  manifestDir.contains("/SourcePackages/checkouts/")
+  || manifestDir.contains("/.build/checkouts/")
+let isCI = ProcessInfo.processInfo.environment["CI"] == "true"
+let useLocalSiblings = !isCI && !isSPMCheckout
 
 func sibling(_ name: String, remote: String, from version: Version) -> Package.Dependency {
   let localPath = "../\\(name)"
@@ -50,6 +61,16 @@ func sibling(_ name: String, remote: String, branch: String) -> Package.Dependen
   return .package(url: remote, branch: branch)
 }
 """
+
+# Names of `let <name> = ...` variables that belong to the sibling-helper
+# scaffolding. These are removed wholesale (along with their continuation
+# lines and the comment block above them) when flipping to remote.
+SCAFFOLD_LET_NAMES = {
+    "manifestDir",
+    "isSPMCheckout",
+    "isCI",
+    "useLocalSiblings",
+}
 
 INTRUSIVE_MEMORY_HOST = "https://github.com/intrusive-memory/"
 
@@ -148,50 +169,62 @@ def detect_state(text: str) -> str:
 
 
 def strip_scaffold(text: str) -> str:
-    """Remove the import Foundation, comment block, useLocalSiblings, and both sibling helpers.
+    """Remove the helper block: comment block, scaffold-let variables, and both sibling helpers.
 
-    Conservative: only strip when we recognise the canonical block.
+    Conservative: only strips between the FIRST recognised scaffold-let line (or the
+    comment block immediately above it) and the closing brace of the LAST `func sibling`.
+    User code outside that range is preserved.
     """
     lines = text.splitlines(keepends=True)
 
-    # Locate `let useLocalSiblings`
-    let_idx = next(
-        (i for i, ln in enumerate(lines) if ln.lstrip().startswith("let useLocalSiblings")),
-        None,
+    # Find the anchor: `let useLocalSiblings` is required for the helper to function,
+    # so its presence confirms we're looking at a sibling-pattern Package.swift.
+    has_useLocalSiblings = any(
+        ln.lstrip().startswith("let useLocalSiblings") for ln in lines
     )
-    if let_idx is None:
+    if not has_useLocalSiblings:
         return text
 
-    # Walk back to find start of preceding `//` comment block.
-    # Do NOT consume the blank line above — it belongs to the import section
-    # and stripping it produces `import PackageDescription` glued to `let package = Package(`.
-    start = let_idx
+    # Find the FIRST scaffold-let line. The helper block starts at (or just above) this line.
+    # Walking forward from the top of the file is safer than walking back from
+    # `let useLocalSiblings`, because user-defined `let` statements that happen to live
+    # between imports and the helper block won't be falsely consumed.
+    first_scaffold_let_idx = next(
+        (
+            i for i, ln in enumerate(lines)
+            if (m := re.match(r"^\s*let\s+(\w+)\b", ln)) and m.group(1) in SCAFFOLD_LET_NAMES
+        ),
+        None,
+    )
+    if first_scaffold_let_idx is None:
+        return text
+
+    # Walk back from the first scaffold-let through the explanatory `//` comment block.
+    # Do NOT consume the blank line above — it separates the helper block from the imports
+    # and stripping it would glue `import PackageDescription` to `let package = Package(`.
+    start = first_scaffold_let_idx
     while start - 1 >= 0 and lines[start - 1].lstrip().startswith("//"):
         start -= 1
 
-    # From `let useLocalSiblings` forward, find the closing brace of the LAST `func sibling`.
-    end = let_idx
+    # Find the closing brace of the LAST `func sibling`. We use brace depth from the
+    # first scaffold-let forward; everything between start and last_brace+1 is the
+    # helper block (scaffold lets, continuation lines, helper functions, doc comments).
     last_brace = None
     depth = 0
     in_func = False
-    i = let_idx
-    while i < len(lines):
+    for i in range(first_scaffold_let_idx, len(lines)):
         ln = lines[i]
         if "func sibling(" in ln:
             in_func = True
         if in_func:
             depth += ln.count("{") - ln.count("}")
-            if depth == 0 and "{" in "".join(lines[let_idx : i + 1]):
+            if depth == 0 and "{" in "".join(lines[first_scaffold_let_idx : i + 1]):
                 last_brace = i
                 in_func = False
-        i += 1
     if last_brace is None:
         return text
 
-    # Look ahead for any /// doc comment + second func sibling block we may have just exited from.
-    # The depth-walk above already closed the last func, so last_brace is correct.
     end = last_brace + 1
-
     # Eat one trailing blank line if present
     if end < len(lines) and lines[end].strip() == "":
         end += 1
@@ -201,7 +234,7 @@ def strip_scaffold(text: str) -> str:
 
     # Drop `import Foundation` if Foundation/FileManager/ProcessInfo are no longer referenced
     if not re.search(r"\b(FileManager|ProcessInfo|NSString|URLSession|UserDefaults|Bundle|Date|Data|FileHandle)\b", new_text):
-        new_text = re.sub(r"^import Foundation[^\n]*\n", "", new_text, count=1, flags=re.MULTILINE)
+        new_text = re.sub(r"^import Foundation[ \t]*\n", "", new_text, count=1, flags=re.MULTILINE)
 
     # Collapse runs of 3+ blank lines to 2
     new_text = re.sub(r"\n{3,}", "\n\n", new_text)
@@ -220,7 +253,12 @@ def insert_scaffold(text: str) -> str:
 
     # Place `import Foundation` above `import PackageDescription` if not already present.
     # Convention in the canonical files: Foundation first, then PackageDescription.
-    if "import Foundation" not in text:
+    # Match a real `import Foundation` *statement* (start of line), NOT any "Foundation"
+    # substring — a comment like `// FoundationModels ...` must not count as present,
+    # otherwise the helper block ships without the import it needs (NSString/ProcessInfo/
+    # FileManager) and the manifest fails to resolve. `\b` keeps `import FoundationModels`
+    # from matching.
+    if not re.search(r"^import Foundation\b", text, flags=re.MULTILINE):
         text = text[:idx] + CANONICAL_FOUNDATION_IMPORT + text[idx:]
         idx += len(CANONICAL_FOUNDATION_IMPORT)
 

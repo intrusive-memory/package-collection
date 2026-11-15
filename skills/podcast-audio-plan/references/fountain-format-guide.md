@@ -1,3 +1,7 @@
+---
+type: reference
+---
+
 # Fountain Format Guide for Podcasts
 
 Quick reference for writing Fountain screenplay files optimized for podcast audio generation with Produciesta.
@@ -48,7 +52,7 @@ BARISTA
 Coming right up!
 ```
 
-**For podcasts**: This is the core content. Each character needs a voice assigned in PROJECT.md.
+**For podcasts**: This is the core content. Each character needs a voice assigned in the cast roster — CAST.md, or the legacy `cast:` block in PROJECT.md on older toolchains (see SKILL.md, "Cast source").
 
 ### Character Names
 
@@ -269,7 +273,7 @@ BOB (O.S.)
 One more time!
 ```
 
-All three map to the same `BOB` character in PROJECT.md cast list.
+All three map to the same `BOB` character in the cast roster (CAST.md; legacy PROJECT.md `cast:`).
 
 ### Multiple Characters
 
@@ -289,7 +293,7 @@ CHARLIE
 And I'm Charlie.
 ```
 
-Each needs a voice in PROJECT.md:
+Each needs a voice in the cast roster (CAST.md; legacy PROJECT.md `cast:`):
 
 ```yaml
 cast:

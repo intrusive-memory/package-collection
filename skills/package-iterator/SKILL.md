@@ -90,7 +90,7 @@ The script emits JSON:
     ["SwiftEchada"]
   ],
   "library_paths": {
-    "SwiftAcervo": "/Users/stovak/Projects/SwiftAcervo",
+    "SwiftAcervo": "~/Projects/SwiftAcervo",
     ...
   },
   "reverse_deps": {

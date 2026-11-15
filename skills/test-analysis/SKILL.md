@@ -1,4 +1,5 @@
 ---
+type: skill
 name: test-analysis
 description: Audit a Swift test suite across five dimensions and produce a single markdown findings report with concrete recommendations. Run multiple passes that each look at the test suite from a different angle — repetition, superfluity, coverage gaps (using real xccov data), flaky-in-CI risk, and CI gating of performance tests. Use this skill whenever the user asks to audit, analyze, review, critique, or clean up their tests, including phrases like "test analysis", "audit my tests", "review the test suite", "are there redundant tests", "find flaky tests", "test coverage gaps", "which tests can I delete", "are my tests good", or whenever they want a holistic read on Swift test-suite health. Triggers on Swift Package Manager / Xcode projects with XCTest or swift-testing test targets. Defer to Makefile targets when present; never run `swift test` or `swift build`.
 ---
@@ -34,7 +35,16 @@ Three outcomes to handle:
 
 1. **`make lint` succeeds** (exit 0, no diff or only formatting diff): proceed to the passes. If the lint pass produced a diff, mention it briefly in the eventual report's executive summary so the user knows the working tree changed.
 2. **`make lint` fails** (exit non-zero, real lint errors): stop. Do not run any pass. Report the failure to the user with the first 30-50 lines of error output and ask whether they want to fix lint first or have you proceed anyway. Analysis on a codebase with lint errors gives muddled signal — coverage might be lower than it should be, flaky-prediction heuristics fire on transient violations, etc.
-3. **`make lint` target doesn't exist** (or no Makefile): tell the user, name what you looked for (`make -n lint`), and ask whether to proceed without lint. Don't substitute another linter on your own — the user's project may have intentionally not wired one up.
+3. **`make lint` target doesn't exist** (or no Makefile): create one, then re-run it and proceed. Don't stop to ask. Add a `lint` target that mirrors the project family's convention — for Swift repos this is `swift format -i -r .` (in-place, recursive, toolchain defaults; the pattern used by the sibling intrusive-memory projects such as SwiftVoxAlta and SwiftVinetas). Steps:
+   - If there's a Makefile, add a target and register it in `.PHONY`:
+     ```make
+     ## lint: Format Swift source files with swift-format (in place, recursive).
+     lint:
+     	swift format -i -r .
+     ```
+     If the repo isn't Swift, mirror whatever the sibling/peer repos use; if there's genuinely no convention to copy, fall back to the language's standard formatter. If there's no Makefile at all, create a minimal one with just the `lint` target.
+   - Re-run `make lint` and handle it via outcomes 1 or 2 above.
+   - **First-run reformat caveat**: a repo that never had a formatter will reformat its entire tree on the first `make lint` (potentially hundreds of files / thousands of lines — pure formatting, no logic change). This shifts every line number, which matters for the report's `file:line` references. Surface this to the user: report the diff scale, recommend committing the repo-wide reformat as its own isolated `style:` commit (separate from the new `lint` target commit) **before** running the passes so the analysis runs against stable line numbers, and mention the new `make lint` target in the eventual report's executive summary.
 
 This precondition matters because it ensures the suite under analysis is in the state the maintainers consider clean, not mid-edit. It also catches the common case where a user kicks off the analysis with uncommitted lint violations and gets a noisy report.
 
